@@ -65,7 +65,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (linkError) throw linkError;
 
     await resend.emails.send({
-      from: 'FoodTech R&D <onboarding@resend.dev>',
+      from: 'FoodTech R&D <noreply@news.foodtech.org.ua>',
       to: [email],
       subject: 'Запрошення до FoodTech R&D',
       html: `<h2>Вітаємо, ${name}!</h2><p>Вас запрошено до системи FoodTech R&D.</p><p><a href="${linkData.properties.action_link}">Встановити пароль</a></p>`
