@@ -34,7 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
     await resend.emails.send({
-      from: 'FoodTech R&D <onboarding@resend.dev>',
+      from: 'FoodTech R&D <noreply@news.foodtech.org.ua>',
       to: [userData.user.email!],
       subject: 'Скидання паролю FoodTech R&D',
       html: `<p>Для встановлення нового паролю перейдіть за посиланням:</p><p><a href="${linkData.properties.action_link}">Встановити пароль</a></p>`
