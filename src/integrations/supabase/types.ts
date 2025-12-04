@@ -14,16 +14,217 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          name: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          name?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      request_events: {
+        Row: {
+          actor_email: string
+          created_at: string
+          event_type: Database["public"]["Enums"]["event_type"]
+          id: string
+          payload: Json | null
+          request_id: string
+        }
+        Insert: {
+          actor_email: string
+          created_at?: string
+          event_type: Database["public"]["Enums"]["event_type"]
+          id?: string
+          payload?: Json | null
+          request_id: string
+        }
+        Update: {
+          actor_email?: string
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["event_type"]
+          id?: string
+          payload?: Json | null
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_events_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requests: {
+        Row: {
+          author_email: string
+          code: string
+          created_at: string
+          customer_company: string
+          customer_contact: string | null
+          customer_feedback: string | null
+          customer_result: Database["public"]["Enums"]["client_result"] | null
+          date_sent_for_test: string | null
+          description: string
+          desired_due_date: string | null
+          direction: Database["public"]["Enums"]["direction"]
+          domain: Database["public"]["Enums"]["domain"]
+          eta_first_stage: string | null
+          final_product_name: string | null
+          has_sample_analog: boolean
+          id: string
+          priority: Database["public"]["Enums"]["priority"]
+          production_start_date: string | null
+          rd_comment: string | null
+          responsible_email: string | null
+          status: Database["public"]["Enums"]["status"]
+          updated_at: string
+        }
+        Insert: {
+          author_email: string
+          code: string
+          created_at?: string
+          customer_company: string
+          customer_contact?: string | null
+          customer_feedback?: string | null
+          customer_result?: Database["public"]["Enums"]["client_result"] | null
+          date_sent_for_test?: string | null
+          description: string
+          desired_due_date?: string | null
+          direction: Database["public"]["Enums"]["direction"]
+          domain: Database["public"]["Enums"]["domain"]
+          eta_first_stage?: string | null
+          final_product_name?: string | null
+          has_sample_analog?: boolean
+          id?: string
+          priority?: Database["public"]["Enums"]["priority"]
+          production_start_date?: string | null
+          rd_comment?: string | null
+          responsible_email?: string | null
+          status?: Database["public"]["Enums"]["status"]
+          updated_at?: string
+        }
+        Update: {
+          author_email?: string
+          code?: string
+          created_at?: string
+          customer_company?: string
+          customer_contact?: string | null
+          customer_feedback?: string | null
+          customer_result?: Database["public"]["Enums"]["client_result"] | null
+          date_sent_for_test?: string | null
+          description?: string
+          desired_due_date?: string | null
+          direction?: Database["public"]["Enums"]["direction"]
+          domain?: Database["public"]["Enums"]["domain"]
+          eta_first_stage?: string | null
+          final_product_name?: string | null
+          has_sample_analog?: boolean
+          id?: string
+          priority?: Database["public"]["Enums"]["priority"]
+          production_start_date?: string | null
+          rd_comment?: string | null
+          responsible_email?: string | null
+          status?: Database["public"]["Enums"]["status"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_request_code: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      log_request_event: {
+        Args: {
+          p_actor_email: string
+          p_event_type: Database["public"]["Enums"]["event_type"]
+          p_payload?: Json
+          p_request_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "sales_manager" | "rd_dev" | "rd_manager" | "admin"
+      client_result: "PRODUCTION" | "REWORK" | "DECLINE"
+      direction: "FUNCTIONAL" | "FLAVOR" | "COLORANT" | "COMPLEX"
+      domain:
+        | "MEAT"
+        | "CONFECTIONERY"
+        | "DAIRY"
+        | "BAKERY"
+        | "FISH"
+        | "FATS_OILS"
+        | "ICE_CREAM"
+        | "SEMI_FINISHED"
+      event_type:
+        | "CREATED"
+        | "ASSIGNED"
+        | "STATUS_CHANGED"
+        | "FEEDBACK_ADDED"
+        | "FIELD_UPDATED"
+        | "SENT_FOR_TEST"
+        | "PRODUCTION_SET"
+        | "FEEDBACK_PROVIDED"
+      priority: "LOW" | "MEDIUM" | "HIGH"
+      status:
+        | "PENDING"
+        | "IN_PROGRESS"
+        | "SENT_FOR_TEST"
+        | "APPROVED_FOR_PRODUCTION"
+        | "REJECTED_BY_CLIENT"
+        | "CANCELLED"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +351,39 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["sales_manager", "rd_dev", "rd_manager", "admin"],
+      client_result: ["PRODUCTION", "REWORK", "DECLINE"],
+      direction: ["FUNCTIONAL", "FLAVOR", "COLORANT", "COMPLEX"],
+      domain: [
+        "MEAT",
+        "CONFECTIONERY",
+        "DAIRY",
+        "BAKERY",
+        "FISH",
+        "FATS_OILS",
+        "ICE_CREAM",
+        "SEMI_FINISHED",
+      ],
+      event_type: [
+        "CREATED",
+        "ASSIGNED",
+        "STATUS_CHANGED",
+        "FEEDBACK_ADDED",
+        "FIELD_UPDATED",
+        "SENT_FOR_TEST",
+        "PRODUCTION_SET",
+        "FEEDBACK_PROVIDED",
+      ],
+      priority: ["LOW", "MEDIUM", "HIGH"],
+      status: [
+        "PENDING",
+        "IN_PROGRESS",
+        "SENT_FOR_TEST",
+        "APPROVED_FOR_PRODUCTION",
+        "REJECTED_BY_CLIENT",
+        "CANCELLED",
+      ],
+    },
   },
 } as const
