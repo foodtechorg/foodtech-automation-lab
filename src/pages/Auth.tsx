@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import foodtechLogo from "@/assets/foodtech-logo.png";
 
 export default function Auth() {
   const [loading, setLoading] = useState(false);
@@ -57,23 +58,29 @@ export default function Auth() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold text-primary">FoodTech R&D</CardTitle>
-          <CardDescription>Система управління заявками R&D</CardDescription>
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-100 to-slate-200 p-4">
+      <Card className="w-full max-w-md shadow-lg border-0">
+        <CardHeader className="text-center space-y-4 pb-2">
+          <div className="flex justify-center">
+            <img src={foodtechLogo} alt="FoodTech Logo" className="h-16" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-semibold text-foreground">FoodTech Automation</h1>
+            <p className="text-primary mt-1">Увійдіть в систему</p>
+          </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSignIn} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Електронна пошта</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="your.email@foodtech.org.ua"
+                placeholder="Ваша пошта"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="border-slate-300"
               />
             </div>
             <div className="space-y-2">
@@ -81,10 +88,11 @@ export default function Auth() {
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Введіть ваш пароль"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="border-slate-300"
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
