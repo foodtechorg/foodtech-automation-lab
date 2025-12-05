@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, CalendarIcon, Loader2, Play } from 'lucide-react';
+import { ArrowLeft, CalendarIcon, Edit, Loader2, Play } from 'lucide-react';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -31,6 +32,12 @@ export default function RequestDetail() {
   const [etaDate, setEtaDate] = useState<Date | undefined>();
   const [rdComment, setRdComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Edit dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editEtaDate, setEditEtaDate] = useState<Date | undefined>();
+  const [editRdComment, setEditRdComment] = useState('');
+  const [selectedAction, setSelectedAction] = useState<'update' | 'send_for_test' | 'cancel'>('update');
 
   const { data: request, isLoading } = useQuery({
     queryKey: ['request', id],
@@ -79,6 +86,107 @@ export default function RequestDetail() {
     request?.status === 'PENDING' && 
     !request?.responsible_email && 
     (profile?.role === 'rd_dev' || profile?.role === 'rd_manager' || profile?.role === 'admin');
+
+  const canEditRequest = 
+    request?.status === 'IN_PROGRESS' && 
+    (profile?.role === 'rd_manager' || 
+     profile?.role === 'admin' || 
+     (profile?.role === 'rd_dev' && request?.responsible_email === profile?.email));
+
+  const openEditDialog = () => {
+    setEditEtaDate(request?.eta_first_stage ? new Date(request.eta_first_stage) : undefined);
+    setEditRdComment(request?.rd_comment || '');
+    setSelectedAction('update');
+    setEditDialogOpen(true);
+  };
+
+  const handleEditRequest = async () => {
+    if (!profile?.email || !id) return;
+    if (selectedAction !== 'cancel' && !editEtaDate) {
+      toast.error('Оберіть дату ETA');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (selectedAction === 'update') {
+        const { error } = await supabase
+          .from('requests')
+          .update({
+            eta_first_stage: editEtaDate ? format(editEtaDate, 'yyyy-MM-dd') : null,
+            rd_comment: editRdComment || null,
+          })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        await supabase.rpc('log_request_event', {
+          p_request_id: id,
+          p_actor_email: profile.email,
+          p_event_type: 'FIELD_UPDATED',
+          p_payload: { fields: ['eta_first_stage', 'rd_comment'] },
+        });
+
+        toast.success('Інформацію оновлено');
+      } else if (selectedAction === 'send_for_test') {
+        const { error } = await supabase
+          .from('requests')
+          .update({
+            status: 'SENT_FOR_TEST',
+            eta_first_stage: editEtaDate ? format(editEtaDate, 'yyyy-MM-dd') : null,
+            rd_comment: editRdComment || null,
+            date_sent_for_test: format(new Date(), 'yyyy-MM-dd'),
+          })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        await supabase.rpc('log_request_event', {
+          p_request_id: id,
+          p_actor_email: profile.email,
+          p_event_type: 'SENT_FOR_TEST',
+          p_payload: { date: format(new Date(), 'yyyy-MM-dd') },
+        });
+
+        await supabase.rpc('log_request_event', {
+          p_request_id: id,
+          p_actor_email: profile.email,
+          p_event_type: 'STATUS_CHANGED',
+          p_payload: { from: 'IN_PROGRESS', to: 'SENT_FOR_TEST' },
+        });
+
+        toast.success('Заявку відправлено на тестування');
+      } else if (selectedAction === 'cancel') {
+        const { error } = await supabase
+          .from('requests')
+          .update({
+            status: 'CANCELLED',
+            rd_comment: editRdComment || null,
+          })
+          .eq('id', id);
+
+        if (error) throw error;
+
+        await supabase.rpc('log_request_event', {
+          p_request_id: id,
+          p_actor_email: profile.email,
+          p_event_type: 'STATUS_CHANGED',
+          p_payload: { from: 'IN_PROGRESS', to: 'CANCELLED' },
+        });
+
+        toast.success('Розробку скасовано');
+      }
+
+      setEditDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['request', id] });
+      queryClient.invalidateQueries({ queryKey: ['request-events', id] });
+    } catch (error) {
+      console.error('Error editing request:', error);
+      toast.error('Помилка при оновленні заявки');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleTakeRequest = async () => {
     if (!etaDate || !profile?.email || !id) return;
@@ -191,6 +299,12 @@ export default function RequestDetail() {
                   Взяти в роботу
                 </Button>
               )}
+              {canEditRequest && (
+                <Button variant="outline" onClick={openEditDialog}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Редагувати
+                </Button>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -277,6 +391,91 @@ export default function RequestDetail() {
             <Button onClick={handleTakeRequest} disabled={!etaDate || submitting}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Взяти в роботу
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Request Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Редагувати заявку</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>ETA першого етапу</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !editEtaDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {editEtaDate ? format(editEtaDate, "PPP", { locale: uk }) : "Оберіть дату"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={editEtaDate}
+                    onSelect={setEditEtaDate}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label>Коментар R&D (опціонально)</Label>
+              <Textarea
+                value={editRdComment}
+                onChange={(e) => setEditRdComment(e.target.value.slice(0, 500))}
+                placeholder="Додайте коментар щодо розробки..."
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground text-right">{editRdComment.length}/500 символів</p>
+            </div>
+            <div className="space-y-3">
+              <Label>Оберіть дію</Label>
+              <RadioGroup value={selectedAction} onValueChange={(v) => setSelectedAction(v as any)}>
+                <div className="flex items-start space-x-2">
+                  <RadioGroupItem value="update" id="action-update" className="mt-1" />
+                  <Label htmlFor="action-update" className="font-normal cursor-pointer">
+                    Просто оновити інформацію
+                  </Label>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <RadioGroupItem value="send_for_test" id="action-test" className="mt-1" />
+                  <div>
+                    <Label htmlFor="action-test" className="font-normal cursor-pointer">
+                      Готово до відправки на тест замовнику
+                    </Label>
+                    <p className="text-xs text-muted-foreground">Розробка завершена, зразок готовий для тестування</p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-2">
+                  <RadioGroupItem value="cancel" id="action-cancel" className="mt-1" />
+                  <div>
+                    <Label htmlFor="action-cancel" className="font-normal cursor-pointer">
+                      Скасувати розробку
+                    </Label>
+                    <p className="text-xs text-muted-foreground">Припинити розробку за цією заявкою</p>
+                  </div>
+                </div>
+              </RadioGroup>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Скасувати
+            </Button>
+            <Button onClick={handleEditRequest} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Зберегти
             </Button>
           </DialogFooter>
         </DialogContent>
