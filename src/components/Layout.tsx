@@ -5,6 +5,7 @@ import { NavLink } from '@/components/NavLink';
 import { LogOut, LayoutDashboard, FileText, BarChart3, Plus, Menu, UserCog } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { t } from '@/lib/i18n';
+import foodtechLogo from '@/assets/foodtech-logo.png';
 
 interface LayoutProps {
   children: ReactNode;
@@ -79,7 +80,8 @@ export function Layout({ children }: LayoutProps) {
                 </nav>
               </SheetContent>
             </Sheet>
-            <h1 className="text-xl font-bold text-primary">FoodTech R&D</h1>
+            <img src={foodtechLogo} alt="FoodTech Logo" className="h-8 w-auto" />
+            <h1 className="text-xl font-bold text-primary hidden sm:block">FoodTech R&D</h1>
             <nav className="hidden space-x-1 md:flex ml-8">
               {navigation.map(item => (
                 <NavLink
