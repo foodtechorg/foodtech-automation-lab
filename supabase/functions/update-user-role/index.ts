@@ -1,0 +1,100 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
+    // Verify the requesting user is an admin
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw new Error('Missing authorization header');
+    }
+
+    const { data: { user: requestingUser }, error: authError } = await supabaseAdmin.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (authError || !requestingUser) {
+      throw new Error('Unauthorized');
+    }
+
+    // Check if requesting user is admin
+    const { data: adminRole } = await supabaseAdmin
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', requestingUser.id)
+      .eq('role', 'admin')
+      .single();
+
+    if (!adminRole) {
+      throw new Error('Only administrators can change user roles');
+    }
+
+    const { userId, newRole } = await req.json();
+
+    if (!userId || !newRole) {
+      throw new Error('userId and newRole are required');
+    }
+
+    const validRoles = ['admin', 'sales_manager', 'rd_dev', 'rd_manager'];
+    if (!validRoles.includes(newRole)) {
+      throw new Error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
+    }
+
+    // Prevent admin from changing their own role
+    if (userId === requestingUser.id) {
+      throw new Error('You cannot change your own role');
+    }
+
+    console.log(`Updating role for user ${userId} to ${newRole}`);
+
+    // Update user_roles table
+    const { error: roleError } = await supabaseAdmin
+      .from('user_roles')
+      .update({ role: newRole })
+      .eq('user_id', userId);
+
+    if (roleError) {
+      console.error('Error updating user_roles:', roleError);
+      throw new Error(`Failed to update user_roles: ${roleError.message}`);
+    }
+
+    // Update profiles table for consistency
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .update({ role: newRole })
+      .eq('id', userId);
+
+    if (profileError) {
+      console.error('Error updating profiles:', profileError);
+      throw new Error(`Failed to update profiles: ${profileError.message}`);
+    }
+
+    console.log(`Successfully updated role for user ${userId} to ${newRole}`);
+
+    return new Response(
+      JSON.stringify({ success: true, message: 'Role updated successfully' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('Error in update-user-role:', errorMessage);
+    return new Response(
+      JSON.stringify({ error: errorMessage }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
