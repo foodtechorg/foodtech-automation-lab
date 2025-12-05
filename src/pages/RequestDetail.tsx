@@ -1,22 +1,36 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, CalendarIcon, Loader2, Play } from 'lucide-react';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { translations, t } from '@/lib/i18n';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 export default function RequestDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
+
+  const [takeDialogOpen, setTakeDialogOpen] = useState(false);
+  const [etaDate, setEtaDate] = useState<Date | undefined>();
+  const [rdComment, setRdComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const { data: request, isLoading } = useQuery({
     queryKey: ['request', id],
@@ -58,6 +72,59 @@ export default function RequestDetail() {
       case 'MEDIUM': return 'bg-warning/10 text-warning';
       case 'LOW': return 'bg-success/10 text-success';
       default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const canTakeRequest = 
+    request?.status === 'PENDING' && 
+    !request?.responsible_email && 
+    (profile?.role === 'rd_dev' || profile?.role === 'rd_manager' || profile?.role === 'admin');
+
+  const handleTakeRequest = async () => {
+    if (!etaDate || !profile?.email || !id) return;
+
+    setSubmitting(true);
+    try {
+      // Update request
+      const { error: updateError } = await supabase
+        .from('requests')
+        .update({
+          status: 'IN_PROGRESS',
+          responsible_email: profile.email,
+          eta_first_stage: format(etaDate, 'yyyy-MM-dd'),
+          rd_comment: rdComment || null,
+        })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      // Log ASSIGNED event
+      await supabase.rpc('log_request_event', {
+        p_request_id: id,
+        p_actor_email: profile.email,
+        p_event_type: 'ASSIGNED',
+        p_payload: { responsible_email: profile.email },
+      });
+
+      // Log STATUS_CHANGED event
+      await supabase.rpc('log_request_event', {
+        p_request_id: id,
+        p_actor_email: profile.email,
+        p_event_type: 'STATUS_CHANGED',
+        p_payload: { from: 'PENDING', to: 'IN_PROGRESS' },
+      });
+
+      toast.success('Заявку взято в роботу');
+      setTakeDialogOpen(false);
+      setEtaDate(undefined);
+      setRdComment('');
+      queryClient.invalidateQueries({ queryKey: ['request', id] });
+      queryClient.invalidateQueries({ queryKey: ['request-events', id] });
+    } catch (error) {
+      console.error('Error taking request:', error);
+      toast.error('Помилка при взятті заявки в роботу');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -115,8 +182,16 @@ export default function RequestDetail() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>{translations.requestDetail.sections.rdInfo}</CardTitle>
+            <div className="flex gap-2">
+              {canTakeRequest && (
+                <Button variant="outline" onClick={() => setTakeDialogOpen(true)}>
+                  <Play className="mr-2 h-4 w-4" />
+                  Взяти в роботу
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -150,6 +225,62 @@ export default function RequestDetail() {
           )}
         </CardContent>
       </Card>
+
+      {/* Take Request Dialog */}
+      <Dialog open={takeDialogOpen} onOpenChange={setTakeDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Взяти в роботу</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>ETA першого етапу *</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !etaDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {etaDate ? format(etaDate, "PPP", { locale: uk }) : "Оберіть дату"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={etaDate}
+                    onSelect={setEtaDate}
+                    disabled={(date) => date < new Date()}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="space-y-2">
+              <Label>Коментар R&D (опціонально)</Label>
+              <Textarea
+                value={rdComment}
+                onChange={(e) => setRdComment(e.target.value)}
+                placeholder="Додайте коментар щодо розробки..."
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTakeDialogOpen(false)}>
+              Скасувати
+            </Button>
+            <Button onClick={handleTakeRequest} disabled={!etaDate || submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Взяти в роботу
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
