@@ -33,6 +33,7 @@ export default function AdminPanel() {
   const [role, setRole] = useState<UserRole>('sales_manager');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [updatingRole, setUpdatingRole] = useState<string | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; userId?: string; userName?: string }>({ open: false });
 
   const fetchUsers = async () => {
@@ -93,6 +94,23 @@ export default function AdminPanel() {
     }
   };
 
+  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    setUpdatingRole(userId);
+    try {
+      const { data, error } = await supabase.functions.invoke('update-user-role', {
+        body: { userId, newRole }
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      toast({ title: 'Успіх', description: 'Роль користувача змінено' });
+      setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    } catch (error: any) {
+      toast({ title: 'Помилка', description: error.message, variant: 'destructive' });
+    } finally {
+      setUpdatingRole(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -100,84 +118,114 @@ export default function AdminPanel() {
         <p className="text-muted-foreground">Управління користувачами системи</p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5" />Створити користувача</CardTitle>
-            <CardDescription>Додайте нового користувача до системи</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreateUser} className="space-y-4">
-              <div className="space-y-2">
-                <Label>Email *</Label>
-                <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@foodtech.org.ua" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Ім'я *</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Іван Петренко" required />
-              </div>
-              <div className="space-y-2">
-                <Label>Роль *</Label>
-                <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="sales_manager">Менеджер продажів</SelectItem>
-                    <SelectItem value="rd_dev">Розробник R&D</SelectItem>
-                    <SelectItem value="rd_manager">Менеджер R&D</SelectItem>
-                    <SelectItem value="admin">Адміністратор</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Створення...</> : 'Створити користувача'}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span className="flex items-center gap-2"><Users className="h-5 w-5" />Користувачі</span>
-              <Button variant="ghost" size="icon" onClick={fetchUsers}><RefreshCw className={`h-4 w-4 ${loadingUsers ? 'animate-spin' : ''}`} /></Button>
-            </CardTitle>
-            <CardDescription>{users.length} користувачів в системі</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Ім'я</TableHead>
-                    <TableHead>Роль</TableHead>
-                    <TableHead>Дії</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {users.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell>
-                        <div><p className="font-medium">{u.name}</p><p className="text-xs text-muted-foreground">{u.email}</p></div>
-                      </TableCell>
-                      <TableCell>{t.role(u.role)}</TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => handleResetPassword(u.id)}>Скинути пароль</Button>
-                          {u.id !== user?.id && (
-                            <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, userId: u.id, userName: u.name })}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5" />Адміністрування користувачів</CardTitle>
+          <CardDescription>Створення нових користувачів системи. Після створення на вказану пошту буде надіслано запрошення для встановлення паролю.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleCreateUser} className="grid gap-4 md:grid-cols-4">
+            <div className="space-y-2">
+              <Label>Email *</Label>
+              <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@foodtech.org.ua" required />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="space-y-2">
+              <Label>Ім'я *</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Іван Петренко" required />
+            </div>
+            <div className="space-y-2">
+              <Label>Роль *</Label>
+              <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sales_manager">Менеджер продажів</SelectItem>
+                  <SelectItem value="rd_dev">Розробник R&D</SelectItem>
+                  <SelectItem value="rd_manager">Менеджер R&D</SelectItem>
+                  <SelectItem value="admin">Адміністратор</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Створення...</>
+                ) : (
+                  <><UserPlus className="mr-2 h-4 w-4" />Створити користувача</>
+                )}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span className="flex items-center gap-2"><Users className="h-5 w-5" />Список користувачів</span>
+            <Button variant="ghost" size="icon" onClick={fetchUsers}><RefreshCw className={`h-4 w-4 ${loadingUsers ? 'animate-spin' : ''}`} /></Button>
+          </CardTitle>
+          <CardDescription>Управління існуючими користувачами системи</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Ім'я</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Роль</TableHead>
+                  <TableHead>Створено</TableHead>
+                  <TableHead>Дії</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {users.map((u) => (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-medium">{u.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                    <TableCell>
+                      <Select 
+                        value={u.role} 
+                        onValueChange={(newRole) => handleRoleChange(u.id, newRole as UserRole)}
+                        disabled={u.id === user?.id || updatingRole === u.id}
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          {updatingRole === u.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <SelectValue />
+                          )}
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="sales_manager">Менеджер продажів</SelectItem>
+                          <SelectItem value="rd_dev">Розробник R&D</SelectItem>
+                          <SelectItem value="rd_manager">Менеджер R&D</SelectItem>
+                          <SelectItem value="admin">Адміністратор</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {format(new Date(u.created_at), 'dd.MM.yyyy', { locale: uk })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => handleResetPassword(u.id)} title="Скинути пароль">
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                        {u.id !== user?.id && (
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, userId: u.id, userName: u.name })} title="Видалити">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
 
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}>
         <AlertDialogContent>

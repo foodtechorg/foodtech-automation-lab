@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.import-users]
 verify_jwt = true
+
+[functions.update-user-role]
+verify_jwt = true
