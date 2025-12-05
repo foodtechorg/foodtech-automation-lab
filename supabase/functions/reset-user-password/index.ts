@@ -24,10 +24,13 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (userError) throw userError;
 
+    // Use the project's preview URL for password reset redirect
+    const siteUrl = 'https://foodtech-rd-portal.lovable.app';
+    
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email: userData.user.email!,
-      options: { redirectTo: `${req.headers.get('origin') || 'https://lovable.dev'}/set-password` }
+      options: { redirectTo: `${siteUrl}/set-password` }
     });
 
     if (linkError) throw linkError;
