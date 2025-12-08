@@ -163,8 +163,18 @@ export default function RequestDetail() {
           p_request_id: id,
           p_actor_email: profile.email,
           p_event_type: 'FIELD_UPDATED',
-          p_payload: { fields: ['eta_first_stage', 'rd_comment'] },
+          p_payload: { fields: ['eta_first_stage'] },
         });
+
+        // Log R&D comment as FEEDBACK_ADDED event
+        if (editRdComment && editRdComment.trim()) {
+          await supabase.rpc('log_request_event', {
+            p_request_id: id,
+            p_actor_email: profile.email,
+            p_event_type: 'FEEDBACK_ADDED',
+            p_payload: { comment: editRdComment.trim() },
+          });
+        }
 
         toast.success('Інформацію оновлено');
       } else if (selectedAction === 'send_for_test') {
@@ -356,6 +366,16 @@ export default function RequestDetail() {
         p_payload: { from: 'PENDING', to: 'IN_PROGRESS' },
       });
 
+      // Log R&D comment as FEEDBACK_ADDED event
+      if (rdComment && rdComment.trim()) {
+        await supabase.rpc('log_request_event', {
+          p_request_id: id,
+          p_actor_email: profile.email,
+          p_event_type: 'FEEDBACK_ADDED',
+          p_payload: { comment: rdComment.trim() },
+        });
+      }
+
       toast.success('Заявку взято в роботу');
       setTakeDialogOpen(false);
       setEtaDate(undefined);
@@ -514,7 +534,6 @@ export default function RequestDetail() {
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.responsibleDev}:</span><p className="font-medium">{request.responsible_email ? emailToName[request.responsible_email] : translations.requests.unassigned}</p></div>
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.etaFirstStage}:</span><p className="font-medium">{request.eta_first_stage ? format(new Date(request.eta_first_stage), 'PPP', { locale: uk }) : '-'}</p></div>
             </div>
-            {request.rd_comment && <div><span className="text-muted-foreground">{translations.requestDetail.fields.rdComment}:</span><p className="mt-1 whitespace-pre-wrap">{request.rd_comment}</p></div>}
             {request.date_sent_for_test && <div><span className="text-muted-foreground">{translations.requestDetail.fields.dateSentForTest}:</span><p className="font-medium">{format(new Date(request.date_sent_for_test), 'PPP', { locale: uk })}</p></div>}
             {/* Comments Feed */}
             {events && events.filter(e => e.event_type === 'FEEDBACK_ADDED').length > 0 && (
