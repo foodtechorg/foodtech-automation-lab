@@ -151,6 +151,44 @@ export type Database = {
         }
         Relationships: []
       }
+      test_results: {
+        Row: {
+          actor_email: string
+          created_at: string
+          feedback: string
+          id: string
+          is_final: boolean
+          request_id: string
+          result: Database["public"]["Enums"]["client_result"]
+        }
+        Insert: {
+          actor_email: string
+          created_at?: string
+          feedback: string
+          id?: string
+          is_final?: boolean
+          request_id: string
+          result: Database["public"]["Enums"]["client_result"]
+        }
+        Update: {
+          actor_email?: string
+          created_at?: string
+          feedback?: string
+          id?: string
+          is_final?: boolean
+          request_id?: string
+          result?: Database["public"]["Enums"]["client_result"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "test_results_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
