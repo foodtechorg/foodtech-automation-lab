@@ -44,6 +44,10 @@ export default function RequestDetail() {
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackResult, setFeedbackResult] = useState<'PRODUCTION' | 'REWORK' | 'DECLINE' | null>(null);
 
+  // Comment dialog state
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+  const [newComment, setNewComment] = useState('');
+
   const { data: request, isLoading } = useQuery({
     queryKey: ['request', id],
     queryFn: async () => {
@@ -116,6 +120,17 @@ export default function RequestDetail() {
     request?.status === 'SENT_FOR_TEST' && 
     profile?.role === 'sales_manager' && 
     request?.author_email === profile?.email;
+
+  const canAddComment = 
+    request?.status !== 'APPROVED_FOR_PRODUCTION' && 
+    request?.status !== 'REJECTED_BY_CLIENT' &&
+    request?.status !== 'CANCELLED' &&
+    (
+      (profile?.role === 'sales_manager' && request?.author_email === profile?.email) ||
+      profile?.role === 'rd_dev' || 
+      profile?.role === 'rd_manager' || 
+      profile?.role === 'admin'
+    );
 
   const openEditDialog = () => {
     setEditEtaDate(request?.eta_first_stage ? new Date(request.eta_first_stage) : undefined);
@@ -355,6 +370,30 @@ export default function RequestDetail() {
     }
   };
 
+  const handleAddComment = async () => {
+    if (!profile?.email || !id || newComment.trim().length < 5) return;
+    
+    setSubmitting(true);
+    try {
+      await supabase.rpc('log_request_event', {
+        p_request_id: id,
+        p_actor_email: profile.email,
+        p_event_type: 'FEEDBACK_ADDED',
+        p_payload: { comment: newComment.trim() },
+      });
+      
+      toast.success('Коментар додано');
+      setCommentDialogOpen(false);
+      setNewComment('');
+      queryClient.invalidateQueries({ queryKey: ['request-events', id] });
+    } catch (error) {
+      console.error('Error adding comment:', error);
+      toast.error('Помилка при додаванні коментаря');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -389,8 +428,14 @@ export default function RequestDetail() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle>{translations.requestDetail.sections.requestInfo}</CardTitle>
+            {canProvideFeedback && (
+              <Button variant="outline" onClick={() => setFeedbackDialogOpen(true)}>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Результати тестування
+              </Button>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
@@ -405,40 +450,6 @@ export default function RequestDetail() {
             </div>
             <Separator />
             <div><span className="text-muted-foreground">{translations.requestDetail.fields.description}:</span><p className="mt-1">{request.description}</p></div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle>{translations.requestDetail.sections.rdInfo}</CardTitle>
-            <div className="flex gap-2">
-              {canTakeRequest && (
-                <Button variant="outline" onClick={() => setTakeDialogOpen(true)}>
-                  <Play className="mr-2 h-4 w-4" />
-                  Взяти в роботу
-                </Button>
-              )}
-              {canEditRequest && (
-                <Button variant="outline" onClick={openEditDialog}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Редагувати
-                </Button>
-              )}
-              {canProvideFeedback && (
-                <Button variant="outline" onClick={() => setFeedbackDialogOpen(true)}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Результати тестування
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted-foreground">{translations.requestDetail.fields.responsibleDev}:</span><p className="font-medium">{request.responsible_email ? emailToName[request.responsible_email] : translations.requests.unassigned}</p></div>
-              <div><span className="text-muted-foreground">{translations.requestDetail.fields.etaFirstStage}:</span><p className="font-medium">{request.eta_first_stage ? format(new Date(request.eta_first_stage), 'PPP', { locale: uk }) : '-'}</p></div>
-            </div>
-            {request.rd_comment && <div><span className="text-muted-foreground">{translations.requestDetail.fields.rdComment}:</span><p className="mt-1 whitespace-pre-wrap">{request.rd_comment}</p></div>}
-            {request.date_sent_for_test && <div><span className="text-muted-foreground">{translations.requestDetail.fields.dateSentForTest}:</span><p className="font-medium">{format(new Date(request.date_sent_for_test), 'PPP', { locale: uk })}</p></div>}
             {/* Test Results History */}
             {testResults && testResults.length > 0 && (
               <>
@@ -468,6 +479,67 @@ export default function RequestDetail() {
                       <p className="text-xs mt-1">— {emailToName[result.actor_email] || result.actor_email}</p>
                     </div>
                   ))}
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+            <CardTitle>{translations.requestDetail.sections.rdInfo}</CardTitle>
+            <div className="flex gap-2">
+              {canTakeRequest && (
+                <Button variant="outline" onClick={() => setTakeDialogOpen(true)}>
+                  <Play className="mr-2 h-4 w-4" />
+                  Взяти в роботу
+                </Button>
+              )}
+              {canEditRequest && (
+                <Button variant="outline" onClick={openEditDialog}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Редагувати
+                </Button>
+              )}
+              {canAddComment && (
+                <Button variant="outline" onClick={() => setCommentDialogOpen(true)}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Додати коментар
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><span className="text-muted-foreground">{translations.requestDetail.fields.responsibleDev}:</span><p className="font-medium">{request.responsible_email ? emailToName[request.responsible_email] : translations.requests.unassigned}</p></div>
+              <div><span className="text-muted-foreground">{translations.requestDetail.fields.etaFirstStage}:</span><p className="font-medium">{request.eta_first_stage ? format(new Date(request.eta_first_stage), 'PPP', { locale: uk }) : '-'}</p></div>
+            </div>
+            {request.rd_comment && <div><span className="text-muted-foreground">{translations.requestDetail.fields.rdComment}:</span><p className="mt-1 whitespace-pre-wrap">{request.rd_comment}</p></div>}
+            {request.date_sent_for_test && <div><span className="text-muted-foreground">{translations.requestDetail.fields.dateSentForTest}:</span><p className="font-medium">{format(new Date(request.date_sent_for_test), 'PPP', { locale: uk })}</p></div>}
+            {/* Comments Feed */}
+            {events && events.filter(e => e.event_type === 'FEEDBACK_ADDED').length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <span className="text-sm text-muted-foreground font-medium">Коментарі:</span>
+                  {events
+                    .filter(e => e.event_type === 'FEEDBACK_ADDED')
+                    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+                    .map((event) => (
+                      <div key={event.id} className="p-3 rounded-md border text-sm bg-muted/30">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="font-medium">
+                            {emailToName[event.actor_email] || event.actor_email}
+                          </span>
+                          <span className="text-muted-foreground text-xs">
+                            {format(new Date(event.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground">
+                          {(event.payload as any)?.comment}
+                        </p>
+                      </div>
+                    ))}
                 </div>
               </>
             )}
@@ -701,6 +773,41 @@ export default function RequestDetail() {
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Зберегти результат
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Comment Dialog */}
+      <Dialog open={commentDialogOpen} onOpenChange={setCommentDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Додати коментар</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Коментар</Label>
+              <Textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Введіть коментар..."
+                rows={4}
+              />
+              <p className="text-xs text-muted-foreground text-right">
+                {newComment.length} символів
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCommentDialogOpen(false)}>
+              Скасувати
+            </Button>
+            <Button 
+              onClick={handleAddComment} 
+              disabled={submitting || newComment.trim().length < 5}
+            >
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Додати
             </Button>
           </DialogFooter>
         </DialogContent>
