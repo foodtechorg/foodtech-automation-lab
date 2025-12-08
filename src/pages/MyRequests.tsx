@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -14,6 +15,7 @@ import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { translations, t } from '@/lib/i18n';
 import { Constants } from '@/integrations/supabase/types';
+import { Plus } from 'lucide-react';
 
 export default function MyRequests() {
   const { profile } = useAuth();
@@ -71,9 +73,15 @@ export default function MyRequests() {
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>{translations.requests.requestList}</CardTitle>
-          <CardDescription>{filteredRequests.length} {translations.requests.requestsFound}</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <div>
+            <CardTitle>{translations.requests.requestList}</CardTitle>
+            <CardDescription>{filteredRequests.length} {translations.requests.requestsFound}</CardDescription>
+          </div>
+          <Button onClick={() => navigate('/requests/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Нова заявка
+          </Button>
         </CardHeader>
         <CardContent>
           {/* Filters */}
