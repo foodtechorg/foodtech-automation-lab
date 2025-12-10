@@ -25,7 +25,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (userError) throw userError;
 
     // Use the project's production URL for password reset redirect
-    const siteUrl = 'https://foody-forge-cloud.lovable.app';
+    const siteUrl = 'https://rd.foodtech.org.ua';
     
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
