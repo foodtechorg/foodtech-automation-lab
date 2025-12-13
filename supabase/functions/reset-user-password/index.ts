@@ -24,8 +24,8 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
     if (userError) throw userError;
 
-    // Use the project's production URL for password reset redirect
-    const siteUrl = 'https://rd.foodtech.org.ua';
+    // Use the project's staging URL for password reset redirect
+    const siteUrl = 'https://staging.rd.foodtech.org.ua';
     
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
