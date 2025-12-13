@@ -59,7 +59,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
       type: 'magiclink',
       email,
-      options: { redirectTo: 'https://rd.foodtech.org.ua/set-password' }
+      options: { redirectTo: 'https://staging.rd.foodtech.org.ua/set-password' }
     });
 
     if (linkError) throw linkError;
