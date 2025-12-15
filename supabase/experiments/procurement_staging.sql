@@ -179,63 +179,6 @@ END $$;
 
 
 -- ============================================================================
--- ЧАСТИНА 2.5: ФУНКЦІЇ ГЕНЕРАЦІЇ НОМЕРІВ (перед таблицями, бо використовуються в DEFAULT)
--- ============================================================================
-
--- -----------------------------------------------------------------------------
--- Функція: generate_purchase_request_number()
--- Генерує унікальний номер заявки у форматі ZK-0001
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.generate_purchase_request_number()
-RETURNS TEXT
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-    next_number INTEGER;
-    new_number TEXT;
-BEGIN
-    -- Знаходимо максимальний номер і додаємо 1
-    SELECT COALESCE(MAX(CAST(SUBSTRING(number FROM 4) AS INTEGER)), 0) + 1
-    INTO next_number 
-    FROM public.purchase_requests;
-    
-    -- Формуємо номер з лідируючими нулями
-    new_number := 'ZK-' || LPAD(next_number::TEXT, 4, '0');
-    
-    RETURN new_number;
-END;
-$$;
-
--- -----------------------------------------------------------------------------
--- Функція: generate_purchase_invoice_number()
--- Генерує унікальний номер рахунку у форматі INV-0001
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.generate_purchase_invoice_number()
-RETURNS TEXT
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-    next_number INTEGER;
-    new_number TEXT;
-BEGIN
-    -- Знаходимо максимальний номер і додаємо 1
-    SELECT COALESCE(MAX(CAST(SUBSTRING(number FROM 5) AS INTEGER)), 0) + 1
-    INTO next_number 
-    FROM public.purchase_invoices;
-    
-    -- Формуємо номер з лідируючими нулями
-    new_number := 'INV-' || LPAD(next_number::TEXT, 4, '0');
-    
-    RETURN new_number;
-END;
-$$;
-
-
--- ============================================================================
 -- ЧАСТИНА 3: ТАБЛИЦІ
 -- ============================================================================
 
@@ -246,7 +189,7 @@ CREATE TABLE IF NOT EXISTS public.purchase_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Номер заявки (генерується автоматично: ZK-0001, ZK-0002, ...)
-    number TEXT UNIQUE NOT NULL DEFAULT public.generate_purchase_request_number(),
+    number TEXT UNIQUE NOT NULL,
     
     -- Тип закупівлі
     purchase_type public.purchase_type NOT NULL DEFAULT 'TMC',
@@ -338,7 +281,7 @@ CREATE TABLE IF NOT EXISTS public.purchase_invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Номер рахунку (генерується автоматично: INV-0001, INV-0002, ...)
-    number TEXT UNIQUE NOT NULL DEFAULT public.generate_purchase_invoice_number(),
+    number TEXT UNIQUE NOT NULL,
     
     -- Зв'язок із заявкою (опціонально - рахунок може бути без заявки)
     request_id UUID REFERENCES public.purchase_requests(id) ON DELETE SET NULL,
@@ -494,11 +437,60 @@ CREATE INDEX IF NOT EXISTS idx_purchase_logs_created_at ON public.purchase_logs(
 
 
 -- ============================================================================
--- ЧАСТИНА 4: ІНШІ ФУНКЦІЇ
+-- ЧАСТИНА 4: ФУНКЦІЇ
 -- ============================================================================
--- Примітка: функції generate_purchase_request_number() та generate_purchase_invoice_number()
--- перенесені до ЧАСТИНИ 2.5 (перед таблицями), оскільки вони використовуються в DEFAULT
 
+-- -----------------------------------------------------------------------------
+-- Функція: generate_purchase_request_number()
+-- Генерує унікальний номер заявки у форматі ZK-0001
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.generate_purchase_request_number()
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    next_number INTEGER;
+    new_number TEXT;
+BEGIN
+    -- Знаходимо максимальний номер і додаємо 1
+    SELECT COALESCE(MAX(CAST(SUBSTRING(number FROM 4) AS INTEGER)), 0) + 1
+    INTO next_number 
+    FROM public.purchase_requests;
+    
+    -- Формуємо номер з лідируючими нулями
+    new_number := 'ZK-' || LPAD(next_number::TEXT, 4, '0');
+    
+    RETURN new_number;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
+-- Функція: generate_purchase_invoice_number()
+-- Генерує унікальний номер рахунку у форматі INV-0001
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.generate_purchase_invoice_number()
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+    next_number INTEGER;
+    new_number TEXT;
+BEGIN
+    -- Знаходимо максимальний номер і додаємо 1
+    SELECT COALESCE(MAX(CAST(SUBSTRING(number FROM 5) AS INTEGER)), 0) + 1
+    INTO next_number 
+    FROM public.purchase_invoices;
+    
+    -- Формуємо номер з лідируючими нулями
+    new_number := 'INV-' || LPAD(next_number::TEXT, 4, '0');
+    
+    RETURN new_number;
+END;
+$$;
 
 -- -----------------------------------------------------------------------------
 -- Функція: log_purchase_event()
