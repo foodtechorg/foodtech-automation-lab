@@ -92,7 +92,6 @@ export interface CreatePurchaseRequestPayload {
   purchase_type: PurchaseType;
   description?: string;
   desired_date?: string;
-  currency: string;
   created_by: string;
 }
 

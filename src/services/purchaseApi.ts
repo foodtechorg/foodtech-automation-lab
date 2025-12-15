@@ -66,7 +66,6 @@ export async function createPurchaseRequest(
       purchase_type: payload.purchase_type,
       description: payload.description || null,
       desired_date: payload.desired_date || null,
-      currency: payload.currency,
       created_by: payload.created_by,
       status: 'DRAFT',
     })
@@ -79,6 +78,22 @@ export async function createPurchaseRequest(
   }
 
   return data as PurchaseRequest;
+}
+
+// Update purchase request status
+export async function updatePurchaseRequestStatus(
+  id: string,
+  status: string
+): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('purchase_requests')
+    .update({ status })
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error updating purchase request status:', error);
+    throw error;
+  }
 }
 
 // Create items for a purchase request
