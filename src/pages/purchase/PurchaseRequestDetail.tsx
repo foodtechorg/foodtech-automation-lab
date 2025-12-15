@@ -21,7 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Package, Send, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, Send, Trash2, Check, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getPurchaseRequestById, getPurchaseRequestItems, updatePurchaseRequestStatus, deletePurchaseRequest } from '@/services/purchaseApi';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +29,8 @@ import type { PurchaseRequest, PurchaseRequestItem, PurchaseRequestStatus, Purch
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
+import { Textarea } from '@/components/ui/textarea';
 
 const statusLabels: Record<PurchaseRequestStatus, string> = {
   DRAFT: 'Чернетка',
@@ -52,6 +54,7 @@ const typeLabels: Record<PurchaseType, string> = {
 export default function PurchaseRequestDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { profile } = useAuth();
   
   const [request, setRequest] = useState<PurchaseRequest | null>(null);
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
@@ -60,8 +63,13 @@ export default function PurchaseRequestDetail() {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectComment, setRejectComment] = useState('');
 
   const isDraft = request?.status === 'DRAFT';
+  const isPendingApproval = request?.status === 'PENDING_APPROVAL';
+  const isCOO = profile?.role === 'coo' || profile?.role === 'admin';
 
   useEffect(() => {
     async function loadData() {
@@ -138,6 +146,37 @@ export default function PurchaseRequestDetail() {
       console.error(err);
       toast.error('Помилка при видаленні заявки');
       setIsDeleting(false);
+    }
+  };
+
+  const handleApprove = async () => {
+    if (!id) return;
+    setIsApproving(true);
+    try {
+      await updatePurchaseRequestStatus(id, 'IN_PROGRESS');
+      setRequest(prev => prev ? { ...prev, status: 'IN_PROGRESS' } : null);
+      toast.success('Заявку погоджено');
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка при погодженні заявки');
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!id) return;
+    setIsRejecting(true);
+    try {
+      await updatePurchaseRequestStatus(id, 'REJECTED');
+      setRequest(prev => prev ? { ...prev, status: 'REJECTED' } : null);
+      toast.success('Заявку відхилено');
+      setRejectComment('');
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка при відхиленні заявки');
+    } finally {
+      setIsRejecting(false);
     }
   };
 
@@ -220,6 +259,57 @@ export default function PurchaseRequestDetail() {
                   <AlertDialogCancel>Скасувати</AlertDialogCancel>
                   <AlertDialogAction onClick={handleDelete}>
                     Видалити
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
+
+        {/* COO Approval actions */}
+        {isCOO && isPendingApproval && (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleApprove}
+              disabled={isApproving}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isApproving ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              Погодити
+            </Button>
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isRejecting}>
+                  {isRejecting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <X className="mr-2 h-4 w-4" />
+                  )}
+                  Відхилити
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Відхилити заявку?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Ви впевнені, що хочете відхилити заявку {request.number}?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Textarea
+                  placeholder="Коментар (необов'язково)"
+                  value={rejectComment}
+                  onChange={(e) => setRejectComment(e.target.value)}
+                  className="my-2"
+                />
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Скасувати</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleReject}>
+                    Відхилити
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
