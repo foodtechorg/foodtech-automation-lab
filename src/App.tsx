@@ -16,6 +16,12 @@ import Analytics from "./pages/Analytics";
 import RequestDetail from "./pages/RequestDetail";
 import AdminPanel from "./pages/AdminPanel";
 import NotFound from "./pages/NotFound";
+// Purchase module pages
+import PurchaseRequests from "./pages/purchase/PurchaseRequests";
+import NewPurchaseRequest from "./pages/purchase/NewPurchaseRequest";
+import PurchaseRequestDetail from "./pages/purchase/PurchaseRequestDetail";
+import PurchaseInvoices from "./pages/purchase/PurchaseInvoices";
+import PurchaseInvoiceDetail from "./pages/purchase/PurchaseInvoiceDetail";
 
 const queryClient = new QueryClient();
 
@@ -95,6 +101,57 @@ const App = () => (
                 <ProtectedRoute allowedRoles={['rd_manager', 'admin']}>
                   <Layout>
                     <Analytics />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            {/* Purchase module routes */}
+            <Route
+              path="/purchase/requests"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PurchaseRequests />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchase/requests/new"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <NewPurchaseRequest />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchase/requests/:id"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PurchaseRequestDetail />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchase/invoices"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PurchaseInvoices />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchase/invoices/:id"
+              element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PurchaseInvoiceDetail />
                   </Layout>
                 </ProtectedRoute>
               }

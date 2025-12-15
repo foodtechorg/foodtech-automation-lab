@@ -2,7 +2,7 @@ import { ReactNode, useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { NavLink } from '@/components/NavLink';
-import { LogOut, LayoutDashboard, FileText, BarChart3, Plus, Menu, UserCog } from 'lucide-react';
+import { LogOut, LayoutDashboard, FileText, BarChart3, Plus, Menu, UserCog, ShoppingCart } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { t } from '@/lib/i18n';
 import foodtechLogo from '@/assets/foodtech-logo.png';
@@ -24,6 +24,14 @@ export function Layout({
       label: 'Панель управління',
       icon: LayoutDashboard
     }];
+    
+    // Purchase module navigation - available to all authenticated users
+    const purchaseNav = [{
+      to: '/purchase/requests',
+      label: 'Закупівля ТМЦ',
+      icon: ShoppingCart
+    }];
+    
     switch (profile.role) {
       case 'admin':
         return [...common, {
@@ -38,7 +46,7 @@ export function Layout({
           to: '/analytics',
           label: 'Аналітика',
           icon: BarChart3
-        }];
+        }, ...purchaseNav];
       case 'sales_manager':
         return [...common, {
           to: '/requests/my',
@@ -48,13 +56,13 @@ export function Layout({
           to: '/requests/new',
           label: 'Нова заявка',
           icon: Plus
-        }];
+        }, ...purchaseNav];
       case 'rd_dev':
         return [...common, {
           to: '/rd/board',
           label: 'Дошка R&D',
           icon: FileText
-        }];
+        }, ...purchaseNav];
       case 'rd_manager':
         return [...common, {
           to: '/rd/board',
@@ -64,9 +72,16 @@ export function Layout({
           to: '/analytics',
           label: 'Аналітика',
           icon: BarChart3
-        }];
+        }, ...purchaseNav];
+      // New procurement roles
+      case 'procurement_manager':
+      case 'coo':
+      case 'ceo':
+      case 'treasurer':
+      case 'accountant':
+        return [...common, ...purchaseNav];
       default:
-        return common;
+        return [...common, ...purchaseNav];
     }
   };
   const navigation = getNavigation();

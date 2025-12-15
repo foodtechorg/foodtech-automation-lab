@@ -37,7 +37,12 @@ export const translations = {
     sales_manager: "Менеджер продажів",
     rd_dev: "Розробник R&D",
     rd_manager: "Менеджер R&D",
-    admin: "Адміністратор"
+    admin: "Адміністратор",
+    procurement_manager: "Менеджер закупівель",
+    coo: "Операційний директор",
+    ceo: "Генеральний директор",
+    treasurer: "Казначей",
+    accountant: "Бухгалтер"
   },
   eventType: {
     CREATED: "Створено",
