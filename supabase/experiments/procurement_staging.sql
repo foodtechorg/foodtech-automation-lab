@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS public.purchase_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Номер заявки (генерується автоматично: ZK-0001, ZK-0002, ...)
-    number TEXT UNIQUE NOT NULL,
+    number TEXT UNIQUE NOT NULL DEFAULT public.generate_purchase_request_number(),
     
     -- Тип закупівлі
     purchase_type public.purchase_type NOT NULL DEFAULT 'TMC',
@@ -281,7 +281,7 @@ CREATE TABLE IF NOT EXISTS public.purchase_invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- Номер рахунку (генерується автоматично: INV-0001, INV-0002, ...)
-    number TEXT UNIQUE NOT NULL,
+    number TEXT UNIQUE NOT NULL DEFAULT public.generate_purchase_invoice_number(),
     
     -- Зв'язок із заявкою (опціонально - рахунок може бути без заявки)
     request_id UUID REFERENCES public.purchase_requests(id) ON DELETE SET NULL,
