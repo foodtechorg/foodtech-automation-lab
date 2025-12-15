@@ -120,3 +120,16 @@ export async function createPurchaseRequestItems(
 
   return (data || []) as PurchaseRequestItem[];
 }
+
+// Delete a purchase request (only drafts)
+export async function deletePurchaseRequest(id: string): Promise<void> {
+  const { error } = await (supabase as any)
+    .from('purchase_requests')
+    .delete()
+    .eq('id', id);
+
+  if (error) {
+    console.error('Error deleting purchase request:', error);
+    throw error;
+  }
+}

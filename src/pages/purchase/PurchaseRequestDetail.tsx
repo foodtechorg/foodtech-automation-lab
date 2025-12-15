@@ -10,12 +10,24 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, Loader2, Package } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { ArrowLeft, Loader2, Package, Send, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getPurchaseRequestById, getPurchaseRequestItems } from '@/services/purchaseApi';
+import { getPurchaseRequestById, getPurchaseRequestItems, updatePurchaseRequestStatus, deletePurchaseRequest } from '@/services/purchaseApi';
 import type { PurchaseRequest, PurchaseRequestItem, PurchaseRequestStatus, PurchaseType, PurchaseItemStatus } from '@/types/purchase';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 const statusLabels: Record<PurchaseRequestStatus, string> = {
   DRAFT: 'Чернетка',
@@ -53,6 +65,10 @@ export default function PurchaseRequestDetail() {
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isDraft = request?.status === 'DRAFT';
 
   useEffect(() => {
     async function loadData() {
@@ -90,6 +106,35 @@ export default function PurchaseRequestDetail() {
   const formatDateShort = (dateStr: string | null) => {
     if (!dateStr) return '—';
     return format(new Date(dateStr), 'dd.MM.yyyy', { locale: uk });
+  };
+
+  const handleSubmitForApproval = async () => {
+    if (!id) return;
+    setIsSubmitting(true);
+    try {
+      await updatePurchaseRequestStatus(id, 'PENDING_APPROVAL');
+      setRequest(prev => prev ? { ...prev, status: 'PENDING_APPROVAL' } : null);
+      toast.success('Заявку відправлено на погодження');
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка при відправці на погодження');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    setIsDeleting(true);
+    try {
+      await deletePurchaseRequest(id);
+      toast.success('Заявку видалено');
+      navigate('/purchase/requests');
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка при видаленні заявки');
+      setIsDeleting(false);
+    }
   };
 
   if (loading) {
@@ -133,6 +178,50 @@ export default function PurchaseRequestDetail() {
           </div>
           <p className="text-muted-foreground">Заявка на закупівлю</p>
         </div>
+        
+        {/* Draft actions */}
+        {isDraft && (
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleSubmitForApproval}
+              disabled={isSubmitting || items.length === 0}
+            >
+              {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="mr-2 h-4 w-4" />
+              )}
+              Відправити на погодження
+            </Button>
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={isDeleting}>
+                  {isDeleting ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="mr-2 h-4 w-4" />
+                  )}
+                  Видалити
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Видалити заявку?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Ви впевнені, що хочете видалити заявку {request.number}? Цю дію неможливо скасувати.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Скасувати</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDelete}>
+                    Видалити
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        )}
       </div>
 
       {/* Request Info */}
