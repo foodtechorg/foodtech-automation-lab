@@ -24,7 +24,8 @@ import {
 import { ArrowLeft, Loader2, Package, Send, Trash2 } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getPurchaseRequestById, getPurchaseRequestItems, updatePurchaseRequestStatus, deletePurchaseRequest } from '@/services/purchaseApi';
-import type { PurchaseRequest, PurchaseRequestItem, PurchaseRequestStatus, PurchaseType, PurchaseItemStatus } from '@/types/purchase';
+import { supabase } from '@/integrations/supabase/client';
+import type { PurchaseRequest, PurchaseRequestItem, PurchaseRequestStatus, PurchaseType } from '@/types/purchase';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -48,21 +49,13 @@ const typeLabels: Record<PurchaseType, string> = {
   SERVICE: 'Послуга',
 };
 
-const itemStatusLabels: Record<PurchaseItemStatus, string> = {
-  IN_PROGRESS: 'В роботі',
-  PENDING_APPROVAL: 'На погодженні',
-  TO_PAY: 'До оплати',
-  PAID: 'Оплачено',
-  DELIVERED: 'Доставлено',
-  REJECTED: 'Відхилено',
-};
-
 export default function PurchaseRequestDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   
   const [request, setRequest] = useState<PurchaseRequest | null>(null);
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
+  const [creatorName, setCreatorName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -88,6 +81,17 @@ export default function PurchaseRequestDetail() {
         
         setRequest(requestData);
         setItems(itemsData);
+        
+        // Load creator profile
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('name, email')
+          .eq('id', requestData.created_by)
+          .single();
+        
+        if (profileData) {
+          setCreatorName(profileData.name || profileData.email);
+        }
       } catch (err) {
         console.error(err);
         setError('Не вдалося завантажити дані заявки');
@@ -232,12 +236,12 @@ export default function PurchaseRequestDetail() {
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <p className="text-sm text-muted-foreground">Тип закупівлі</p>
-              <p className="font-medium">{typeLabels[request.purchase_type]}</p>
+              <p className="text-sm text-muted-foreground">Замовник</p>
+              <p className="font-medium">{creatorName || '—'}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Валюта</p>
-              <p className="font-medium">{request.currency}</p>
+              <p className="text-sm text-muted-foreground">Тип закупівлі</p>
+              <p className="font-medium">{typeLabels[request.purchase_type]}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Бажана дата поставки</p>
@@ -292,7 +296,9 @@ export default function PurchaseRequestDetail() {
                     <TableCell>{item.unit}</TableCell>
                     <TableCell className="text-right">{item.quantity}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{itemStatusLabels[item.status]}</Badge>
+                      <Badge variant={statusVariants[request.status]}>
+                        {statusLabels[request.status]}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
