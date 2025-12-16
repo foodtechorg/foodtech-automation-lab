@@ -41,6 +41,348 @@ export type Database = {
         }
         Relationships: []
       }
+      purchase_invoice_items: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          invoice_id: string
+          name: string
+          note: string | null
+          price: number
+          quantity: number
+          request_item_id: string | null
+          sort_order: number
+          status: Database["public"]["Enums"]["purchase_item_status"]
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id: string
+          name: string
+          note?: string | null
+          price?: number
+          quantity?: number
+          request_item_id?: string | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["purchase_item_status"]
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          name?: string
+          note?: string | null
+          price?: number
+          quantity?: number
+          request_item_id?: string | null
+          sort_order?: number
+          status?: Database["public"]["Enums"]["purchase_item_status"]
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoice_items_request_item_id_fkey"
+            columns: ["request_item_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_request_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_invoices: {
+        Row: {
+          amount: number
+          ceo_comment: string | null
+          ceo_decided_at: string | null
+          ceo_decided_by: string | null
+          ceo_decision: Database["public"]["Enums"]["approval_decision"] | null
+          coo_comment: string | null
+          coo_decided_at: string | null
+          coo_decided_by: string | null
+          coo_decision: Database["public"]["Enums"]["approval_decision"] | null
+          created_at: string
+          created_by: string
+          currency: string
+          delivered_date: string | null
+          delivery_note: string | null
+          description: string | null
+          expected_date: string | null
+          id: string
+          invoice_date: string | null
+          number: string
+          paid_date: string | null
+          payment_doc_no: string | null
+          payment_terms: Database["public"]["Enums"]["payment_terms"]
+          planned_payment_date: string | null
+          request_id: string | null
+          status: Database["public"]["Enums"]["purchase_invoice_status"]
+          supplier_contact: string | null
+          supplier_name: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          ceo_comment?: string | null
+          ceo_decided_at?: string | null
+          ceo_decided_by?: string | null
+          ceo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          coo_comment?: string | null
+          coo_decided_at?: string | null
+          coo_decided_by?: string | null
+          coo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          delivered_date?: string | null
+          delivery_note?: string | null
+          description?: string | null
+          expected_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          number?: string
+          paid_date?: string | null
+          payment_doc_no?: string | null
+          payment_terms?: Database["public"]["Enums"]["payment_terms"]
+          planned_payment_date?: string | null
+          request_id?: string | null
+          status?: Database["public"]["Enums"]["purchase_invoice_status"]
+          supplier_contact?: string | null
+          supplier_name: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          ceo_comment?: string | null
+          ceo_decided_at?: string | null
+          ceo_decided_by?: string | null
+          ceo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          coo_comment?: string | null
+          coo_decided_at?: string | null
+          coo_decided_by?: string | null
+          coo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          delivered_date?: string | null
+          delivery_note?: string | null
+          description?: string | null
+          expected_date?: string | null
+          id?: string
+          invoice_date?: string | null
+          number?: string
+          paid_date?: string | null
+          payment_doc_no?: string | null
+          payment_terms?: Database["public"]["Enums"]["payment_terms"]
+          planned_payment_date?: string | null
+          request_id?: string | null
+          status?: Database["public"]["Enums"]["purchase_invoice_status"]
+          supplier_contact?: string | null
+          supplier_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_invoices_ceo_decided_by_fkey"
+            columns: ["ceo_decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoices_coo_decided_by_fkey"
+            columns: ["coo_decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_invoices_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_logs: {
+        Row: {
+          action: string
+          comment: string | null
+          created_at: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["purchase_log_entity_type"]
+          id: string
+          payload: Json | null
+          user_email: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          comment?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["purchase_log_entity_type"]
+          id?: string
+          payload?: Json | null
+          user_email: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          comment?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["purchase_log_entity_type"]
+          id?: string
+          payload?: Json | null
+          user_email?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_request_items: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          note: string | null
+          quantity: number
+          request_id: string
+          sort_order: number
+          status: Database["public"]["Enums"]["purchase_item_status"]
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          note?: string | null
+          quantity?: number
+          request_id: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["purchase_item_status"]
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          note?: string | null
+          quantity?: number
+          request_id?: string
+          sort_order?: number
+          status?: Database["public"]["Enums"]["purchase_item_status"]
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_request_items_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_requests: {
+        Row: {
+          coo_comment: string | null
+          coo_decided_at: string | null
+          coo_decided_by: string | null
+          coo_decision: Database["public"]["Enums"]["approval_decision"] | null
+          created_at: string
+          created_by: string
+          currency: string
+          description: string | null
+          desired_date: string | null
+          id: string
+          number: string
+          purchase_type: Database["public"]["Enums"]["purchase_type"]
+          status: Database["public"]["Enums"]["purchase_request_status"]
+          updated_at: string
+        }
+        Insert: {
+          coo_comment?: string | null
+          coo_decided_at?: string | null
+          coo_decided_by?: string | null
+          coo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          description?: string | null
+          desired_date?: string | null
+          id?: string
+          number?: string
+          purchase_type?: Database["public"]["Enums"]["purchase_type"]
+          status?: Database["public"]["Enums"]["purchase_request_status"]
+          updated_at?: string
+        }
+        Update: {
+          coo_comment?: string | null
+          coo_decided_at?: string | null
+          coo_decided_by?: string | null
+          coo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          description?: string | null
+          desired_date?: string | null
+          id?: string
+          number?: string
+          purchase_type?: Database["public"]["Enums"]["purchase_type"]
+          status?: Database["public"]["Enums"]["purchase_request_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_requests_coo_decided_by_fkey"
+            columns: ["coo_decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_events: {
         Row: {
           actor_email: string
@@ -215,13 +557,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_purchase_invoice_number: { Args: never; Returns: string }
+      generate_purchase_request_number: { Args: never; Returns: string }
       generate_request_code: { Args: never; Returns: string }
-      has_role: {
+      has_role:
+        | {
+            Args: {
+              _role: Database["public"]["Enums"]["app_role"]
+              _user_id: string
+            }
+            Returns: boolean
+          }
+        | { Args: { p_role: string }; Returns: boolean }
+      log_purchase_event: {
         Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
+          p_action: string
+          p_comment?: string
+          p_entity_id: string
+          p_entity_type: Database["public"]["Enums"]["purchase_log_entity_type"]
+          p_payload?: Json
         }
-        Returns: boolean
+        Returns: string
       }
       log_request_event: {
         Args: {
@@ -234,7 +590,17 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "sales_manager" | "rd_dev" | "rd_manager" | "admin"
+      app_role:
+        | "sales_manager"
+        | "rd_dev"
+        | "rd_manager"
+        | "admin"
+        | "procurement_manager"
+        | "coo"
+        | "ceo"
+        | "treasurer"
+        | "accountant"
+      approval_decision: "PENDING" | "APPROVED" | "REJECTED"
       client_result: "PRODUCTION" | "REWORK" | "DECLINE"
       direction: "FUNCTIONAL" | "FLAVOR" | "COLORANT" | "COMPLEX"
       domain:
@@ -255,7 +621,29 @@ export type Database = {
         | "SENT_FOR_TEST"
         | "PRODUCTION_SET"
         | "FEEDBACK_PROVIDED"
+      payment_terms: "PREPAYMENT" | "POSTPAYMENT"
       priority: "LOW" | "MEDIUM" | "HIGH"
+      purchase_invoice_status:
+        | "DRAFT"
+        | "PENDING_COO"
+        | "PENDING_CEO"
+        | "TO_PAY"
+        | "PAID"
+        | "DELIVERED"
+        | "REJECTED"
+      purchase_item_status:
+        | "PENDING"
+        | "IN_PROGRESS"
+        | "ORDERED"
+        | "DELIVERED"
+        | "REJECTED"
+      purchase_log_entity_type: "REQUEST" | "INVOICE"
+      purchase_request_status:
+        | "DRAFT"
+        | "PENDING_APPROVAL"
+        | "IN_PROGRESS"
+        | "REJECTED"
+      purchase_type: "TMC" | "SERVICE"
       status:
         | "PENDING"
         | "IN_PROGRESS"
@@ -390,7 +778,18 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["sales_manager", "rd_dev", "rd_manager", "admin"],
+      app_role: [
+        "sales_manager",
+        "rd_dev",
+        "rd_manager",
+        "admin",
+        "procurement_manager",
+        "coo",
+        "ceo",
+        "treasurer",
+        "accountant",
+      ],
+      approval_decision: ["PENDING", "APPROVED", "REJECTED"],
       client_result: ["PRODUCTION", "REWORK", "DECLINE"],
       direction: ["FUNCTIONAL", "FLAVOR", "COLORANT", "COMPLEX"],
       domain: [
@@ -413,7 +812,32 @@ export const Constants = {
         "PRODUCTION_SET",
         "FEEDBACK_PROVIDED",
       ],
+      payment_terms: ["PREPAYMENT", "POSTPAYMENT"],
       priority: ["LOW", "MEDIUM", "HIGH"],
+      purchase_invoice_status: [
+        "DRAFT",
+        "PENDING_COO",
+        "PENDING_CEO",
+        "TO_PAY",
+        "PAID",
+        "DELIVERED",
+        "REJECTED",
+      ],
+      purchase_item_status: [
+        "PENDING",
+        "IN_PROGRESS",
+        "ORDERED",
+        "DELIVERED",
+        "REJECTED",
+      ],
+      purchase_log_entity_type: ["REQUEST", "INVOICE"],
+      purchase_request_status: [
+        "DRAFT",
+        "PENDING_APPROVAL",
+        "IN_PROGRESS",
+        "REJECTED",
+      ],
+      purchase_type: ["TMC", "SERVICE"],
       status: [
         "PENDING",
         "IN_PROGRESS",
