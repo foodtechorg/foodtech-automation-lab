@@ -21,9 +21,10 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Package, Send, Trash2, Check, X, Paperclip } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, Send, Trash2, Check, X, Paperclip, Receipt } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getPurchaseRequestById, getPurchaseRequestItems, updatePurchaseRequestStatus, deletePurchaseRequest } from '@/services/purchaseApi';
+import { getPurchaseInvoicesByRequestId } from '@/services/invoiceApi';
 import { getAttachments, type Attachment } from '@/services/attachmentService';
 import { AttachmentsList } from '@/components/purchase/AttachmentsList';
 import { FileUploadZone } from '@/components/purchase/FileUploadZone';
@@ -63,6 +64,7 @@ export default function PurchaseRequestDetail() {
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [creatorName, setCreatorName] = useState<string>('');
+  const [existingInvoiceId, setExistingInvoiceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +75,9 @@ export default function PurchaseRequestDetail() {
 
   const isDraft = request?.status === 'DRAFT';
   const isPendingApproval = request?.status === 'PENDING_APPROVAL';
+  const isInProgress = request?.status === 'IN_PROGRESS';
   const isCOO = profile?.role === 'coo' || profile?.role === 'admin';
+  const isProcurementManager = profile?.role === 'procurement_manager' || profile?.role === 'admin';
   const isOwner = request?.created_by === user?.id;
 
   useEffect(() => {
@@ -82,10 +86,11 @@ export default function PurchaseRequestDetail() {
       
       try {
         setLoading(true);
-        const [requestData, itemsData, attachmentsData] = await Promise.all([
+        const [requestData, itemsData, attachmentsData, invoicesData] = await Promise.all([
           getPurchaseRequestById(id),
           getPurchaseRequestItems(id),
           getAttachments('request', id),
+          getPurchaseInvoicesByRequestId(id),
         ]);
         
         if (!requestData) {
@@ -96,6 +101,11 @@ export default function PurchaseRequestDetail() {
         setRequest(requestData);
         setItems(itemsData);
         setAttachments(attachmentsData);
+        
+        // Check if invoice already exists
+        if (invoicesData && invoicesData.length > 0) {
+          setExistingInvoiceId(invoicesData[0].id);
+        }
         
         // Load creator profile
         const { data: profileData } = await supabase
@@ -321,6 +331,26 @@ export default function PurchaseRequestDetail() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+          </div>
+        )}
+
+        {/* Procurement Manager actions for IN_PROGRESS requests */}
+        {isProcurementManager && isInProgress && (
+          <div className="flex items-center gap-2">
+            {existingInvoiceId ? (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/purchase/invoices/${existingInvoiceId}`)}
+              >
+                <Receipt className="mr-2 h-4 w-4" />
+                Переглянути рахунок
+              </Button>
+            ) : (
+              <Button onClick={() => navigate(`/purchase/invoices/new?requestId=${id}`)}>
+                <Receipt className="mr-2 h-4 w-4" />
+                Створити рахунок
+              </Button>
+            )}
           </div>
         )}
       </div>
