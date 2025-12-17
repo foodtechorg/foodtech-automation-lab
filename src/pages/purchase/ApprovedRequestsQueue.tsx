@@ -726,7 +726,7 @@ export default function ApprovedRequestsQueue() {
                         <TableRow 
                           key={request.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/purchase/requests/${request.id}`)}
+                          onClick={() => navigate(`/purchase/requests/${request.id}`, { state: { from: 'queue' } })}
                         >
                           <TableCell className="font-medium">
                             {request.number}
@@ -798,7 +798,7 @@ export default function ApprovedRequestsQueue() {
                         <TableRow 
                           key={invoice.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/purchase/invoices/${invoice.id}`)}
+                          onClick={() => navigate(`/purchase/invoices/${invoice.id}`, { state: { from: 'queue' } })}
                         >
                           <TableCell className="font-medium">
                             {invoice.number}
@@ -872,7 +872,7 @@ export default function ApprovedRequestsQueue() {
                         <TableRow 
                           key={invoice.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/purchase/invoices/${invoice.id}`)}
+                          onClick={() => navigate(`/purchase/invoices/${invoice.id}`, { state: { from: 'queue' } })}
                         >
                           <TableCell className="font-medium">
                             {invoice.number}
@@ -947,7 +947,7 @@ export default function ApprovedRequestsQueue() {
                         <TableRow 
                           key={request.id}
                           className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => navigate(`/purchase/requests/${request.id}`)}
+                          onClick={() => navigate(`/purchase/requests/${request.id}`, { state: { from: 'queue' } })}
                         >
                           <TableCell className="font-medium">
                             {request.number}
