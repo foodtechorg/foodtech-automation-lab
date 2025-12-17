@@ -59,8 +59,8 @@ import { toast } from 'sonner';
 
 const statusLabels: Record<PurchaseInvoiceStatus, string> = {
   DRAFT: 'Чернетка',
-  PENDING_COO: 'На погодженні COO',
-  PENDING_CEO: 'На погодженні CEO',
+  PENDING_COO: 'На погодженні',
+  PENDING_CEO: 'На погодженні',
   TO_PAY: 'До оплати',
   PAID: 'Оплачено',
   DELIVERED: 'Доставлено',

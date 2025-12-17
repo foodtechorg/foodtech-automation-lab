@@ -54,6 +54,48 @@ export async function getPurchaseInvoicesByRequestId(requestId: string): Promise
   return (data || []) as PurchaseInvoice[];
 }
 
+// Get invoiced quantities for each request item (excluding DRAFT invoices)
+export async function getInvoicedQuantitiesByRequestId(requestId: string): Promise<Map<string, number>> {
+  // First get all non-draft invoices for this request
+  const { data: invoices, error: invoicesError } = await supabase
+    .from('purchase_invoices')
+    .select('id')
+    .eq('request_id', requestId)
+    .neq('status', 'DRAFT');
+
+  if (invoicesError) {
+    console.error('Error fetching invoices for quantities:', invoicesError);
+    throw invoicesError;
+  }
+
+  if (!invoices || invoices.length === 0) {
+    return new Map();
+  }
+
+  // Get all items from these invoices
+  const invoiceIds = invoices.map(inv => inv.id);
+  const { data: items, error: itemsError } = await supabase
+    .from('purchase_invoice_items')
+    .select('request_item_id, quantity')
+    .in('invoice_id', invoiceIds);
+
+  if (itemsError) {
+    console.error('Error fetching invoice items for quantities:', itemsError);
+    throw itemsError;
+  }
+
+  // Sum quantities by request_item_id
+  const quantityMap = new Map<string, number>();
+  for (const item of items || []) {
+    if (item.request_item_id) {
+      const current = quantityMap.get(item.request_item_id) || 0;
+      quantityMap.set(item.request_item_id, current + Number(item.quantity));
+    }
+  }
+
+  return quantityMap;
+}
+
 // Get invoice items
 export async function getPurchaseInvoiceItems(invoiceId: string): Promise<PurchaseInvoiceItem[]> {
   const { data, error } = await supabase

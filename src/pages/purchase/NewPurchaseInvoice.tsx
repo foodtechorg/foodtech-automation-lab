@@ -28,6 +28,7 @@ import {
   createPurchaseInvoiceItems,
   updatePurchaseInvoice,
   logPurchaseEvent,
+  getInvoicedQuantitiesByRequestId,
 } from '@/services/invoiceApi';
 import type {
   PurchaseRequest,
@@ -43,7 +44,10 @@ interface InvoiceItem {
   request_item_id: string;
   name: string;
   unit: string;
-  quantity: number;
+  ordered: number;      // original quantity from request
+  invoiced: number;     // already invoiced (non-draft)
+  remaining: number;    // remaining to invoice
+  quantity: number;     // quantity for this invoice
   price: number;
   amount: number;
 }
@@ -57,7 +61,6 @@ export default function NewPurchaseInvoice() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [request, setRequest] = useState<PurchaseRequest | null>(null);
-  const [requestItems, setRequestItems] = useState<PurchaseRequestItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Form state
@@ -81,9 +84,10 @@ export default function NewPurchaseInvoice() {
     async function loadRequestData() {
       try {
         setLoading(true);
-        const [reqData, reqItems] = await Promise.all([
+        const [reqData, reqItems, invoicedQty] = await Promise.all([
           getPurchaseRequestById(requestId!),
           getPurchaseRequestItems(requestId!),
+          getInvoicedQuantitiesByRequestId(requestId!),
         ]);
 
         if (!reqData) {
@@ -97,22 +101,38 @@ export default function NewPurchaseInvoice() {
         }
 
         setRequest(reqData);
-        setRequestItems(reqItems);
         setCurrency(reqData.currency);
         
-        // Pre-populate items from request
+        // Pre-populate items from request with remaining quantities
         if (reqData.desired_date) {
           setExpectedDate(format(new Date(reqData.desired_date), 'yyyy-MM-dd'));
         }
         
-        setItems(reqItems.map(item => ({
-          request_item_id: item.id,
-          name: item.name,
-          unit: item.unit,
-          quantity: item.quantity,
-          price: 0,
-          amount: 0,
-        })));
+        // Calculate remaining quantities and filter items with remaining > 0
+        const invoiceItems: InvoiceItem[] = reqItems
+          .map(item => {
+            const invoiced = invoicedQty.get(item.id) || 0;
+            const remaining = item.quantity - invoiced;
+            return {
+              request_item_id: item.id,
+              name: item.name,
+              unit: item.unit,
+              ordered: item.quantity,
+              invoiced,
+              remaining,
+              quantity: remaining,  // pre-fill with remaining
+              price: 0,
+              amount: 0,
+            };
+          })
+          .filter(item => item.remaining > 0);  // Only show items with remaining quantity
+
+        if (invoiceItems.length === 0) {
+          setError('Всі позиції заявки вже включені в рахунки');
+          return;
+        }
+
+        setItems(invoiceItems);
       } catch (err) {
         console.error(err);
         setError('Помилка завантаження даних заявки');
@@ -140,10 +160,12 @@ export default function NewPurchaseInvoice() {
   const updateItemQuantity = (index: number, quantity: number) => {
     setItems(prev => prev.map((item, i) => {
       if (i === index) {
+        // Limit quantity to remaining
+        const validQty = Math.min(Math.max(0, quantity), item.remaining);
         return {
           ...item,
-          quantity,
-          amount: quantity * item.price,
+          quantity: validQty,
+          amount: validQty * item.price,
         };
       }
       return item;
@@ -163,12 +185,15 @@ export default function NewPurchaseInvoice() {
       return;
     }
 
-    if (items.length === 0) {
-      toast.error('Додайте позиції до рахунку');
+    // Filter items with quantity > 0
+    const validItems = items.filter(item => item.quantity > 0);
+
+    if (validItems.length === 0) {
+      toast.error('Додайте позиції з кількістю > 0');
       return;
     }
 
-    if (submitForApproval && items.some(item => item.price <= 0)) {
+    if (submitForApproval && validItems.some(item => item.price <= 0)) {
       toast.error('Вкажіть ціни для всіх позицій');
       return;
     }
@@ -189,8 +214,8 @@ export default function NewPurchaseInvoice() {
         created_by: user.id,
       });
 
-      // Create invoice items
-      const itemPayloads: CreatePurchaseInvoiceItemPayload[] = items.map(item => ({
+      // Create invoice items (only those with quantity > 0)
+      const itemPayloads: CreatePurchaseInvoiceItemPayload[] = validItems.map(item => ({
         invoice_id: invoice.id,
         request_item_id: item.request_item_id,
         name: item.name,
@@ -202,13 +227,14 @@ export default function NewPurchaseInvoice() {
       await createPurchaseInvoiceItems(itemPayloads);
 
       // Update total amount
-      await updatePurchaseInvoice(invoice.id, { amount: totalAmount });
+      const invoiceTotal = validItems.reduce((sum, item) => sum + item.amount, 0);
+      await updatePurchaseInvoice(invoice.id, { amount: invoiceTotal });
 
       // Log event
       await logPurchaseEvent('INVOICE', invoice.id, 'CREATED', undefined, {
         request_id: requestId,
         supplier_name: supplierName,
-        amount: totalAmount,
+        amount: invoiceTotal,
       });
 
       // If submitting for approval
@@ -380,10 +406,13 @@ export default function NewPurchaseInvoice() {
             <TableHeader>
               <TableRow>
                 <TableHead>Найменування</TableHead>
-                <TableHead>Од. виміру</TableHead>
-                <TableHead className="w-[120px]">Кількість</TableHead>
-                <TableHead className="w-[150px]">Ціна, {currency}</TableHead>
-                <TableHead className="text-right">Сума, {currency}</TableHead>
+                <TableHead>Од.</TableHead>
+                <TableHead className="text-right text-xs">Замовлено</TableHead>
+                <TableHead className="text-right text-xs">В рахунках</TableHead>
+                <TableHead className="text-right text-xs">Залишок</TableHead>
+                <TableHead className="w-[100px]">Кількість</TableHead>
+                <TableHead className="w-[120px]">Ціна, {currency}</TableHead>
+                <TableHead className="text-right">Сума</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -391,10 +420,14 @@ export default function NewPurchaseInvoice() {
                 <TableRow key={item.request_item_id}>
                   <TableCell className="font-medium">{item.name}</TableCell>
                   <TableCell>{item.unit}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{item.ordered}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">{item.invoiced}</TableCell>
+                  <TableCell className="text-right font-medium text-amber-600">{item.remaining}</TableCell>
                   <TableCell>
                     <Input
                       type="number"
-                      min="0.01"
+                      min="0"
+                      max={item.remaining}
                       step="0.01"
                       value={item.quantity}
                       onChange={(e) => updateItemQuantity(index, parseFloat(e.target.value) || 0)}
@@ -418,7 +451,7 @@ export default function NewPurchaseInvoice() {
                 </TableRow>
               ))}
               <TableRow>
-                <TableCell colSpan={4} className="text-right font-bold">
+                <TableCell colSpan={7} className="text-right font-bold">
                   Всього:
                 </TableCell>
                 <TableCell className="text-right font-bold text-lg">

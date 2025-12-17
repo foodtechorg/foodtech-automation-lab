@@ -21,15 +21,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Package, Send, Trash2, Check, X, Paperclip, Receipt } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft, Loader2, Package, Send, Trash2, Check, X, Paperclip, Receipt, FileText } from 'lucide-react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getPurchaseRequestById, getPurchaseRequestItems, updatePurchaseRequestStatus, deletePurchaseRequest } from '@/services/purchaseApi';
-import { getPurchaseInvoicesByRequestId } from '@/services/invoiceApi';
+import { getPurchaseInvoicesByRequestId, getInvoicedQuantitiesByRequestId } from '@/services/invoiceApi';
 import { getAttachments, type Attachment } from '@/services/attachmentService';
 import { AttachmentsList } from '@/components/purchase/AttachmentsList';
 import { FileUploadZone } from '@/components/purchase/FileUploadZone';
 import { supabase } from '@/integrations/supabase/client';
-import type { PurchaseRequest, PurchaseRequestItem, PurchaseRequestStatus, PurchaseType } from '@/types/purchase';
+import type { PurchaseRequest, PurchaseRequestItem, PurchaseRequestStatus, PurchaseType, PurchaseInvoice, PurchaseInvoiceStatus } from '@/types/purchase';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -50,6 +50,16 @@ const statusVariants: Record<PurchaseRequestStatus, 'default' | 'secondary' | 'd
   REJECTED: 'destructive',
 };
 
+const invoiceStatusLabels: Record<PurchaseInvoiceStatus, string> = {
+  DRAFT: 'Чернетка',
+  PENDING_COO: 'На погодженні',
+  PENDING_CEO: 'На погодженні',
+  TO_PAY: 'До оплати',
+  PAID: 'Оплачено',
+  DELIVERED: 'Доставлено',
+  REJECTED: 'Відхилено',
+};
+
 const typeLabels: Record<PurchaseType, string> = {
   TMC: 'ТМЦ',
   SERVICE: 'Послуга',
@@ -64,7 +74,8 @@ export default function PurchaseRequestDetail() {
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [creatorName, setCreatorName] = useState<string>('');
-  const [existingInvoiceId, setExistingInvoiceId] = useState<string | null>(null);
+  const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
+  const [invoicedQuantities, setInvoicedQuantities] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,17 +91,24 @@ export default function PurchaseRequestDetail() {
   const isProcurementManager = profile?.role === 'procurement_manager' || profile?.role === 'admin';
   const isOwner = request?.created_by === user?.id;
 
+  // Check if there are remaining quantities to invoice
+  const hasRemainingQuantities = items.some(item => {
+    const invoiced = invoicedQuantities.get(item.id) || 0;
+    return item.quantity > invoiced;
+  });
+
   useEffect(() => {
     async function loadData() {
       if (!id) return;
       
       try {
         setLoading(true);
-        const [requestData, itemsData, attachmentsData, invoicesData] = await Promise.all([
+        const [requestData, itemsData, attachmentsData, invoicesData, invoicedQty] = await Promise.all([
           getPurchaseRequestById(id),
           getPurchaseRequestItems(id),
           getAttachments('request', id),
           getPurchaseInvoicesByRequestId(id),
+          getInvoicedQuantitiesByRequestId(id),
         ]);
         
         if (!requestData) {
@@ -101,11 +119,8 @@ export default function PurchaseRequestDetail() {
         setRequest(requestData);
         setItems(itemsData);
         setAttachments(attachmentsData);
-        
-        // Check if invoice already exists
-        if (invoicesData && invoicesData.length > 0) {
-          setExistingInvoiceId(invoicesData[0].id);
-        }
+        setInvoices(invoicesData);
+        setInvoicedQuantities(invoicedQty);
         
         // Load creator profile
         const { data: profileData } = await supabase
@@ -335,23 +350,11 @@ export default function PurchaseRequestDetail() {
         )}
 
         {/* Procurement Manager actions for IN_PROGRESS requests */}
-        {isProcurementManager && isInProgress && (
-          <div className="flex items-center gap-2">
-            {existingInvoiceId ? (
-              <Button
-                variant="outline"
-                onClick={() => navigate(`/purchase/invoices/${existingInvoiceId}`)}
-              >
-                <Receipt className="mr-2 h-4 w-4" />
-                Переглянути рахунок
-              </Button>
-            ) : (
-              <Button onClick={() => navigate(`/purchase/invoices/new?requestId=${id}`)}>
-                <Receipt className="mr-2 h-4 w-4" />
-                Створити рахунок
-              </Button>
-            )}
-          </div>
+        {isProcurementManager && isInProgress && hasRemainingQuantities && (
+          <Button onClick={() => navigate(`/purchase/invoices/new?requestId=${id}`)}>
+            <Receipt className="mr-2 h-4 w-4" />
+            Створити рахунок
+          </Button>
         )}
       </div>
 
@@ -390,6 +393,37 @@ export default function PurchaseRequestDetail() {
               <p className="whitespace-pre-wrap">{request.description}</p>
             </div>
           )}
+
+          {/* Invoices section */}
+          {invoices.length > 0 && (
+            <div className="mt-4 pt-4 border-t">
+              <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1">
+                <FileText className="h-4 w-4" />
+                Рахунки ({invoices.length})
+              </p>
+              <div className="space-y-2">
+                {invoices.map(invoice => (
+                  <div key={invoice.id} className="flex items-center gap-3 text-sm">
+                    <Link 
+                      to={`/purchase/invoices/${invoice.id}`}
+                      className="text-primary hover:underline font-medium"
+                    >
+                      {invoice.number}
+                    </Link>
+                    <Badge variant={invoice.status === 'DRAFT' ? 'secondary' : invoice.status === 'REJECTED' ? 'destructive' : 'outline'} className="text-xs">
+                      {invoiceStatusLabels[invoice.status]}
+                    </Badge>
+                    <span className="text-muted-foreground">
+                      {invoice.amount.toFixed(2)} {invoice.currency}
+                    </span>
+                    <span className="text-muted-foreground">
+                      {invoice.supplier_name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -412,23 +446,35 @@ export default function PurchaseRequestDetail() {
                 <TableRow>
                   <TableHead>Найменування</TableHead>
                   <TableHead>Од. виміру</TableHead>
-                  <TableHead className="text-right">Кількість</TableHead>
-                  <TableHead>Статус</TableHead>
+                  <TableHead className="text-right">Замовлено</TableHead>
+                  {isInProgress && (
+                    <>
+                      <TableHead className="text-right">В рахунках</TableHead>
+                      <TableHead className="text-right">Залишок</TableHead>
+                    </>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.unit}</TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariants[request.status]}>
-                        {statusLabels[request.status]}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {items.map((item) => {
+                  const invoiced = invoicedQuantities.get(item.id) || 0;
+                  const remaining = item.quantity - invoiced;
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell className="font-medium">{item.name}</TableCell>
+                      <TableCell>{item.unit}</TableCell>
+                      <TableCell className="text-right">{item.quantity}</TableCell>
+                      {isInProgress && (
+                        <>
+                          <TableCell className="text-right">{invoiced}</TableCell>
+                          <TableCell className={`text-right font-medium ${remaining > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                            {remaining}
+                          </TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
