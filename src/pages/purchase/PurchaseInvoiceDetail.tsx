@@ -128,8 +128,8 @@ export default function PurchaseInvoiceDetail() {
   const [supplierContact, setSupplierContact] = useState("");
   const [description, setDescription] = useState("");
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerms>("PREPAYMENT");
-  const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
   const [expectedDate, setExpectedDate] = useState<Date | undefined>();
+  const [plannedPaymentDate, setPlannedPaymentDate] = useState<Date | undefined>();
 
   // Role checks
   const isDraft = invoice?.status === "DRAFT";
@@ -176,8 +176,8 @@ export default function PurchaseInvoiceDetail() {
         setSupplierContact(invoiceData.supplier_contact || "");
         setDescription(invoiceData.description || "");
         setPaymentTerms(invoiceData.payment_terms);
-        setInvoiceDate(invoiceData.invoice_date ? new Date(invoiceData.invoice_date) : undefined);
         setExpectedDate(invoiceData.expected_date ? new Date(invoiceData.expected_date) : undefined);
+        setPlannedPaymentDate(invoiceData.planned_payment_date ? new Date(invoiceData.planned_payment_date) : undefined);
 
         // Load request-related data if linked
         if (invoiceData.request_id) {
@@ -262,8 +262,8 @@ export default function PurchaseInvoiceDetail() {
         supplier_contact: supplierContact || null,
         description: description || null,
         payment_terms: paymentTerms,
-        invoice_date: invoiceDate?.toISOString() || null,
         expected_date: expectedDate?.toISOString() || null,
+        planned_payment_date: plannedPaymentDate?.toISOString() || null,
       });
       setInvoice((prev) =>
         prev
@@ -273,8 +273,8 @@ export default function PurchaseInvoiceDetail() {
               supplier_contact: supplierContact || null,
               description: description || null,
               payment_terms: paymentTerms,
-              invoice_date: invoiceDate?.toISOString() || null,
               expected_date: expectedDate?.toISOString() || null,
+              planned_payment_date: plannedPaymentDate?.toISOString() || null,
             }
           : null,
       );
@@ -285,7 +285,7 @@ export default function PurchaseInvoiceDetail() {
     } finally {
       setIsSaving(false);
     }
-  }, [id, canEdit, supplierName, supplierContact, description, paymentTerms, invoiceDate, expectedDate]);
+  }, [id, canEdit, supplierName, supplierContact, description, paymentTerms, expectedDate, plannedPaymentDate]);
 
   const handleItemUpdate = async (itemId: string, field: "quantity" | "price", value: number) => {
     if (!canEdit) return;
@@ -350,8 +350,8 @@ export default function PurchaseInvoiceDetail() {
         supplier_contact: supplierContact || null,
         description: description || null,
         payment_terms: paymentTerms,
-        invoice_date: invoiceDate?.toISOString() || null,
         expected_date: expectedDate?.toISOString() || null,
+        planned_payment_date: plannedPaymentDate?.toISOString() || null,
         status: "PENDING_COO",
       });
       await logPurchaseEvent("INVOICE", id, "SUBMITTED_FOR_APPROVAL");
@@ -741,33 +741,7 @@ export default function PurchaseInvoiceDetail() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Дата рахунку</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !invoiceDate && "text-muted-foreground",
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {invoiceDate ? format(invoiceDate, "PPP", { locale: uk }) : "Оберіть дату"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={invoiceDate}
-                      onSelect={setInvoiceDate}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="space-y-2">
-                <Label>Очікувана поставка</Label>
+                <Label>Очікувана дата поставки</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -786,6 +760,32 @@ export default function PurchaseInvoiceDetail() {
                       mode="single"
                       selected={expectedDate}
                       onSelect={setExpectedDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>Очікувана дата оплати</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !plannedPaymentDate && "text-muted-foreground",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {plannedPaymentDate ? format(plannedPaymentDate, "PPP", { locale: uk }) : "Оберіть дату"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={plannedPaymentDate}
+                      onSelect={setPlannedPaymentDate}
                       initialFocus
                       className="pointer-events-auto"
                     />
@@ -837,12 +837,12 @@ export default function PurchaseInvoiceDetail() {
                 <p className="font-medium">{paymentTermsLabels[invoice.payment_terms]}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Дата рахунку</p>
-                <p className="font-medium">{formatDateShort(invoice.invoice_date)}</p>
+                <p className="text-sm text-muted-foreground">Очікувана дата поставки</p>
+                <p className="font-medium">{formatDateShort(invoice.expected_date)}</p>
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Очікувана поставка</p>
-                <p className="font-medium">{formatDateShort(invoice.expected_date)}</p>
+                <p className="text-sm text-muted-foreground">Очікувана дата оплати</p>
+                <p className="font-medium">{formatDateShort(invoice.planned_payment_date)}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Створив</p>
