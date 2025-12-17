@@ -164,8 +164,11 @@ export async function getSignedUrl(filePath: string): Promise<string> {
     .createSignedUrl(filePath, 3600); // 1 hour expiry
 
   if (error) {
-    console.error('Error creating signed URL:', error);
-    throw error;
+    console.error('Error creating signed URL:', error, 'Path:', filePath);
+    if (error.message?.includes('not found') || error.message?.includes('Object not found')) {
+      throw new Error('Файл не знайдено в сховищі');
+    }
+    throw new Error(error.message || 'Помилка доступу до файлу');
   }
 
   return data.signedUrl;

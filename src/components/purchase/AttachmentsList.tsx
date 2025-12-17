@@ -45,6 +45,13 @@ export function AttachmentsList({
     setDownloadingId(attachment.id);
     try {
       const url = await getSignedUrl(attachment.file_path);
+      
+      // Verify the URL is valid before attempting download
+      const response = await fetch(url, { method: 'HEAD' });
+      if (!response.ok) {
+        throw new Error(`Файл не знайдено (HTTP ${response.status})`);
+      }
+      
       const link = document.createElement('a');
       link.href = url;
       link.download = attachment.file_name;
@@ -52,9 +59,10 @@ export function AttachmentsList({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Download error:', error);
-      toast.error('Помилка завантаження файлу');
+      const message = error?.message || 'Невідома помилка';
+      toast.error(`Помилка завантаження: ${message}`);
     } finally {
       setDownloadingId(null);
     }
