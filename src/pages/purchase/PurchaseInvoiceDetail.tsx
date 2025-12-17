@@ -352,6 +352,11 @@ export default function PurchaseInvoiceDetail() {
       return;
     }
 
+    if (!supplierInvoiceFile) {
+      toast.error('Необхідно завантажити рахунок постачальника');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Save changes first
@@ -1045,6 +1050,7 @@ export default function PurchaseInvoiceDetail() {
             </CardTitle>
             <CardDescription>
               Файли, прикріплені замовником до заявки
+              {canEdit && ' — перетягніть файл у «Рахунок постачальника»'}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1052,6 +1058,7 @@ export default function PurchaseInvoiceDetail() {
               attachments={requestAttachments}
               entityType="request"
               canDelete={false}
+              draggable={canEdit}
             />
           </CardContent>
         </Card>
@@ -1063,6 +1070,7 @@ export default function PurchaseInvoiceDetail() {
           <CardTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" />
             Рахунок постачальника
+            {canEdit && <span className="text-destructive">*</span>}
           </CardTitle>
           <CardDescription>
             Документ з реквізитами для оплати бухгалтером

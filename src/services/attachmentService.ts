@@ -179,6 +179,35 @@ export function formatFileSize(bytes: number): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
 }
 
+// Create supplier invoice attachment from existing file (drag & drop from request attachments)
+export async function createSupplierInvoiceFromExistingFile(
+  invoiceId: string,
+  userId: string,
+  existingFile: {
+    file_name: string;
+    file_path: string;
+    file_type: string;
+    file_size: number;
+  }
+): Promise<Attachment> {
+  const { data, error } = await supabase
+    .from('purchase_invoice_attachments')
+    .insert({
+      invoice_id: invoiceId,
+      file_name: existingFile.file_name,
+      file_path: existingFile.file_path,
+      file_type: existingFile.file_type,
+      file_size: existingFile.file_size,
+      uploaded_by: userId,
+      is_supplier_invoice: true,
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export function getFileIcon(mimeType: string): string {
   if (mimeType === 'application/pdf') return '📄';
   if (mimeType.includes('word')) return '📝';

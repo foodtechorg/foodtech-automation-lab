@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Download, Trash2, Loader2, FileText } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -27,13 +28,15 @@ interface AttachmentsListProps {
   entityType: AttachmentEntityType;
   canDelete?: boolean;
   onDelete?: (attachmentId: string) => void;
+  draggable?: boolean;
 }
 
 export function AttachmentsList({ 
   attachments, 
   entityType, 
   canDelete = false,
-  onDelete 
+  onDelete,
+  draggable = false,
 }: AttachmentsListProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -80,12 +83,27 @@ export function AttachmentsList({
     );
   }
 
+  const handleDragStart = (e: React.DragEvent, attachment: Attachment) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({
+      file_name: attachment.file_name,
+      file_path: attachment.file_path,
+      file_type: attachment.file_type,
+      file_size: attachment.file_size,
+    }));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
   return (
     <div className="space-y-2">
       {attachments.map((attachment) => (
         <div 
           key={attachment.id} 
-          className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border"
+          className={cn(
+            "flex items-center gap-3 p-3 bg-muted/30 rounded-md border",
+            draggable && "cursor-grab active:cursor-grabbing hover:border-primary/50"
+          )}
+          draggable={draggable}
+          onDragStart={draggable ? (e) => handleDragStart(e, attachment) : undefined}
         >
           <span className="text-xl">{getFileIcon(attachment.file_type)}</span>
           <div className="flex-1 min-w-0">
