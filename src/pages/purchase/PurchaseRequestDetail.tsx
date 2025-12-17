@@ -21,9 +21,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Package, Send, Trash2, Check, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Package, Send, Trash2, Check, X, Paperclip } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getPurchaseRequestById, getPurchaseRequestItems, updatePurchaseRequestStatus, deletePurchaseRequest } from '@/services/purchaseApi';
+import { getAttachments, type Attachment } from '@/services/attachmentService';
+import { AttachmentsList } from '@/components/purchase/AttachmentsList';
+import { FileUploadZone } from '@/components/purchase/FileUploadZone';
 import { supabase } from '@/integrations/supabase/client';
 import type { PurchaseRequest, PurchaseRequestItem, PurchaseRequestStatus, PurchaseType } from '@/types/purchase';
 import { format } from 'date-fns';
@@ -54,10 +57,11 @@ const typeLabels: Record<PurchaseType, string> = {
 export default function PurchaseRequestDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   
   const [request, setRequest] = useState<PurchaseRequest | null>(null);
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [creatorName, setCreatorName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +74,7 @@ export default function PurchaseRequestDetail() {
   const isDraft = request?.status === 'DRAFT';
   const isPendingApproval = request?.status === 'PENDING_APPROVAL';
   const isCOO = profile?.role === 'coo' || profile?.role === 'admin';
+  const isOwner = request?.created_by === user?.id;
 
   useEffect(() => {
     async function loadData() {
@@ -77,9 +82,10 @@ export default function PurchaseRequestDetail() {
       
       try {
         setLoading(true);
-        const [requestData, itemsData] = await Promise.all([
+        const [requestData, itemsData, attachmentsData] = await Promise.all([
           getPurchaseRequestById(id),
           getPurchaseRequestItems(id),
+          getAttachments('request', id),
         ]);
         
         if (!requestData) {
@@ -89,6 +95,7 @@ export default function PurchaseRequestDetail() {
         
         setRequest(requestData);
         setItems(itemsData);
+        setAttachments(attachmentsData);
         
         // Load creator profile
         const { data: profileData } = await supabase
@@ -395,6 +402,38 @@ export default function PurchaseRequestDetail() {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Attachments */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Paperclip className="h-5 w-5" />
+            Прикріплені файли
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isDraft && isOwner && user?.id && (
+            <div className="mb-4">
+              <FileUploadZone
+                entityType="request"
+                entityId={id!}
+                userId={user.id}
+                onUploadComplete={(attachment) => {
+                  setAttachments(prev => [...prev, attachment]);
+                }}
+              />
+            </div>
+          )}
+          <AttachmentsList
+            attachments={attachments}
+            entityType="request"
+            canDelete={isDraft && isOwner}
+            onDelete={(attachmentId) => {
+              setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+            }}
+          />
         </CardContent>
       </Card>
     </div>
