@@ -120,10 +120,10 @@ export async function createPurchaseInvoice(
     .from('purchase_invoices')
     .insert({
       request_id: payload.request_id,
-      supplier_name: payload.supplier_name,
+      supplier_name: payload.supplier_name || '',
       supplier_contact: payload.supplier_contact || null,
       description: payload.description || null,
-      payment_terms: payload.payment_terms,
+      payment_terms: payload.payment_terms || 'PREPAYMENT',
       invoice_date: payload.invoice_date || null,
       expected_date: payload.expected_date || null,
       planned_payment_date: payload.planned_payment_date || null,
