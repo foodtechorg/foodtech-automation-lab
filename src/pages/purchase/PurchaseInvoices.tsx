@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -16,6 +15,7 @@ import { getPurchaseInvoices } from '@/services/invoiceApi';
 import type { PurchaseInvoice, PurchaseInvoiceStatus, PaymentTerms } from '@/types/purchase';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
+import { PurchaseNavTabs } from '@/components/purchase/PurchaseNavTabs';
 
 const statusLabels: Record<PurchaseInvoiceStatus, string> = {
   DRAFT: 'Чернетка',
@@ -77,13 +77,12 @@ export default function PurchaseInvoices() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Рахунки на закупівлю</h1>
+          <h1 className="text-2xl font-bold">Закупівля ТМЦ</h1>
           <p className="text-muted-foreground">Перегляд та управління рахунками постачальників</p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/purchase/queue')}>
-          Черга заявок
-        </Button>
       </div>
+
+      <PurchaseNavTabs />
 
       <Card>
         <CardHeader>

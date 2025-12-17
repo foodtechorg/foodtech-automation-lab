@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import type { PurchaseRequest, PurchaseType } from '@/types/purchase';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
+import { PurchaseNavTabs } from '@/components/purchase/PurchaseNavTabs';
 
 const typeLabels: Record<PurchaseType, string> = {
   TMC: 'ТМЦ',
@@ -103,12 +104,14 @@ export default function ApprovedRequestsQueue() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Погоджені заявки</h1>
+          <h1 className="text-2xl font-bold">Закупівля ТМЦ</h1>
           <p className="text-muted-foreground">
             Заявки, готові до створення рахунку
           </p>
         </div>
       </div>
+
+      <PurchaseNavTabs />
 
       <Card>
         <CardHeader>
