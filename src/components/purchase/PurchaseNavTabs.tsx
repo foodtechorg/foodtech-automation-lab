@@ -8,7 +8,10 @@ export function PurchaseNavTabs() {
   const navigate = useNavigate();
   const { profile } = useAuth();
 
-  const isProcurementManager = profile?.role === 'procurement_manager' || profile?.role === 'admin';
+  const canSeeQueue = profile?.role === 'procurement_manager' 
+    || profile?.role === 'coo' 
+    || profile?.role === 'ceo' 
+    || profile?.role === 'admin';
 
   const getCurrentTab = () => {
     if (location.pathname.startsWith('/purchase/invoices')) return 'invoices';
@@ -32,7 +35,13 @@ export function PurchaseNavTabs() {
 
   return (
     <Tabs value={getCurrentTab()} onValueChange={handleTabChange} className="w-full">
-      <TabsList className="grid w-full max-w-md grid-cols-3">
+      <TabsList className={`grid w-full max-w-md ${canSeeQueue ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        {canSeeQueue && (
+          <TabsTrigger value="queue" className="flex items-center gap-2">
+            <ListChecks className="h-4 w-4" />
+            <span className="hidden sm:inline">Черга</span>
+          </TabsTrigger>
+        )}
         <TabsTrigger value="requests" className="flex items-center gap-2">
           <FileText className="h-4 w-4" />
           <span className="hidden sm:inline">Заявки</span>
@@ -41,12 +50,6 @@ export function PurchaseNavTabs() {
           <Receipt className="h-4 w-4" />
           <span className="hidden sm:inline">Рахунки</span>
         </TabsTrigger>
-        {isProcurementManager && (
-          <TabsTrigger value="queue" className="flex items-center gap-2">
-            <ListChecks className="h-4 w-4" />
-            <span className="hidden sm:inline">Черга</span>
-          </TabsTrigger>
-        )}
       </TabsList>
     </Tabs>
   );
