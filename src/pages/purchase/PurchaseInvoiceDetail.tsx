@@ -402,8 +402,9 @@ export default function PurchaseInvoiceDetail() {
     if (!id || !user?.id) return;
     setIsApproving(true);
     try {
+      // Паралельне погодження: статус змінюється на TO_PAY тільки коли обидва погодили
       const ceoAlreadyApproved = invoice?.ceo_decision === 'APPROVED';
-      const newStatus: PurchaseInvoiceStatus = ceoAlreadyApproved ? 'TO_PAY' : 'PENDING_CEO';
+      const newStatus: PurchaseInvoiceStatus = ceoAlreadyApproved ? 'TO_PAY' : 'PENDING_COO';
 
       await updatePurchaseInvoice(id, {
         coo_decision: 'APPROVED',
@@ -411,7 +412,7 @@ export default function PurchaseInvoiceDetail() {
         coo_decided_at: new Date().toISOString(),
         status: newStatus,
       });
-      await logPurchaseEvent('INVOICE', id, 'COO_APPROVED');
+      await logPurchaseEvent('INVOICE', id, ceoAlreadyApproved ? 'APPROVED_BY_COO' : 'COO_APPROVED');
       setInvoice(prev =>
         prev
           ? {
@@ -436,6 +437,7 @@ export default function PurchaseInvoiceDetail() {
     if (!id || !user?.id) return;
     setIsApproving(true);
     try {
+      // Паралельне погодження: статус змінюється на TO_PAY тільки коли обидва погодили
       const cooAlreadyApproved = invoice?.coo_decision === 'APPROVED';
       const newStatus: PurchaseInvoiceStatus = cooAlreadyApproved ? 'TO_PAY' : 'PENDING_COO';
 
@@ -445,7 +447,7 @@ export default function PurchaseInvoiceDetail() {
         ceo_decided_at: new Date().toISOString(),
         status: newStatus,
       });
-      await logPurchaseEvent('INVOICE', id, 'CEO_APPROVED');
+      await logPurchaseEvent('INVOICE', id, cooAlreadyApproved ? 'APPROVED_BY_CEO' : 'CEO_APPROVED');
       setInvoice(prev =>
         prev
           ? {
