@@ -53,7 +53,7 @@ import {
   Receipt,
   CalendarIcon,
 } from 'lucide-react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getPurchaseInvoiceById,
@@ -118,8 +118,12 @@ interface InvoiceItemWithRemaining extends PurchaseInvoiceItem {
 
 export default function PurchaseInvoiceDetail() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { profile, user } = useAuth();
+
+  const fromQueue = location.state?.from === 'queue';
+  const backPath = fromQueue ? '/purchase/queue' : '/purchase/invoices';
 
   const [invoice, setInvoice] = useState<PurchaseInvoice | null>(null);
   const [items, setItems] = useState<InvoiceItemWithRemaining[]>([]);
@@ -550,7 +554,7 @@ export default function PurchaseInvoiceDetail() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/purchase/invoices')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-bold">Помилка</h1>
@@ -572,7 +576,7 @@ export default function PurchaseInvoiceDetail() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/purchase/invoices')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">

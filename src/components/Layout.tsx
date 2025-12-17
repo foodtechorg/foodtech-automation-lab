@@ -25,9 +25,10 @@ export function Layout({
       icon: LayoutDashboard
     }];
     
-    // Purchase module navigation - available to all authenticated users
+    // Purchase module navigation - route depends on role
+    const canSeeQueue = ['procurement_manager', 'coo', 'ceo', 'admin'].includes(profile.role);
     const purchaseNav = [{
-      to: '/purchase/requests',
+      to: canSeeQueue ? '/purchase/queue' : '/purchase/requests',
       label: 'Закупівля ТМЦ',
       icon: ShoppingCart
     }];

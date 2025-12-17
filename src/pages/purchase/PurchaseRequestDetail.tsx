@@ -22,7 +22,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Loader2, Package, Send, Trash2, Check, X, Paperclip, Receipt, FileText } from 'lucide-react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
 import { getPurchaseRequestById, getPurchaseRequestItems, updatePurchaseRequestStatus, deletePurchaseRequest } from '@/services/purchaseApi';
 import { getPurchaseInvoicesByRequestId, getInvoicedQuantitiesByRequestId, createPurchaseInvoice, createPurchaseInvoiceItems, logPurchaseEvent } from '@/services/invoiceApi';
 import { getAttachments, type Attachment } from '@/services/attachmentService';
@@ -67,8 +67,12 @@ const typeLabels: Record<PurchaseType, string> = {
 
 export default function PurchaseRequestDetail() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { profile, user } = useAuth();
+  
+  const fromQueue = location.state?.from === 'queue';
+  const backPath = fromQueue ? '/purchase/queue' : '/purchase/requests';
   
   const [request, setRequest] = useState<PurchaseRequest | null>(null);
   const [items, setItems] = useState<PurchaseRequestItem[]>([]);
@@ -272,7 +276,7 @@ export default function PurchaseRequestDetail() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/purchase/requests')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-bold">Помилка</h1>
@@ -289,7 +293,7 @@ export default function PurchaseRequestDetail() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/purchase/requests')}>
+        <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
