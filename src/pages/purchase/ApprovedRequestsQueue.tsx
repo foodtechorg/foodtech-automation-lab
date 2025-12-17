@@ -195,11 +195,12 @@ export default function ApprovedRequestsQueue() {
   }
 
   async function loadCEOQueue() {
-    // Load PENDING_CEO invoices
+    // Load PENDING_COO invoices where CEO hasn't decided yet (parallel approval)
     const { data: invoicesData, error: invError } = await supabase
       .from('purchase_invoices')
       .select('*')
-      .eq('status', 'PENDING_CEO')
+      .eq('status', 'PENDING_COO')
+      .eq('ceo_decision', 'PENDING')
       .order('created_at', { ascending: false });
 
     if (invError) throw invError;
@@ -207,12 +208,14 @@ export default function ApprovedRequestsQueue() {
     // Get creator profiles
     const creatorIds = [...new Set((invoicesData || []).map(i => i.created_by))];
 
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, name, email')
-      .in('id', creatorIds);
+    const { data: profiles } = creatorIds.length > 0 
+      ? await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', creatorIds)
+      : { data: [] as { id: string; name: string | null; email: string }[] };
 
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    const profileMap = new Map(profiles?.map(p => [p.id, p] as const) || []);
 
     // For invoices, get requester info from linked purchase_requests
     const invoiceRequestIds = [...new Set((invoicesData || []).filter(i => i.request_id).map(i => i.request_id!))];
@@ -501,14 +504,26 @@ export default function ApprovedRequestsQueue() {
     }
   };
 
-  // COO - approve invoice
+  // COO - approve invoice (parallel approval)
   const handleApproveInvoiceCOO = async (invoiceId: string) => {
     setProcessingId(invoiceId);
     try {
+      // Fetch current invoice to check CEO decision
+      const { data: invoice, error: fetchError } = await supabase
+        .from('purchase_invoices')
+        .select('ceo_decision')
+        .eq('id', invoiceId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // If CEO already approved, set TO_PAY; otherwise keep PENDING_COO
+      const newStatus = invoice?.ceo_decision === 'APPROVED' ? 'TO_PAY' : 'PENDING_COO';
+
       const { error } = await supabase
         .from('purchase_invoices')
         .update({
-          status: 'PENDING_CEO',
+          status: newStatus,
           coo_decision: 'APPROVED',
           coo_decided_by: user?.id,
           coo_decided_at: new Date().toISOString(),
@@ -518,7 +533,7 @@ export default function ApprovedRequestsQueue() {
       if (error) throw error;
 
       await logPurchaseEvent('INVOICE', invoiceId, 'APPROVED_BY_COO');
-      toast.success('Рахунок погоджено');
+      toast.success(newStatus === 'TO_PAY' ? 'Рахунок повністю погоджено' : 'Рахунок погоджено COO');
       await loadQueueData();
     } catch (err) {
       console.error(err);
@@ -557,14 +572,26 @@ export default function ApprovedRequestsQueue() {
     }
   };
 
-  // CEO - approve invoice
+  // CEO - approve invoice (parallel approval)
   const handleApproveInvoiceCEO = async (invoiceId: string) => {
     setProcessingId(invoiceId);
     try {
+      // Fetch current invoice to check COO decision
+      const { data: invoice, error: fetchError } = await supabase
+        .from('purchase_invoices')
+        .select('coo_decision')
+        .eq('id', invoiceId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // If COO already approved, set TO_PAY; otherwise keep PENDING_COO
+      const newStatus = invoice?.coo_decision === 'APPROVED' ? 'TO_PAY' : 'PENDING_COO';
+
       const { error } = await supabase
         .from('purchase_invoices')
         .update({
-          status: 'TO_PAY',
+          status: newStatus,
           ceo_decision: 'APPROVED',
           ceo_decided_by: user?.id,
           ceo_decided_at: new Date().toISOString(),
@@ -574,7 +601,7 @@ export default function ApprovedRequestsQueue() {
       if (error) throw error;
 
       await logPurchaseEvent('INVOICE', invoiceId, 'APPROVED_BY_CEO');
-      toast.success('Рахунок погоджено');
+      toast.success(newStatus === 'TO_PAY' ? 'Рахунок повністю погоджено' : 'Рахунок погоджено CEO');
       await loadQueueData();
     } catch (err) {
       console.error(err);
