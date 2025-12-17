@@ -1,25 +1,12 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { useEffect, useState, useCallback } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,13 +17,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+} from "@/components/ui/alert-dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import {
   ArrowLeft,
   Loader2,
@@ -52,9 +35,9 @@ import {
   Paperclip,
   Receipt,
   CalendarIcon,
-} from 'lucide-react';
-import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+} from "lucide-react";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import {
   getPurchaseInvoiceById,
   getPurchaseInvoiceItems,
@@ -65,13 +48,13 @@ import {
   getPurchaseLogs,
   recalculateInvoiceTotal,
   getInvoicedQuantitiesByRequestId,
-} from '@/services/invoiceApi';
-import { getPurchaseRequestItems } from '@/services/purchaseApi';
-import { getAttachments, type Attachment } from '@/services/attachmentService';
-import { AttachmentsList } from '@/components/purchase/AttachmentsList';
-import { FileUploadZone } from '@/components/purchase/FileUploadZone';
-import { SupplierInvoiceUpload } from '@/components/purchase/SupplierInvoiceUpload';
-import { supabase } from '@/integrations/supabase/client';
+} from "@/services/invoiceApi";
+import { getPurchaseRequestItems } from "@/services/purchaseApi";
+import { getAttachments, type Attachment } from "@/services/attachmentService";
+import { AttachmentsList } from "@/components/purchase/AttachmentsList";
+import { FileUploadZone } from "@/components/purchase/FileUploadZone";
+import { SupplierInvoiceUpload } from "@/components/purchase/SupplierInvoiceUpload";
+import { supabase } from "@/integrations/supabase/client";
 import type {
   PurchaseInvoice,
   PurchaseInvoiceItem,
@@ -79,35 +62,35 @@ import type {
   PaymentTerms,
   PurchaseLog,
   PurchaseRequestItem,
-} from '@/types/purchase';
-import { format } from 'date-fns';
-import { uk } from 'date-fns/locale';
-import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+} from "@/types/purchase";
+import { format } from "date-fns";
+import { uk } from "date-fns/locale";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const statusLabels: Record<PurchaseInvoiceStatus, string> = {
-  DRAFT: 'Чернетка',
-  PENDING_COO: 'На погодженні',
-  PENDING_CEO: 'На погодженні',
-  TO_PAY: 'До оплати',
-  PAID: 'Оплачено',
-  DELIVERED: 'Доставлено',
-  REJECTED: 'Відхилено',
+  DRAFT: "Чернетка",
+  PENDING_COO: "На погодженні",
+  PENDING_CEO: "На погодженні",
+  TO_PAY: "До оплати",
+  PAID: "Оплачено",
+  DELIVERED: "Доставлено",
+  REJECTED: "Відхилено",
 };
 
-const statusVariants: Record<PurchaseInvoiceStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  DRAFT: 'secondary',
-  PENDING_COO: 'outline',
-  PENDING_CEO: 'outline',
-  TO_PAY: 'default',
-  PAID: 'default',
-  DELIVERED: 'default',
-  REJECTED: 'destructive',
+const statusVariants: Record<PurchaseInvoiceStatus, "default" | "secondary" | "destructive" | "outline"> = {
+  DRAFT: "secondary",
+  PENDING_COO: "outline",
+  PENDING_CEO: "outline",
+  TO_PAY: "default",
+  PAID: "default",
+  DELIVERED: "default",
+  REJECTED: "destructive",
 };
 
 const paymentTermsLabels: Record<PaymentTerms, string> = {
-  PREPAYMENT: 'Передоплата',
-  POSTPAYMENT: 'Постоплата',
+  PREPAYMENT: "Передоплата",
+  POSTPAYMENT: "Постоплата",
 };
 
 interface InvoiceItemWithRemaining extends PurchaseInvoiceItem {
@@ -118,23 +101,19 @@ interface InvoiceItemWithRemaining extends PurchaseInvoiceItem {
 
 export default function PurchaseInvoiceDetail() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { profile, user } = useAuth();
-
-  const fromQueue = location.state?.from === 'queue';
-  const backPath = fromQueue ? '/purchase/queue' : '/purchase/invoices';
 
   const [invoice, setInvoice] = useState<PurchaseInvoice | null>(null);
   const [items, setItems] = useState<InvoiceItemWithRemaining[]>([]);
   const [logs, setLogs] = useState<PurchaseLog[]>([]);
-  const [creatorName, setCreatorName] = useState<string>('');
-  const [requestNumber, setRequestNumber] = useState<string>('');
-  
+  const [creatorName, setCreatorName] = useState<string>("");
+  const [requestNumber, setRequestNumber] = useState<string>("");
+
   // Attachments state
   const [requestAttachments, setRequestAttachments] = useState<Attachment[]>([]);
   const [invoiceAttachments, setInvoiceAttachments] = useState<Attachment[]>([]);
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -142,33 +121,33 @@ export default function PurchaseInvoiceDetail() {
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [rejectComment, setRejectComment] = useState('');
+  const [rejectComment, setRejectComment] = useState("");
 
   // Editable fields for DRAFT
-  const [supplierName, setSupplierName] = useState('');
-  const [supplierContact, setSupplierContact] = useState('');
-  const [description, setDescription] = useState('');
-  const [paymentTerms, setPaymentTerms] = useState<PaymentTerms>('PREPAYMENT');
+  const [supplierName, setSupplierName] = useState("");
+  const [supplierContact, setSupplierContact] = useState("");
+  const [description, setDescription] = useState("");
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTerms>("PREPAYMENT");
   const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
   const [expectedDate, setExpectedDate] = useState<Date | undefined>();
 
   // Role checks
-  const isDraft = invoice?.status === 'DRAFT';
-  const isPendingCOO = invoice?.status === 'PENDING_COO';
-  const isPendingCEO = invoice?.status === 'PENDING_CEO';
-  const isToPayStatus = invoice?.status === 'TO_PAY';
-  const isPaidStatus = invoice?.status === 'PAID';
+  const isDraft = invoice?.status === "DRAFT";
+  const isPendingCOO = invoice?.status === "PENDING_COO";
+  const isPendingCEO = invoice?.status === "PENDING_CEO";
+  const isToPayStatus = invoice?.status === "TO_PAY";
+  const isPaidStatus = invoice?.status === "PAID";
   const isOwner = invoice?.created_by === user?.id;
-  const isCOO = profile?.role === 'coo' || profile?.role === 'admin';
-  const isCEO = profile?.role === 'ceo' || profile?.role === 'admin';
-  const isTreasurer = profile?.role === 'treasurer' || profile?.role === 'admin';
-  const isAccountant = profile?.role === 'accountant' || profile?.role === 'admin';
-  const isProcurementManager = profile?.role === 'procurement_manager' || profile?.role === 'admin';
+  const isCOO = profile?.role === "coo" || profile?.role === "admin";
+  const isCEO = profile?.role === "ceo" || profile?.role === "admin";
+  const isTreasurer = profile?.role === "treasurer" || profile?.role === "admin";
+  const isAccountant = profile?.role === "accountant" || profile?.role === "admin";
+  const isProcurementManager = profile?.role === "procurement_manager" || profile?.role === "admin";
   const canEdit = isDraft && (isOwner || isProcurementManager);
 
   // Separate supplier invoice from other attachments
-  const supplierInvoiceFile = invoiceAttachments.find(a => a.is_supplier_invoice);
-  const otherInvoiceAttachments = invoiceAttachments.filter(a => !a.is_supplier_invoice);
+  const supplierInvoiceFile = invoiceAttachments.find((a) => a.is_supplier_invoice);
+  const otherInvoiceAttachments = invoiceAttachments.filter((a) => !a.is_supplier_invoice);
 
   useEffect(() => {
     async function loadData() {
@@ -179,12 +158,12 @@ export default function PurchaseInvoiceDetail() {
         const [invoiceData, itemsData, logsData, invoiceAttachmentsData] = await Promise.all([
           getPurchaseInvoiceById(id),
           getPurchaseInvoiceItems(id),
-          getPurchaseLogs('INVOICE', id),
-          getAttachments('invoice', id),
+          getPurchaseLogs("INVOICE", id),
+          getAttachments("invoice", id),
         ]);
 
         if (!invoiceData) {
-          setError('Рахунок не знайдено');
+          setError("Рахунок не знайдено");
           return;
         }
 
@@ -193,9 +172,9 @@ export default function PurchaseInvoiceDetail() {
         setInvoiceAttachments(invoiceAttachmentsData);
 
         // Set editable fields
-        setSupplierName(invoiceData.supplier_name || '');
-        setSupplierContact(invoiceData.supplier_contact || '');
-        setDescription(invoiceData.description || '');
+        setSupplierName(invoiceData.supplier_name || "");
+        setSupplierContact(invoiceData.supplier_contact || "");
+        setDescription(invoiceData.description || "");
         setPaymentTerms(invoiceData.payment_terms);
         setInvoiceDate(invoiceData.invoice_date ? new Date(invoiceData.invoice_date) : undefined);
         setExpectedDate(invoiceData.expected_date ? new Date(invoiceData.expected_date) : undefined);
@@ -203,8 +182,8 @@ export default function PurchaseInvoiceDetail() {
         // Load request-related data if linked
         if (invoiceData.request_id) {
           const [requestData, requestAttachmentsData, requestItems, invoicedQty] = await Promise.all([
-            supabase.from('purchase_requests').select('number').eq('id', invoiceData.request_id).single(),
-            getAttachments('request', invoiceData.request_id),
+            supabase.from("purchase_requests").select("number").eq("id", invoiceData.request_id).single(),
+            getAttachments("request", invoiceData.request_id),
             getPurchaseRequestItems(invoiceData.request_id),
             getInvoicedQuantitiesByRequestId(invoiceData.request_id),
           ]);
@@ -215,16 +194,16 @@ export default function PurchaseInvoiceDetail() {
           setRequestAttachments(requestAttachmentsData);
 
           // Calculate max quantities for each item
-          const itemsWithRemaining: InvoiceItemWithRemaining[] = itemsData.map(item => {
-            const requestItem = requestItems.find(ri => ri.id === item.request_item_id);
+          const itemsWithRemaining: InvoiceItemWithRemaining[] = itemsData.map((item) => {
+            const requestItem = requestItems.find((ri) => ri.id === item.request_item_id);
             const ordered = requestItem?.quantity || item.quantity;
             // Invoiced quantities exclude current invoice's items (they're already in the invoice)
-            const totalInvoiced = invoicedQty.get(item.request_item_id || '') || 0;
+            const totalInvoiced = invoicedQty.get(item.request_item_id || "") || 0;
             // For current invoice, max is: ordered - (totalInvoiced - currentItemQty)
             // Since totalInvoiced doesn't include DRAFT invoices, we add current item back
             const previouslyInvoiced = totalInvoiced;
             const maxQuantity = ordered - previouslyInvoiced + item.quantity;
-            
+
             return {
               ...item,
               ordered,
@@ -234,19 +213,21 @@ export default function PurchaseInvoiceDetail() {
           });
           setItems(itemsWithRemaining);
         } else {
-          setItems(itemsData.map(item => ({
-            ...item,
-            ordered: item.quantity,
-            previouslyInvoiced: 0,
-            maxQuantity: item.quantity,
-          })));
+          setItems(
+            itemsData.map((item) => ({
+              ...item,
+              ordered: item.quantity,
+              previouslyInvoiced: 0,
+              maxQuantity: item.quantity,
+            })),
+          );
         }
 
         // Load creator profile
         const { data: profileData } = await supabase
-          .from('profiles')
-          .select('name, email')
-          .eq('id', invoiceData.created_by)
+          .from("profiles")
+          .select("name, email")
+          .eq("id", invoiceData.created_by)
           .single();
 
         if (profileData) {
@@ -254,7 +235,7 @@ export default function PurchaseInvoiceDetail() {
         }
       } catch (err) {
         console.error(err);
-        setError('Не вдалося завантажити дані рахунку');
+        setError("Не вдалося завантажити дані рахунку");
       } finally {
         setLoading(false);
       }
@@ -263,13 +244,13 @@ export default function PurchaseInvoiceDetail() {
   }, [id]);
 
   const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '—';
-    return format(new Date(dateStr), 'dd.MM.yyyy HH:mm', { locale: uk });
+    if (!dateStr) return "—";
+    return format(new Date(dateStr), "dd.MM.yyyy HH:mm", { locale: uk });
   };
 
   const formatDateShort = (dateStr: string | null) => {
-    if (!dateStr) return '—';
-    return format(new Date(dateStr), 'dd.MM.yyyy', { locale: uk });
+    if (!dateStr) return "—";
+    return format(new Date(dateStr), "dd.MM.yyyy", { locale: uk });
   };
 
   const handleSave = useCallback(async () => {
@@ -284,38 +265,42 @@ export default function PurchaseInvoiceDetail() {
         invoice_date: invoiceDate?.toISOString() || null,
         expected_date: expectedDate?.toISOString() || null,
       });
-      setInvoice(prev => prev ? {
-        ...prev,
-        supplier_name: supplierName,
-        supplier_contact: supplierContact || null,
-        description: description || null,
-        payment_terms: paymentTerms,
-        invoice_date: invoiceDate?.toISOString() || null,
-        expected_date: expectedDate?.toISOString() || null,
-      } : null);
-      toast.success('Зміни збережено');
+      setInvoice((prev) =>
+        prev
+          ? {
+              ...prev,
+              supplier_name: supplierName,
+              supplier_contact: supplierContact || null,
+              description: description || null,
+              payment_terms: paymentTerms,
+              invoice_date: invoiceDate?.toISOString() || null,
+              expected_date: expectedDate?.toISOString() || null,
+            }
+          : null,
+      );
+      toast.success("Зміни збережено");
     } catch (err) {
       console.error(err);
-      toast.error('Помилка збереження');
+      toast.error("Помилка збереження");
     } finally {
       setIsSaving(false);
     }
   }, [id, canEdit, supplierName, supplierContact, description, paymentTerms, invoiceDate, expectedDate]);
 
-  const handleItemUpdate = async (itemId: string, field: 'quantity' | 'price', value: number) => {
+  const handleItemUpdate = async (itemId: string, field: "quantity" | "price", value: number) => {
     if (!canEdit) return;
-    
-    const item = items.find(i => i.id === itemId);
+
+    const item = items.find((i) => i.id === itemId);
     if (!item) return;
 
     // Validate quantity against max
-    if (field === 'quantity' && value > item.maxQuantity) {
+    if (field === "quantity" && value > item.maxQuantity) {
       toast.error(`Максимальна кількість: ${item.maxQuantity}`);
       return;
     }
 
-    const newQuantity = field === 'quantity' ? value : item.quantity;
-    const newPrice = field === 'price' ? value : item.price;
+    const newQuantity = field === "quantity" ? value : item.quantity;
+    const newPrice = field === "price" ? value : item.price;
     const newAmount = newQuantity * newPrice;
 
     try {
@@ -324,40 +309,36 @@ export default function PurchaseInvoiceDetail() {
         amount: newAmount,
       });
 
-      setItems(prev => prev.map(i => 
-        i.id === itemId 
-          ? { ...i, [field]: value, amount: newAmount }
-          : i
-      ));
+      setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, [field]: value, amount: newAmount } : i)));
 
       // Recalculate total
       if (id) {
         const newTotal = await recalculateInvoiceTotal(id);
-        setInvoice(prev => prev ? { ...prev, amount: newTotal } : null);
+        setInvoice((prev) => (prev ? { ...prev, amount: newTotal } : null));
       }
     } catch (err) {
       console.error(err);
-      toast.error('Помилка оновлення');
+      toast.error("Помилка оновлення");
     }
   };
 
   const handleSubmitForApproval = async () => {
     if (!id) return;
-    
+
     // Validate
     if (!supplierName.trim()) {
-      toast.error('Вкажіть постачальника');
+      toast.error("Вкажіть постачальника");
       return;
     }
-    
-    const hasValidItems = items.some(i => i.quantity > 0 && i.price > 0);
+
+    const hasValidItems = items.some((i) => i.quantity > 0 && i.price > 0);
     if (!hasValidItems) {
-      toast.error('Додайте хоча б одну позицію з кількістю та ціною');
+      toast.error("Додайте хоча б одну позицію з кількістю та ціною");
       return;
     }
 
     if (!supplierInvoiceFile) {
-      toast.error('Необхідно завантажити рахунок постачальника');
+      toast.error("Необхідно завантажити рахунок постачальника");
       return;
     }
 
@@ -371,14 +352,14 @@ export default function PurchaseInvoiceDetail() {
         payment_terms: paymentTerms,
         invoice_date: invoiceDate?.toISOString() || null,
         expected_date: expectedDate?.toISOString() || null,
-        status: 'PENDING_COO',
+        status: "PENDING_COO",
       });
-      await logPurchaseEvent('INVOICE', id, 'SUBMITTED_FOR_APPROVAL');
-      setInvoice(prev => prev ? { ...prev, status: 'PENDING_COO' } : null);
-      toast.success('Рахунок відправлено на погодження');
+      await logPurchaseEvent("INVOICE", id, "SUBMITTED_FOR_APPROVAL");
+      setInvoice((prev) => (prev ? { ...prev, status: "PENDING_COO" } : null));
+      toast.success("Рахунок відправлено на погодження");
     } catch (err) {
       console.error(err);
-      toast.error('Помилка при відправці на погодження');
+      toast.error("Помилка при відправці на погодження");
     } finally {
       setIsSubmitting(false);
     }
@@ -389,11 +370,11 @@ export default function PurchaseInvoiceDetail() {
     setIsDeleting(true);
     try {
       await deletePurchaseInvoice(id);
-      toast.success('Рахунок видалено');
-      navigate('/purchase/invoices');
+      toast.success("Рахунок видалено");
+      navigate("/purchase/invoices");
     } catch (err) {
       console.error(err);
-      toast.error('Помилка при видаленні рахунку');
+      toast.error("Помилка при видаленні рахунку");
       setIsDeleting(false);
     }
   };
@@ -402,32 +383,31 @@ export default function PurchaseInvoiceDetail() {
     if (!id || !user?.id) return;
     setIsApproving(true);
     try {
-      // Паралельне погодження: статус змінюється на TO_PAY тільки коли обидва погодили
-      const ceoAlreadyApproved = invoice?.ceo_decision === 'APPROVED';
-      const newStatus: PurchaseInvoiceStatus = ceoAlreadyApproved ? 'TO_PAY' : 'PENDING_COO';
+      const ceoAlreadyApproved = invoice?.ceo_decision === "APPROVED";
+      const newStatus: PurchaseInvoiceStatus = ceoAlreadyApproved ? "TO_PAY" : "PENDING_CEO";
 
       await updatePurchaseInvoice(id, {
-        coo_decision: 'APPROVED',
+        coo_decision: "APPROVED",
         coo_decided_by: user.id,
         coo_decided_at: new Date().toISOString(),
         status: newStatus,
       });
-      await logPurchaseEvent('INVOICE', id, ceoAlreadyApproved ? 'APPROVED_BY_COO' : 'COO_APPROVED');
-      setInvoice(prev =>
+      await logPurchaseEvent("INVOICE", id, "COO_APPROVED");
+      setInvoice((prev) =>
         prev
           ? {
               ...prev,
               status: newStatus,
-              coo_decision: 'APPROVED',
+              coo_decision: "APPROVED",
               coo_decided_by: user.id,
               coo_decided_at: new Date().toISOString(),
             }
-          : null
+          : null,
       );
-      toast.success(ceoAlreadyApproved ? 'Рахунок погоджено, передано до оплати' : 'Рахунок погоджено COO');
+      toast.success(ceoAlreadyApproved ? "Рахунок погоджено, передано до оплати" : "Рахунок погоджено COO");
     } catch (err) {
       console.error(err);
-      toast.error('Помилка при погодженні');
+      toast.error("Помилка при погодженні");
     } finally {
       setIsApproving(false);
     }
@@ -437,66 +417,65 @@ export default function PurchaseInvoiceDetail() {
     if (!id || !user?.id) return;
     setIsApproving(true);
     try {
-      // Паралельне погодження: статус змінюється на TO_PAY тільки коли обидва погодили
-      const cooAlreadyApproved = invoice?.coo_decision === 'APPROVED';
-      const newStatus: PurchaseInvoiceStatus = cooAlreadyApproved ? 'TO_PAY' : 'PENDING_COO';
+      const cooAlreadyApproved = invoice?.coo_decision === "APPROVED";
+      const newStatus: PurchaseInvoiceStatus = cooAlreadyApproved ? "TO_PAY" : "PENDING_COO";
 
       await updatePurchaseInvoice(id, {
-        ceo_decision: 'APPROVED',
+        ceo_decision: "APPROVED",
         ceo_decided_by: user.id,
         ceo_decided_at: new Date().toISOString(),
         status: newStatus,
       });
-      await logPurchaseEvent('INVOICE', id, cooAlreadyApproved ? 'APPROVED_BY_CEO' : 'CEO_APPROVED');
-      setInvoice(prev =>
+      await logPurchaseEvent("INVOICE", id, "CEO_APPROVED");
+      setInvoice((prev) =>
         prev
           ? {
               ...prev,
               status: newStatus,
-              ceo_decision: 'APPROVED',
+              ceo_decision: "APPROVED",
               ceo_decided_by: user.id,
               ceo_decided_at: new Date().toISOString(),
             }
-          : null
+          : null,
       );
-      toast.success(cooAlreadyApproved ? 'Рахунок погоджено, передано до оплати' : 'Рахунок погоджено CEO');
+      toast.success(cooAlreadyApproved ? "Рахунок погоджено, передано до оплати" : "Рахунок погоджено CEO");
     } catch (err) {
       console.error(err);
-      toast.error('Помилка при погодженні');
+      toast.error("Помилка при погодженні");
     } finally {
       setIsApproving(false);
     }
   };
 
-  const handleReject = async (role: 'COO' | 'CEO') => {
+  const handleReject = async (role: "COO" | "CEO") => {
     if (!id || !user?.id) return;
     setIsRejecting(true);
     try {
       const updates: Partial<PurchaseInvoice> =
-        role === 'COO'
+        role === "COO"
           ? {
-              coo_decision: 'REJECTED',
+              coo_decision: "REJECTED",
               coo_decided_by: user.id,
               coo_decided_at: new Date().toISOString(),
               coo_comment: rejectComment || null,
-              status: 'REJECTED',
+              status: "REJECTED",
             }
           : {
-              ceo_decision: 'REJECTED',
+              ceo_decision: "REJECTED",
               ceo_decided_by: user.id,
               ceo_decided_at: new Date().toISOString(),
               ceo_comment: rejectComment || null,
-              status: 'REJECTED',
+              status: "REJECTED",
             };
 
       await updatePurchaseInvoice(id, updates);
-      await logPurchaseEvent('INVOICE', id, `${role}_REJECTED`, rejectComment || undefined);
-      setInvoice(prev => (prev ? { ...prev, ...updates } : null));
-      toast.success('Рахунок відхилено');
-      setRejectComment('');
+      await logPurchaseEvent("INVOICE", id, `${role}_REJECTED`, rejectComment || undefined);
+      setInvoice((prev) => (prev ? { ...prev, ...updates } : null));
+      toast.success("Рахунок відхилено");
+      setRejectComment("");
     } catch (err) {
       console.error(err);
-      toast.error('Помилка при відхиленні');
+      toast.error("Помилка при відхиленні");
     } finally {
       setIsRejecting(false);
     }
@@ -507,17 +486,15 @@ export default function PurchaseInvoiceDetail() {
     setIsApproving(true);
     try {
       await updatePurchaseInvoice(id, {
-        status: 'PAID',
+        status: "PAID",
         paid_date: new Date().toISOString(),
       });
-      await logPurchaseEvent('INVOICE', id, 'MARKED_PAID');
-      setInvoice(prev =>
-        prev ? { ...prev, status: 'PAID', paid_date: new Date().toISOString() } : null
-      );
-      toast.success('Рахунок позначено як оплачений');
+      await logPurchaseEvent("INVOICE", id, "MARKED_PAID");
+      setInvoice((prev) => (prev ? { ...prev, status: "PAID", paid_date: new Date().toISOString() } : null));
+      toast.success("Рахунок позначено як оплачений");
     } catch (err) {
       console.error(err);
-      toast.error('Помилка при оновленні статусу');
+      toast.error("Помилка при оновленні статусу");
     } finally {
       setIsApproving(false);
     }
@@ -528,17 +505,15 @@ export default function PurchaseInvoiceDetail() {
     setIsApproving(true);
     try {
       await updatePurchaseInvoice(id, {
-        status: 'DELIVERED',
+        status: "DELIVERED",
         delivered_date: new Date().toISOString(),
       });
-      await logPurchaseEvent('INVOICE', id, 'MARKED_DELIVERED');
-      setInvoice(prev =>
-        prev ? { ...prev, status: 'DELIVERED', delivered_date: new Date().toISOString() } : null
-      );
-      toast.success('Товар позначено як доставлений');
+      await logPurchaseEvent("INVOICE", id, "MARKED_DELIVERED");
+      setInvoice((prev) => (prev ? { ...prev, status: "DELIVERED", delivered_date: new Date().toISOString() } : null));
+      toast.success("Товар позначено як доставлений");
     } catch (err) {
       console.error(err);
-      toast.error('Помилка при оновленні статусу');
+      toast.error("Помилка при оновленні статусу");
     } finally {
       setIsApproving(false);
     }
@@ -556,29 +531,29 @@ export default function PurchaseInvoiceDetail() {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/purchase/invoices")}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-bold">Помилка</h1>
         </div>
         <Card>
           <CardContent className="py-8">
-            <p className="text-center text-destructive">{error || 'Рахунок не знайдено'}</p>
+            <p className="text-center text-destructive">{error || "Рахунок не знайдено"}</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const showCOOApproval = isCOO && (isPendingCOO || (isPendingCEO && invoice.coo_decision === 'PENDING'));
-  const showCEOApproval = isCEO && (isPendingCEO || (isPendingCOO && invoice.ceo_decision === 'PENDING'));
+  const showCOOApproval = isCOO && (isPendingCOO || (isPendingCEO && invoice.coo_decision === "PENDING"));
+  const showCEOApproval = isCEO && (isPendingCEO || (isPendingCOO && invoice.ceo_decision === "PENDING"));
   const showTreasurerAction = isTreasurer && isToPayStatus;
   const showAccountantAction = isAccountant && isPaidStatus;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(backPath)}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/purchase/invoices")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div className="flex-1">
@@ -597,22 +572,14 @@ export default function PurchaseInvoiceDetail() {
               Зберегти
             </Button>
             <Button onClick={handleSubmitForApproval} disabled={isSubmitting}>
-              {isSubmitting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
+              {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               Відправити на погодження
             </Button>
 
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" disabled={isDeleting}>
-                  {isDeleting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="mr-2 h-4 w-4" />
-                  )}
+                  {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
                   Видалити
                 </Button>
               </AlertDialogTrigger>
@@ -637,7 +604,7 @@ export default function PurchaseInvoiceDetail() {
           <div className="flex items-center gap-2">
             <Button onClick={handleCOOApprove} disabled={isApproving} className="bg-green-600 hover:bg-green-700">
               {isApproving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-              Погодити (COO)
+              Погодити
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -649,7 +616,9 @@ export default function PurchaseInvoiceDetail() {
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Відхилити рахунок?</AlertDialogTitle>
-                  <AlertDialogDescription>Ви впевнені, що хочете відхилити рахунок {invoice.number}?</AlertDialogDescription>
+                  <AlertDialogDescription>
+                    Ви впевнені, що хочете відхилити рахунок {invoice.number}?
+                  </AlertDialogDescription>
                 </AlertDialogHeader>
                 <Textarea
                   placeholder="Причина відхилення"
@@ -659,7 +628,7 @@ export default function PurchaseInvoiceDetail() {
                 />
                 <AlertDialogFooter>
                   <AlertDialogCancel>Скасувати</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleReject('COO')}>Відхилити</AlertDialogAction>
+                  <AlertDialogAction onClick={() => handleReject("COO")}>Відхилити</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -671,7 +640,7 @@ export default function PurchaseInvoiceDetail() {
           <div className="flex items-center gap-2">
             <Button onClick={handleCEOApprove} disabled={isApproving} className="bg-green-600 hover:bg-green-700">
               {isApproving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Check className="mr-2 h-4 w-4" />}
-              Погодити (CEO)
+              Погодити
             </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
@@ -683,7 +652,9 @@ export default function PurchaseInvoiceDetail() {
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>Відхилити рахунок?</AlertDialogTitle>
-                  <AlertDialogDescription>Ви впевнені, що хочете відхилити рахунок {invoice.number}?</AlertDialogDescription>
+                  <AlertDialogDescription>
+                    Ви впевнені, що хочете відхилити рахунок {invoice.number}?
+                  </AlertDialogDescription>
                 </AlertDialogHeader>
                 <Textarea
                   placeholder="Причина відхилення"
@@ -693,7 +664,7 @@ export default function PurchaseInvoiceDetail() {
                 />
                 <AlertDialogFooter>
                   <AlertDialogCancel>Скасувати</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => handleReject('CEO')}>Відхилити</AlertDialogAction>
+                  <AlertDialogAction onClick={() => handleReject("CEO")}>Відхилити</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -777,7 +748,7 @@ export default function PurchaseInvoiceDetail() {
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
-                        !invoiceDate && "text-muted-foreground"
+                        !invoiceDate && "text-muted-foreground",
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -803,7 +774,7 @@ export default function PurchaseInvoiceDetail() {
                       variant="outline"
                       className={cn(
                         "w-full justify-start text-left font-normal",
-                        !expectedDate && "text-muted-foreground"
+                        !expectedDate && "text-muted-foreground",
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
@@ -836,7 +807,7 @@ export default function PurchaseInvoiceDetail() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
                 <p className="text-sm text-muted-foreground">Постачальник</p>
-                <p className="font-medium">{invoice.supplier_name || '—'}</p>
+                <p className="font-medium">{invoice.supplier_name || "—"}</p>
                 {invoice.supplier_contact && (
                   <p className="text-sm text-muted-foreground">{invoice.supplier_contact}</p>
                 )}
@@ -875,7 +846,7 @@ export default function PurchaseInvoiceDetail() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Створив</p>
-                <p className="font-medium">{creatorName || '—'}</p>
+                <p className="font-medium">{creatorName || "—"}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Дата створення</p>
@@ -905,7 +876,7 @@ export default function PurchaseInvoiceDetail() {
       </Card>
 
       {/* Approval Status */}
-      {(invoice.coo_decision !== 'PENDING' || invoice.ceo_decision !== 'PENDING') && (
+      {(invoice.coo_decision !== "PENDING" || invoice.ceo_decision !== "PENDING") && (
         <Card>
           <CardHeader>
             <CardTitle>Статус погодження</CardTitle>
@@ -915,51 +886,47 @@ export default function PurchaseInvoiceDetail() {
               <div className="flex items-center gap-3">
                 <div
                   className={`w-3 h-3 rounded-full ${
-                    invoice.coo_decision === 'APPROVED'
-                      ? 'bg-green-500'
-                      : invoice.coo_decision === 'REJECTED'
-                      ? 'bg-red-500'
-                      : 'bg-yellow-500'
+                    invoice.coo_decision === "APPROVED"
+                      ? "bg-green-500"
+                      : invoice.coo_decision === "REJECTED"
+                        ? "bg-red-500"
+                        : "bg-yellow-500"
                   }`}
                 />
                 <div>
                   <p className="font-medium">COO</p>
                   <p className="text-sm text-muted-foreground">
-                    {invoice.coo_decision === 'APPROVED'
-                      ? 'Погоджено'
-                      : invoice.coo_decision === 'REJECTED'
-                      ? 'Відхилено'
-                      : 'Очікує'}
+                    {invoice.coo_decision === "APPROVED"
+                      ? "Погоджено"
+                      : invoice.coo_decision === "REJECTED"
+                        ? "Відхилено"
+                        : "Очікує"}
                     {invoice.coo_decided_at && ` • ${formatDateShort(invoice.coo_decided_at)}`}
                   </p>
-                  {invoice.coo_comment && (
-                    <p className="text-sm text-muted-foreground mt-1">{invoice.coo_comment}</p>
-                  )}
+                  {invoice.coo_comment && <p className="text-sm text-muted-foreground mt-1">{invoice.coo_comment}</p>}
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <div
                   className={`w-3 h-3 rounded-full ${
-                    invoice.ceo_decision === 'APPROVED'
-                      ? 'bg-green-500'
-                      : invoice.ceo_decision === 'REJECTED'
-                      ? 'bg-red-500'
-                      : 'bg-yellow-500'
+                    invoice.ceo_decision === "APPROVED"
+                      ? "bg-green-500"
+                      : invoice.ceo_decision === "REJECTED"
+                        ? "bg-red-500"
+                        : "bg-yellow-500"
                   }`}
                 />
                 <div>
                   <p className="font-medium">CEO</p>
                   <p className="text-sm text-muted-foreground">
-                    {invoice.ceo_decision === 'APPROVED'
-                      ? 'Погоджено'
-                      : invoice.ceo_decision === 'REJECTED'
-                      ? 'Відхилено'
-                      : 'Очікує'}
+                    {invoice.ceo_decision === "APPROVED"
+                      ? "Погоджено"
+                      : invoice.ceo_decision === "REJECTED"
+                        ? "Відхилено"
+                        : "Очікує"}
                     {invoice.ceo_decided_at && ` • ${formatDateShort(invoice.ceo_decided_at)}`}
                   </p>
-                  {invoice.ceo_comment && (
-                    <p className="text-sm text-muted-foreground mt-1">{invoice.ceo_comment}</p>
-                  )}
+                  {invoice.ceo_comment && <p className="text-sm text-muted-foreground mt-1">{invoice.ceo_comment}</p>}
                 </div>
               </div>
             </div>
@@ -995,11 +962,7 @@ export default function PurchaseInvoiceDetail() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.unit}</TableCell>
-                    {canEdit && (
-                      <TableCell className="text-right text-muted-foreground">
-                        {item.ordered}
-                      </TableCell>
-                    )}
+                    {canEdit && <TableCell className="text-right text-muted-foreground">{item.ordered}</TableCell>}
                     <TableCell className="text-right">
                       {canEdit ? (
                         <Input
@@ -1008,7 +971,7 @@ export default function PurchaseInvoiceDetail() {
                           max={item.maxQuantity}
                           step={0.01}
                           value={item.quantity}
-                          onChange={(e) => handleItemUpdate(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => handleItemUpdate(item.id, "quantity", parseFloat(e.target.value) || 0)}
                           className="w-24 text-right ml-auto"
                         />
                       ) : (
@@ -1022,7 +985,7 @@ export default function PurchaseInvoiceDetail() {
                           min={0}
                           step={0.01}
                           value={item.price}
-                          onChange={(e) => handleItemUpdate(item.id, 'price', parseFloat(e.target.value) || 0)}
+                          onChange={(e) => handleItemUpdate(item.id, "price", parseFloat(e.target.value) || 0)}
                           className="w-24 text-right ml-auto"
                         />
                       ) : (
@@ -1056,7 +1019,7 @@ export default function PurchaseInvoiceDetail() {
             </CardTitle>
             <CardDescription>
               Файли, прикріплені замовником до заявки
-              {canEdit && ' — перетягніть файл у «Рахунок постачальника»'}
+              {canEdit && " — перетягніть файл у «Рахунок постачальника»"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -1078,9 +1041,7 @@ export default function PurchaseInvoiceDetail() {
             Рахунок постачальника
             {canEdit && <span className="text-destructive">*</span>}
           </CardTitle>
-          <CardDescription>
-            Документ з реквізитами для оплати бухгалтером
-          </CardDescription>
+          <CardDescription>Документ з реквізитами для оплати бухгалтером</CardDescription>
         </CardHeader>
         <CardContent>
           {user?.id && (
@@ -1089,8 +1050,8 @@ export default function PurchaseInvoiceDetail() {
               userId={user.id}
               supplierInvoiceFile={supplierInvoiceFile || null}
               canEdit={canEdit}
-              onUpload={(attachment) => setInvoiceAttachments(prev => [...prev, attachment])}
-              onDelete={(attachmentId) => setInvoiceAttachments(prev => prev.filter(a => a.id !== attachmentId))}
+              onUpload={(attachment) => setInvoiceAttachments((prev) => [...prev, attachment])}
+              onDelete={(attachmentId) => setInvoiceAttachments((prev) => prev.filter((a) => a.id !== attachmentId))}
             />
           )}
         </CardContent>
@@ -1111,7 +1072,7 @@ export default function PurchaseInvoiceDetail() {
                 entityType="invoice"
                 entityId={id!}
                 userId={user.id}
-                onUploadComplete={(attachment) => setInvoiceAttachments(prev => [...prev, attachment])}
+                onUploadComplete={(attachment) => setInvoiceAttachments((prev) => [...prev, attachment])}
               />
             </div>
           )}
@@ -1119,7 +1080,7 @@ export default function PurchaseInvoiceDetail() {
             attachments={otherInvoiceAttachments}
             entityType="invoice"
             canDelete={canEdit}
-            onDelete={(attachmentId) => setInvoiceAttachments(prev => prev.filter(a => a.id !== attachmentId))}
+            onDelete={(attachmentId) => setInvoiceAttachments((prev) => prev.filter((a) => a.id !== attachmentId))}
           />
         </CardContent>
       </Card>
