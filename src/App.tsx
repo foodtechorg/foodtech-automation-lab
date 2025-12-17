@@ -22,6 +22,8 @@ import NewPurchaseRequest from "./pages/purchase/NewPurchaseRequest";
 import PurchaseRequestDetail from "./pages/purchase/PurchaseRequestDetail";
 import PurchaseInvoices from "./pages/purchase/PurchaseInvoices";
 import PurchaseInvoiceDetail from "./pages/purchase/PurchaseInvoiceDetail";
+import NewPurchaseInvoice from "./pages/purchase/NewPurchaseInvoice";
+import ApprovedRequestsQueue from "./pages/purchase/ApprovedRequestsQueue";
 
 const queryClient = new QueryClient();
 
@@ -147,11 +149,31 @@ const App = () => (
               }
             />
             <Route
+              path="/purchase/invoices/new"
+              element={
+                <ProtectedRoute allowedRoles={['procurement_manager', 'admin']}>
+                  <Layout>
+                    <NewPurchaseInvoice />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/purchase/invoices/:id"
               element={
                 <ProtectedRoute>
                   <Layout>
                     <PurchaseInvoiceDetail />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchase/queue"
+              element={
+                <ProtectedRoute allowedRoles={['procurement_manager', 'admin']}>
+                  <Layout>
+                    <ApprovedRequestsQueue />
                   </Layout>
                 </ProtectedRoute>
               }
