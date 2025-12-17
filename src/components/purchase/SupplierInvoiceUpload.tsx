@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Upload, FileText, Loader2, Download, Trash2, RefreshCw } from 'lucide-react';
+import { Upload, FileText, Loader2, Download, Trash2, RefreshCw, GripVertical } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
@@ -12,8 +12,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { uploadAttachment, deleteAttachment, getSignedUrl, validateFile, formatFileSize, type Attachment } from '@/services/attachmentService';
+import { 
+  uploadAttachment, 
+  deleteAttachment, 
+  getSignedUrl, 
+  validateFile, 
+  formatFileSize, 
+  createSupplierInvoiceFromExistingFile,
+  type Attachment 
+} from '@/services/attachmentService';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface SupplierInvoiceUploadProps {
   invoiceId: string;
@@ -35,6 +44,7 @@ export function SupplierInvoiceUpload({
   const [isUploading, setIsUploading] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleFileSelect = useCallback(async (file: File) => {
     const validationError = validateFile(file);
@@ -56,13 +66,53 @@ export function SupplierInvoiceUpload({
     }
   }, [invoiceId, userId, onUpload]);
 
+  const handleDropFromExisting = useCallback(async (attachmentData: {
+    file_name: string;
+    file_path: string;
+    file_type: string;
+    file_size: number;
+  }) => {
+    setIsUploading(true);
+    try {
+      const attachment = await createSupplierInvoiceFromExistingFile(
+        invoiceId,
+        userId,
+        attachmentData
+      );
+      onUpload(attachment);
+      toast.success('Рахунок постачальника додано');
+    } catch (error) {
+      console.error('Create from existing error:', error);
+      toast.error('Помилка додавання файлу');
+    } finally {
+      setIsUploading(false);
+    }
+  }, [invoiceId, userId, onUpload]);
+
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    setIsDragOver(false);
+    
+    // Check if dropped from existing attachment
+    const attachmentJson = e.dataTransfer.getData('application/json');
+    if (attachmentJson) {
+      try {
+        const attachmentData = JSON.parse(attachmentJson);
+        if (attachmentData.file_path) {
+          handleDropFromExisting(attachmentData);
+          return;
+        }
+      } catch {
+        // Not a valid attachment JSON, proceed with file drop
+      }
+    }
+    
+    // Regular file drop from computer
     const file = e.dataTransfer.files[0];
     if (file) {
       handleFileSelect(file);
     }
-  }, [handleFileSelect]);
+  }, [handleFileSelect, handleDropFromExisting]);
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -194,16 +244,27 @@ export function SupplierInvoiceUpload({
 
   return (
     <div
-      className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-        isUploading ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50'
-      }`}
+      className={cn(
+        "border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200",
+        isUploading && "border-primary bg-primary/5",
+        isDragOver && "border-primary bg-primary/10 scale-[1.02]",
+        !isUploading && !isDragOver && "border-muted-foreground/25 hover:border-primary/50"
+      )}
       onDrop={handleDrop}
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+      onDragLeave={() => setIsDragOver(false)}
     >
       {isUploading ? (
         <div className="flex flex-col items-center gap-2">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm text-muted-foreground">Завантаження...</p>
+        </div>
+      ) : isDragOver ? (
+        <div className="flex flex-col items-center gap-2">
+          <GripVertical className="h-8 w-8 text-primary" />
+          <p className="text-sm font-medium text-primary">
+            Відпустіть, щоб додати як рахунок постачальника
+          </p>
         </div>
       ) : (
         <label className="cursor-pointer">
@@ -211,6 +272,9 @@ export function SupplierInvoiceUpload({
             <Upload className="h-8 w-8 text-muted-foreground" />
             <p className="text-sm text-muted-foreground">
               Перетягніть файл або натисніть для вибору
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Або перетягніть файл з «Документи заявки» вище
             </p>
             <p className="text-xs text-muted-foreground">
               PDF, DOC, DOCX, XLS, XLSX, JPG, PNG (до 5 МБ)
