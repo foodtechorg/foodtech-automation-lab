@@ -1,8 +1,17 @@
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect, useState, useCallback } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableBody,
@@ -23,6 +32,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import {
   ArrowLeft,
   Loader2,
   Package,
@@ -34,17 +49,28 @@ import {
   CreditCard,
   Truck,
   FileText,
+  Paperclip,
+  Receipt,
+  CalendarIcon,
 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   getPurchaseInvoiceById,
   getPurchaseInvoiceItems,
   updatePurchaseInvoice,
+  updatePurchaseInvoiceItem,
   deletePurchaseInvoice,
   logPurchaseEvent,
   getPurchaseLogs,
+  recalculateInvoiceTotal,
+  getInvoicedQuantitiesByRequestId,
 } from '@/services/invoiceApi';
+import { getPurchaseRequestItems } from '@/services/purchaseApi';
+import { getAttachments, type Attachment } from '@/services/attachmentService';
+import { AttachmentsList } from '@/components/purchase/AttachmentsList';
+import { FileUploadZone } from '@/components/purchase/FileUploadZone';
+import { SupplierInvoiceUpload } from '@/components/purchase/SupplierInvoiceUpload';
 import { supabase } from '@/integrations/supabase/client';
 import type {
   PurchaseInvoice,
@@ -52,10 +78,12 @@ import type {
   PurchaseInvoiceStatus,
   PaymentTerms,
   PurchaseLog,
+  PurchaseRequestItem,
 } from '@/types/purchase';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const statusLabels: Record<PurchaseInvoiceStatus, string> = {
   DRAFT: 'Чернетка',
@@ -82,23 +110,43 @@ const paymentTermsLabels: Record<PaymentTerms, string> = {
   POSTPAYMENT: 'Постоплата',
 };
 
+interface InvoiceItemWithRemaining extends PurchaseInvoiceItem {
+  ordered: number;
+  previouslyInvoiced: number;
+  maxQuantity: number;
+}
+
 export default function PurchaseInvoiceDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { profile, user } = useAuth();
 
   const [invoice, setInvoice] = useState<PurchaseInvoice | null>(null);
-  const [items, setItems] = useState<PurchaseInvoiceItem[]>([]);
+  const [items, setItems] = useState<InvoiceItemWithRemaining[]>([]);
   const [logs, setLogs] = useState<PurchaseLog[]>([]);
   const [creatorName, setCreatorName] = useState<string>('');
   const [requestNumber, setRequestNumber] = useState<string>('');
+  
+  // Attachments state
+  const [requestAttachments, setRequestAttachments] = useState<Attachment[]>([]);
+  const [invoiceAttachments, setInvoiceAttachments] = useState<Attachment[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
+
+  // Editable fields for DRAFT
+  const [supplierName, setSupplierName] = useState('');
+  const [supplierContact, setSupplierContact] = useState('');
+  const [description, setDescription] = useState('');
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTerms>('PREPAYMENT');
+  const [invoiceDate, setInvoiceDate] = useState<Date | undefined>();
+  const [expectedDate, setExpectedDate] = useState<Date | undefined>();
 
   // Role checks
   const isDraft = invoice?.status === 'DRAFT';
@@ -112,6 +160,11 @@ export default function PurchaseInvoiceDetail() {
   const isTreasurer = profile?.role === 'treasurer' || profile?.role === 'admin';
   const isAccountant = profile?.role === 'accountant' || profile?.role === 'admin';
   const isProcurementManager = profile?.role === 'procurement_manager' || profile?.role === 'admin';
+  const canEdit = isDraft && (isOwner || isProcurementManager);
+
+  // Separate supplier invoice from other attachments
+  const supplierInvoiceFile = invoiceAttachments.find(a => a.is_supplier_invoice);
+  const otherInvoiceAttachments = invoiceAttachments.filter(a => !a.is_supplier_invoice);
 
   useEffect(() => {
     async function loadData() {
@@ -119,10 +172,11 @@ export default function PurchaseInvoiceDetail() {
 
       try {
         setLoading(true);
-        const [invoiceData, itemsData, logsData] = await Promise.all([
+        const [invoiceData, itemsData, logsData, invoiceAttachmentsData] = await Promise.all([
           getPurchaseInvoiceById(id),
           getPurchaseInvoiceItems(id),
           getPurchaseLogs('INVOICE', id),
+          getAttachments('invoice', id),
         ]);
 
         if (!invoiceData) {
@@ -131,8 +185,58 @@ export default function PurchaseInvoiceDetail() {
         }
 
         setInvoice(invoiceData);
-        setItems(itemsData);
         setLogs(logsData);
+        setInvoiceAttachments(invoiceAttachmentsData);
+
+        // Set editable fields
+        setSupplierName(invoiceData.supplier_name || '');
+        setSupplierContact(invoiceData.supplier_contact || '');
+        setDescription(invoiceData.description || '');
+        setPaymentTerms(invoiceData.payment_terms);
+        setInvoiceDate(invoiceData.invoice_date ? new Date(invoiceData.invoice_date) : undefined);
+        setExpectedDate(invoiceData.expected_date ? new Date(invoiceData.expected_date) : undefined);
+
+        // Load request-related data if linked
+        if (invoiceData.request_id) {
+          const [requestData, requestAttachmentsData, requestItems, invoicedQty] = await Promise.all([
+            supabase.from('purchase_requests').select('number').eq('id', invoiceData.request_id).single(),
+            getAttachments('request', invoiceData.request_id),
+            getPurchaseRequestItems(invoiceData.request_id),
+            getInvoicedQuantitiesByRequestId(invoiceData.request_id),
+          ]);
+
+          if (requestData.data) {
+            setRequestNumber(requestData.data.number);
+          }
+          setRequestAttachments(requestAttachmentsData);
+
+          // Calculate max quantities for each item
+          const itemsWithRemaining: InvoiceItemWithRemaining[] = itemsData.map(item => {
+            const requestItem = requestItems.find(ri => ri.id === item.request_item_id);
+            const ordered = requestItem?.quantity || item.quantity;
+            // Invoiced quantities exclude current invoice's items (they're already in the invoice)
+            const totalInvoiced = invoicedQty.get(item.request_item_id || '') || 0;
+            // For current invoice, max is: ordered - (totalInvoiced - currentItemQty)
+            // Since totalInvoiced doesn't include DRAFT invoices, we add current item back
+            const previouslyInvoiced = totalInvoiced;
+            const maxQuantity = ordered - previouslyInvoiced + item.quantity;
+            
+            return {
+              ...item,
+              ordered,
+              previouslyInvoiced,
+              maxQuantity,
+            };
+          });
+          setItems(itemsWithRemaining);
+        } else {
+          setItems(itemsData.map(item => ({
+            ...item,
+            ordered: item.quantity,
+            previouslyInvoiced: 0,
+            maxQuantity: item.quantity,
+          })));
+        }
 
         // Load creator profile
         const { data: profileData } = await supabase
@@ -143,19 +247,6 @@ export default function PurchaseInvoiceDetail() {
 
         if (profileData) {
           setCreatorName(profileData.name || profileData.email);
-        }
-
-        // Load request number if linked
-        if (invoiceData.request_id) {
-          const { data: requestData } = await supabase
-            .from('purchase_requests')
-            .select('number')
-            .eq('id', invoiceData.request_id)
-            .single();
-
-          if (requestData) {
-            setRequestNumber(requestData.number);
-          }
         }
       } catch (err) {
         console.error(err);
@@ -177,11 +268,102 @@ export default function PurchaseInvoiceDetail() {
     return format(new Date(dateStr), 'dd.MM.yyyy', { locale: uk });
   };
 
+  const handleSave = useCallback(async () => {
+    if (!id || !canEdit) return;
+    setIsSaving(true);
+    try {
+      await updatePurchaseInvoice(id, {
+        supplier_name: supplierName,
+        supplier_contact: supplierContact || null,
+        description: description || null,
+        payment_terms: paymentTerms,
+        invoice_date: invoiceDate?.toISOString() || null,
+        expected_date: expectedDate?.toISOString() || null,
+      });
+      setInvoice(prev => prev ? {
+        ...prev,
+        supplier_name: supplierName,
+        supplier_contact: supplierContact || null,
+        description: description || null,
+        payment_terms: paymentTerms,
+        invoice_date: invoiceDate?.toISOString() || null,
+        expected_date: expectedDate?.toISOString() || null,
+      } : null);
+      toast.success('Зміни збережено');
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка збереження');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [id, canEdit, supplierName, supplierContact, description, paymentTerms, invoiceDate, expectedDate]);
+
+  const handleItemUpdate = async (itemId: string, field: 'quantity' | 'price', value: number) => {
+    if (!canEdit) return;
+    
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+
+    // Validate quantity against max
+    if (field === 'quantity' && value > item.maxQuantity) {
+      toast.error(`Максимальна кількість: ${item.maxQuantity}`);
+      return;
+    }
+
+    const newQuantity = field === 'quantity' ? value : item.quantity;
+    const newPrice = field === 'price' ? value : item.price;
+    const newAmount = newQuantity * newPrice;
+
+    try {
+      await updatePurchaseInvoiceItem(itemId, {
+        [field]: value,
+        amount: newAmount,
+      });
+
+      setItems(prev => prev.map(i => 
+        i.id === itemId 
+          ? { ...i, [field]: value, amount: newAmount }
+          : i
+      ));
+
+      // Recalculate total
+      if (id) {
+        const newTotal = await recalculateInvoiceTotal(id);
+        setInvoice(prev => prev ? { ...prev, amount: newTotal } : null);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка оновлення');
+    }
+  };
+
   const handleSubmitForApproval = async () => {
     if (!id) return;
+    
+    // Validate
+    if (!supplierName.trim()) {
+      toast.error('Вкажіть постачальника');
+      return;
+    }
+    
+    const hasValidItems = items.some(i => i.quantity > 0 && i.price > 0);
+    if (!hasValidItems) {
+      toast.error('Додайте хоча б одну позицію з кількістю та ціною');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await updatePurchaseInvoice(id, { status: 'PENDING_COO' });
+      // Save changes first
+      await updatePurchaseInvoice(id, {
+        supplier_name: supplierName,
+        supplier_contact: supplierContact || null,
+        description: description || null,
+        payment_terms: paymentTerms,
+        invoice_date: invoiceDate?.toISOString() || null,
+        expected_date: expectedDate?.toISOString() || null,
+        status: 'PENDING_COO',
+      });
       await logPurchaseEvent('INVOICE', id, 'SUBMITTED_FOR_APPROVAL');
       setInvoice(prev => prev ? { ...prev, status: 'PENDING_COO' } : null);
       toast.success('Рахунок відправлено на погодження');
@@ -211,7 +393,6 @@ export default function PurchaseInvoiceDetail() {
     if (!id || !user?.id) return;
     setIsApproving(true);
     try {
-      // COO approves - check if CEO also approved
       const ceoAlreadyApproved = invoice?.ceo_decision === 'APPROVED';
       const newStatus: PurchaseInvoiceStatus = ceoAlreadyApproved ? 'TO_PAY' : 'PENDING_CEO';
 
@@ -246,7 +427,6 @@ export default function PurchaseInvoiceDetail() {
     if (!id || !user?.id) return;
     setIsApproving(true);
     try {
-      // CEO approves - check if COO also approved
       const cooAlreadyApproved = invoice?.coo_decision === 'APPROVED';
       const newStatus: PurchaseInvoiceStatus = cooAlreadyApproved ? 'TO_PAY' : 'PENDING_COO';
 
@@ -379,7 +559,6 @@ export default function PurchaseInvoiceDetail() {
     );
   }
 
-  // Determine which COO/CEO actions to show
   const showCOOApproval = isCOO && (isPendingCOO || (isPendingCEO && invoice.coo_decision === 'PENDING'));
   const showCEOApproval = isCEO && (isPendingCEO || (isPendingCOO && invoice.ceo_decision === 'PENDING'));
   const showTreasurerAction = isTreasurer && isToPayStatus;
@@ -400,9 +579,13 @@ export default function PurchaseInvoiceDetail() {
         </div>
 
         {/* Draft actions */}
-        {isDraft && isOwner && (
+        {canEdit && (
           <div className="flex items-center gap-2">
-            <Button onClick={handleSubmitForApproval} disabled={isSubmitting || items.length === 0}>
+            <Button variant="outline" onClick={handleSave} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Зберегти
+            </Button>
+            <Button onClick={handleSubmitForApproval} disabled={isSubmitting}>
               {isSubmitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -523,78 +706,188 @@ export default function PurchaseInvoiceDetail() {
         )}
       </div>
 
-      {/* Invoice Info */}
+      {/* Invoice Info - Editable for DRAFT */}
       <Card>
         <CardHeader>
           <CardTitle>Інформація про рахунок</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Постачальник</p>
-              <p className="font-medium">{invoice.supplier_name}</p>
-              {invoice.supplier_contact && (
-                <p className="text-sm text-muted-foreground">{invoice.supplier_contact}</p>
-              )}
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Заявка</p>
-              {requestNumber ? (
-                <Button
-                  variant="link"
-                  className="p-0 h-auto font-medium"
-                  onClick={() => navigate(`/purchase/requests/${invoice.request_id}`)}
-                >
-                  {requestNumber}
-                </Button>
-              ) : (
-                <p className="font-medium">—</p>
-              )}
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Сума</p>
-              <p className="font-medium text-lg">
-                {invoice.amount.toFixed(2)} {invoice.currency}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Умови оплати</p>
-              <p className="font-medium">{paymentTermsLabels[invoice.payment_terms]}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Дата рахунку</p>
-              <p className="font-medium">{formatDateShort(invoice.invoice_date)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Очікувана поставка</p>
-              <p className="font-medium">{formatDateShort(invoice.expected_date)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Створив</p>
-              <p className="font-medium">{creatorName || '—'}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Дата створення</p>
-              <p className="font-medium">{formatDate(invoice.created_at)}</p>
-            </div>
-            {invoice.paid_date && (
-              <div>
-                <p className="text-sm text-muted-foreground">Дата оплати</p>
-                <p className="font-medium">{formatDateShort(invoice.paid_date)}</p>
+          {canEdit ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="supplierName">Постачальник *</Label>
+                <Input
+                  id="supplierName"
+                  value={supplierName}
+                  onChange={(e) => setSupplierName(e.target.value)}
+                  placeholder="Назва постачальника"
+                />
               </div>
-            )}
-            {invoice.delivered_date && (
-              <div>
-                <p className="text-sm text-muted-foreground">Дата доставки</p>
-                <p className="font-medium">{formatDateShort(invoice.delivered_date)}</p>
+              <div className="space-y-2">
+                <Label htmlFor="supplierContact">Контактна особа</Label>
+                <Input
+                  id="supplierContact"
+                  value={supplierContact}
+                  onChange={(e) => setSupplierContact(e.target.value)}
+                  placeholder="Ім'я, телефон"
+                />
               </div>
-            )}
-          </div>
-
-          {invoice.description && (
-            <div className="mt-4 pt-4 border-t">
-              <p className="text-sm text-muted-foreground mb-1">Примітки</p>
-              <p className="whitespace-pre-wrap">{invoice.description}</p>
+              <div className="space-y-2">
+                <Label>Заявка</Label>
+                {requestNumber ? (
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto font-medium"
+                    onClick={() => navigate(`/purchase/requests/${invoice.request_id}`)}
+                  >
+                    {requestNumber}
+                  </Button>
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Умови оплати</Label>
+                <Select value={paymentTerms} onValueChange={(v) => setPaymentTerms(v as PaymentTerms)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PREPAYMENT">Передоплата</SelectItem>
+                    <SelectItem value="POSTPAYMENT">Постоплата</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Дата рахунку</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !invoiceDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {invoiceDate ? format(invoiceDate, "PPP", { locale: uk }) : "Оберіть дату"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={invoiceDate}
+                      onSelect={setInvoiceDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2">
+                <Label>Очікувана поставка</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !expectedDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {expectedDate ? format(expectedDate, "PPP", { locale: uk }) : "Оберіть дату"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={expectedDate}
+                      onSelect={setExpectedDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+                <Label htmlFor="description">Примітки</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Додаткова інформація"
+                  rows={3}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Постачальник</p>
+                <p className="font-medium">{invoice.supplier_name || '—'}</p>
+                {invoice.supplier_contact && (
+                  <p className="text-sm text-muted-foreground">{invoice.supplier_contact}</p>
+                )}
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Заявка</p>
+                {requestNumber ? (
+                  <Button
+                    variant="link"
+                    className="p-0 h-auto font-medium"
+                    onClick={() => navigate(`/purchase/requests/${invoice.request_id}`)}
+                  >
+                    {requestNumber}
+                  </Button>
+                ) : (
+                  <p className="font-medium">—</p>
+                )}
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Сума</p>
+                <p className="font-medium text-lg">
+                  {invoice.amount.toFixed(2)} {invoice.currency}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Умови оплати</p>
+                <p className="font-medium">{paymentTermsLabels[invoice.payment_terms]}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Дата рахунку</p>
+                <p className="font-medium">{formatDateShort(invoice.invoice_date)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Очікувана поставка</p>
+                <p className="font-medium">{formatDateShort(invoice.expected_date)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Створив</p>
+                <p className="font-medium">{creatorName || '—'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Дата створення</p>
+                <p className="font-medium">{formatDate(invoice.created_at)}</p>
+              </div>
+              {invoice.paid_date && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Дата оплати</p>
+                  <p className="font-medium">{formatDateShort(invoice.paid_date)}</p>
+                </div>
+              )}
+              {invoice.delivered_date && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Дата доставки</p>
+                  <p className="font-medium">{formatDateShort(invoice.delivered_date)}</p>
+                </div>
+              )}
+              {invoice.description && (
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <p className="text-sm text-muted-foreground mb-1">Примітки</p>
+                  <p className="whitespace-pre-wrap">{invoice.description}</p>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -680,6 +973,7 @@ export default function PurchaseInvoiceDetail() {
                 <TableRow>
                   <TableHead>Найменування</TableHead>
                   <TableHead>Од. виміру</TableHead>
+                  {canEdit && <TableHead className="text-right">Замовлено</TableHead>}
                   <TableHead className="text-right">Кількість</TableHead>
                   <TableHead className="text-right">Ціна</TableHead>
                   <TableHead className="text-right">Сума</TableHead>
@@ -690,13 +984,45 @@ export default function PurchaseInvoiceDetail() {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.unit}</TableCell>
-                    <TableCell className="text-right">{item.quantity}</TableCell>
-                    <TableCell className="text-right">{item.price.toFixed(2)}</TableCell>
+                    {canEdit && (
+                      <TableCell className="text-right text-muted-foreground">
+                        {item.ordered}
+                      </TableCell>
+                    )}
+                    <TableCell className="text-right">
+                      {canEdit ? (
+                        <Input
+                          type="number"
+                          min={0}
+                          max={item.maxQuantity}
+                          step={0.01}
+                          value={item.quantity}
+                          onChange={(e) => handleItemUpdate(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                          className="w-24 text-right ml-auto"
+                        />
+                      ) : (
+                        item.quantity
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {canEdit ? (
+                        <Input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={item.price}
+                          onChange={(e) => handleItemUpdate(item.id, 'price', parseFloat(e.target.value) || 0)}
+                          className="w-24 text-right ml-auto"
+                        />
+                      ) : (
+                        item.price.toFixed(2)
+                      )}
+                    </TableCell>
                     <TableCell className="text-right font-medium">{item.amount.toFixed(2)}</TableCell>
                   </TableRow>
                 ))}
                 <TableRow>
-                  <TableCell colSpan={4} className="text-right font-bold">
+                  <TableCell colSpan={canEdit ? 5 : 4} className="text-right font-bold">
                     Всього:
                   </TableCell>
                   <TableCell className="text-right font-bold">
@@ -706,6 +1032,81 @@ export default function PurchaseInvoiceDetail() {
               </TableBody>
             </Table>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Request Documents (read-only) */}
+      {requestAttachments.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Paperclip className="h-5 w-5" />
+              Документи заявки
+            </CardTitle>
+            <CardDescription>
+              Файли, прикріплені замовником до заявки
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AttachmentsList
+              attachments={requestAttachments}
+              entityType="request"
+              canDelete={false}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Supplier Invoice (highlighted) */}
+      <Card className="border-primary border-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Receipt className="h-5 w-5 text-primary" />
+            Рахунок постачальника
+          </CardTitle>
+          <CardDescription>
+            Документ з реквізитами для оплати бухгалтером
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {user?.id && (
+            <SupplierInvoiceUpload
+              invoiceId={id!}
+              userId={user.id}
+              supplierInvoiceFile={supplierInvoiceFile || null}
+              canEdit={canEdit}
+              onUpload={(attachment) => setInvoiceAttachments(prev => [...prev, attachment])}
+              onDelete={(attachmentId) => setInvoiceAttachments(prev => prev.filter(a => a.id !== attachmentId))}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Additional Documents */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Paperclip className="h-5 w-5" />
+            Додаткові документи
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {canEdit && user?.id && (
+            <div className="mb-4">
+              <FileUploadZone
+                entityType="invoice"
+                entityId={id!}
+                userId={user.id}
+                onUploadComplete={(attachment) => setInvoiceAttachments(prev => [...prev, attachment])}
+              />
+            </div>
+          )}
+          <AttachmentsList
+            attachments={otherInvoiceAttachments}
+            entityType="invoice"
+            canDelete={canEdit}
+            onDelete={(attachmentId) => setInvoiceAttachments(prev => prev.filter(a => a.id !== attachmentId))}
+          />
         </CardContent>
       </Card>
 

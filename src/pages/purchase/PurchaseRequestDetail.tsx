@@ -24,7 +24,7 @@ import {
 import { ArrowLeft, Loader2, Package, Send, Trash2, Check, X, Paperclip, Receipt, FileText } from 'lucide-react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { getPurchaseRequestById, getPurchaseRequestItems, updatePurchaseRequestStatus, deletePurchaseRequest } from '@/services/purchaseApi';
-import { getPurchaseInvoicesByRequestId, getInvoicedQuantitiesByRequestId } from '@/services/invoiceApi';
+import { getPurchaseInvoicesByRequestId, getInvoicedQuantitiesByRequestId, createPurchaseInvoice, createPurchaseInvoiceItems, logPurchaseEvent } from '@/services/invoiceApi';
 import { getAttachments, type Attachment } from '@/services/attachmentService';
 import { AttachmentsList } from '@/components/purchase/AttachmentsList';
 import { FileUploadZone } from '@/components/purchase/FileUploadZone';
@@ -82,6 +82,7 @@ export default function PurchaseRequestDetail() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isRejecting, setIsRejecting] = useState(false);
+  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [rejectComment, setRejectComment] = useState('');
 
   const isDraft = request?.status === 'DRAFT';
@@ -209,6 +210,53 @@ export default function PurchaseRequestDetail() {
       toast.error('Помилка при відхиленні заявки');
     } finally {
       setIsRejecting(false);
+    }
+  };
+
+  const handleCreateInvoice = async () => {
+    if (!id || !user?.id || !request) return;
+    setIsCreatingInvoice(true);
+    try {
+      // Create draft invoice immediately
+      const invoice = await createPurchaseInvoice({
+        request_id: id,
+        currency: request.currency,
+        created_by: user.id,
+      });
+
+      // Create invoice items from remaining quantities
+      const remainingItems = items
+        .filter(item => {
+          const invoiced = invoicedQuantities.get(item.id) || 0;
+          return item.quantity > invoiced;
+        })
+        .map(item => {
+          const invoiced = invoicedQuantities.get(item.id) || 0;
+          const remaining = item.quantity - invoiced;
+          return {
+            invoice_id: invoice.id,
+            request_item_id: item.id,
+            name: item.name,
+            unit: item.unit,
+            quantity: remaining,
+            price: 0,
+          };
+        });
+
+      if (remainingItems.length > 0) {
+        await createPurchaseInvoiceItems(remainingItems);
+      }
+
+      // Log the creation
+      await logPurchaseEvent('INVOICE', invoice.id, 'CREATED');
+
+      toast.success('Рахунок створено');
+      navigate(`/purchase/invoices/${invoice.id}`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка при створенні рахунку');
+    } finally {
+      setIsCreatingInvoice(false);
     }
   };
 
@@ -351,8 +399,12 @@ export default function PurchaseRequestDetail() {
 
         {/* Procurement Manager actions for IN_PROGRESS requests */}
         {isProcurementManager && isInProgress && hasRemainingQuantities && (
-          <Button onClick={() => navigate(`/purchase/invoices/new?requestId=${id}`)}>
-            <Receipt className="mr-2 h-4 w-4" />
+          <Button onClick={handleCreateInvoice} disabled={isCreatingInvoice}>
+            {isCreatingInvoice ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Receipt className="mr-2 h-4 w-4" />
+            )}
             Створити рахунок
           </Button>
         )}

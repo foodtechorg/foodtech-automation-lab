@@ -8,6 +8,7 @@ export interface Attachment {
   file_size: number;
   uploaded_by: string;
   created_at: string;
+  is_supplier_invoice?: boolean;
 }
 
 export type AttachmentEntityType = 'request' | 'invoice';
@@ -40,7 +41,8 @@ export async function uploadAttachment(
   file: File,
   entityType: AttachmentEntityType,
   entityId: string,
-  userId: string
+  userId: string,
+  isSupplierInvoice: boolean = false
 ): Promise<Attachment> {
   // Generate safe file path using UUID to avoid encoding issues with non-ASCII filenames
   const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
@@ -64,16 +66,23 @@ export async function uploadAttachment(
   
   const idColumn = entityType === 'request' ? 'request_id' : 'invoice_id';
 
+  const insertData: Record<string, unknown> = {
+    [idColumn]: entityId,
+    file_name: file.name,
+    file_path: filePath,
+    file_type: file.type,
+    file_size: file.size,
+    uploaded_by: userId,
+  };
+
+  // Add is_supplier_invoice only for invoice attachments
+  if (entityType === 'invoice') {
+    insertData.is_supplier_invoice = isSupplierInvoice;
+  }
+
   const { data, error: dbError } = await (supabase as any)
     .from(tableName)
-    .insert({
-      [idColumn]: entityId,
-      file_name: file.name,
-      file_path: filePath,
-      file_type: file.type,
-      file_size: file.size,
-      uploaded_by: userId,
-    })
+    .insert(insertData)
     .select()
     .single();
 

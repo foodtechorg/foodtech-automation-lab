@@ -50,6 +50,7 @@ export type Database = {
           file_type: string
           id: string
           invoice_id: string
+          is_supplier_invoice: boolean
           uploaded_by: string
         }
         Insert: {
@@ -60,6 +61,7 @@ export type Database = {
           file_type: string
           id?: string
           invoice_id: string
+          is_supplier_invoice?: boolean
           uploaded_by: string
         }
         Update: {
@@ -70,6 +72,7 @@ export type Database = {
           file_type?: string
           id?: string
           invoice_id?: string
+          is_supplier_invoice?: boolean
           uploaded_by?: string
         }
         Relationships: [

@@ -121,10 +121,10 @@ export interface CreatePurchaseRequestItemPayload {
 
 export interface CreatePurchaseInvoicePayload {
   request_id: string;
-  supplier_name: string;
+  supplier_name?: string;  // Optional for draft creation
   supplier_contact?: string;
   description?: string;
-  payment_terms: PaymentTerms;
+  payment_terms?: PaymentTerms;  // Optional for draft creation
   invoice_date?: string;
   expected_date?: string;
   planned_payment_date?: string;
