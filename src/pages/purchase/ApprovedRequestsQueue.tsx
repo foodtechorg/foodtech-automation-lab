@@ -10,14 +10,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Loader2, Receipt, Plus } from 'lucide-react';
+import { FileText, Loader2, Plus, Edit } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { PurchaseRequest, PurchaseType } from '@/types/purchase';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { PurchaseNavTabs } from '@/components/purchase/PurchaseNavTabs';
-import { createPurchaseInvoice, createPurchaseInvoiceItems, logPurchaseEvent, getInvoicedQuantitiesByRequestId } from '@/services/invoiceApi';
+import { createPurchaseInvoice, createPurchaseInvoiceItems, logPurchaseEvent } from '@/services/invoiceApi';
 import { getPurchaseRequestItems } from '@/services/purchaseApi';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -30,7 +30,8 @@ const typeLabels: Record<PurchaseType, string> = {
 interface RequestWithCreator extends PurchaseRequest {
   creator_name: string;
   creator_email: string;
-  has_invoice: boolean;
+  has_draft_invoice: boolean;
+  has_remaining_items: boolean;
 }
 
 export default function ApprovedRequestsQueue() {
@@ -46,7 +47,7 @@ export default function ApprovedRequestsQueue() {
       try {
         setLoading(true);
         
-        // Get IN_PROGRESS requests (approved by COO)
+        // 1. Get all IN_PROGRESS requests
         const { data: requestsData, error: requestsError } = await supabase
           .from('purchase_requests')
           .select('*')
@@ -60,7 +61,51 @@ export default function ApprovedRequestsQueue() {
           return;
         }
 
-        // Get creator profiles
+        const requestIds = requestsData.map(r => r.id);
+
+        // 2. Get all request items
+        const { data: allItems } = await supabase
+          .from('purchase_request_items')
+          .select('id, request_id, quantity')
+          .in('request_id', requestIds);
+
+        // 3. Get ALL invoices for these requests
+        const { data: allInvoices } = await supabase
+          .from('purchase_invoices')
+          .select('id, request_id, status')
+          .in('request_id', requestIds);
+
+        // 4. Get invoice items from NON-DRAFT invoices to calculate closed quantities
+        const nonDraftInvoiceIds = (allInvoices || [])
+          .filter(inv => inv.status !== 'DRAFT')
+          .map(inv => inv.id);
+
+        const { data: invoiceItems } = nonDraftInvoiceIds.length > 0 
+          ? await supabase
+              .from('purchase_invoice_items')
+              .select('request_item_id, quantity')
+              .in('invoice_id', nonDraftInvoiceIds)
+          : { data: [] };
+
+        // 5. Calculate closed quantities per request_item_id
+        const invoicedByItem = new Map<string, number>();
+        for (const item of invoiceItems || []) {
+          if (item.request_item_id) {
+            invoicedByItem.set(
+              item.request_item_id, 
+              (invoicedByItem.get(item.request_item_id) || 0) + Number(item.quantity)
+            );
+          }
+        }
+
+        // 6. Identify requests with DRAFT invoices
+        const draftInvoiceRequestIds = new Set(
+          (allInvoices || [])
+            .filter(inv => inv.status === 'DRAFT')
+            .map(inv => inv.request_id)
+        );
+
+        // 7. Get creator profiles
         const creatorIds = [...new Set(requestsData.map(r => r.created_by))];
         const { data: profiles } = await supabase
           .from('profiles')
@@ -69,25 +114,36 @@ export default function ApprovedRequestsQueue() {
 
         const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
-        // Check which requests already have invoices
-        const requestIds = requestsData.map(r => r.id);
-        const { data: invoices } = await supabase
-          .from('purchase_invoices')
-          .select('request_id')
-          .in('request_id', requestIds);
+        // 8. Filter and enrich requests
+        const enrichedRequests: RequestWithCreator[] = [];
+        
+        for (const request of requestsData) {
+          const hasDraftInvoice = draftInvoiceRequestIds.has(request.id);
+          
+          // Check if there are remaining items
+          const requestItems = (allItems || []).filter(i => i.request_id === request.id);
+          let hasRemainingItems = false;
+          
+          for (const item of requestItems) {
+            const invoiced = invoicedByItem.get(item.id) || 0;
+            if (Number(item.quantity) > invoiced) {
+              hasRemainingItems = true;
+              break;
+            }
+          }
 
-        const requestsWithInvoices = new Set(invoices?.map(i => i.request_id) || []);
-
-        // Combine data
-        const enrichedRequests: RequestWithCreator[] = requestsData.map(req => {
-          const profile = profileMap.get(req.created_by);
-          return {
-            ...req,
-            creator_name: profile?.name || profile?.email || 'Невідомий',
-            creator_email: profile?.email || '',
-            has_invoice: requestsWithInvoices.has(req.id),
-          };
-        });
+          // Only show if has draft invoice OR has remaining items
+          if (hasDraftInvoice || hasRemainingItems) {
+            const profile = profileMap.get(request.created_by);
+            enrichedRequests.push({
+              ...request,
+              creator_name: profile?.name || profile?.email || 'Невідомий',
+              creator_email: profile?.email || '',
+              has_draft_invoice: hasDraftInvoice,
+              has_remaining_items: hasRemainingItems,
+            });
+          }
+        }
 
         setRequests(enrichedRequests);
       } catch (err) {
@@ -114,8 +170,31 @@ export default function ApprovedRequestsQueue() {
       // Get request items
       const items = await getPurchaseRequestItems(request.id);
       
-      // Get already invoiced quantities
-      const invoicedQuantities = await getInvoicedQuantitiesByRequestId(request.id);
+      // Get already invoiced quantities (from non-draft invoices)
+      const { data: nonDraftInvoices } = await supabase
+        .from('purchase_invoices')
+        .select('id')
+        .eq('request_id', request.id)
+        .neq('status', 'DRAFT');
+
+      const nonDraftIds = (nonDraftInvoices || []).map(i => i.id);
+      
+      const invoicedQuantities = new Map<string, number>();
+      if (nonDraftIds.length > 0) {
+        const { data: invoiceItems } = await supabase
+          .from('purchase_invoice_items')
+          .select('request_item_id, quantity')
+          .in('invoice_id', nonDraftIds);
+        
+        for (const item of invoiceItems || []) {
+          if (item.request_item_id) {
+            invoicedQuantities.set(
+              item.request_item_id,
+              (invoicedQuantities.get(item.request_item_id) || 0) + Number(item.quantity)
+            );
+          }
+        }
+      }
       
       // Create draft invoice
       const invoice = await createPurchaseInvoice({
@@ -160,6 +239,16 @@ export default function ApprovedRequestsQueue() {
     }
   };
 
+  const getStatusBadge = (request: RequestWithCreator) => {
+    if (request.has_draft_invoice && request.has_remaining_items) {
+      return <Badge variant="secondary"><Edit className="h-3 w-3 mr-1" />В роботі</Badge>;
+    }
+    if (request.has_draft_invoice) {
+      return <Badge variant="secondary"><Edit className="h-3 w-3 mr-1" />Чернетка</Badge>;
+    }
+    return <Badge variant="outline">Очікує</Badge>;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -189,7 +278,7 @@ export default function ApprovedRequestsQueue() {
             <div className="text-center py-8 text-destructive">{error}</div>
           ) : requests.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              Немає погоджених заявок для опрацювання
+              Немає заявок для опрацювання
             </div>
           ) : (
             <Table>
@@ -200,7 +289,7 @@ export default function ApprovedRequestsQueue() {
                   <TableHead>Тип</TableHead>
                   <TableHead>Бажана дата</TableHead>
                   <TableHead>Створено</TableHead>
-                  <TableHead>Рахунок</TableHead>
+                  <TableHead>Статус</TableHead>
                   <TableHead className="text-right">Дії</TableHead>
                 </TableRow>
               </TableHeader>
@@ -222,18 +311,9 @@ export default function ApprovedRequestsQueue() {
                     <TableCell>{typeLabels[request.purchase_type]}</TableCell>
                     <TableCell>{formatDate(request.desired_date)}</TableCell>
                     <TableCell>{formatDate(request.created_at)}</TableCell>
-                    <TableCell>
-                      {request.has_invoice ? (
-                        <Badge variant="secondary">
-                          <Receipt className="h-3 w-3 mr-1" />
-                          Створено
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">Очікує</Badge>
-                      )}
-                    </TableCell>
+                    <TableCell>{getStatusBadge(request)}</TableCell>
                     <TableCell className="text-right">
-                      {!request.has_invoice && (
+                      {request.has_remaining_items && (
                         <Button
                           size="sm"
                           onClick={() => handleCreateInvoice(request)}
@@ -247,7 +327,7 @@ export default function ApprovedRequestsQueue() {
                           Створити рахунок
                         </Button>
                       )}
-                      {request.has_invoice && (
+                      {!request.has_remaining_items && request.has_draft_invoice && (
                         <Button
                           size="sm"
                           variant="outline"
