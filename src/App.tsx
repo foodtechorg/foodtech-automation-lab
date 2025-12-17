@@ -160,7 +160,7 @@ const App = () => (
             <Route
               path="/purchase/queue"
               element={
-                <ProtectedRoute allowedRoles={['procurement_manager', 'admin']}>
+                <ProtectedRoute allowedRoles={['procurement_manager', 'coo', 'ceo', 'admin']}>
                   <Layout>
                     <ApprovedRequestsQueue />
                   </Layout>
