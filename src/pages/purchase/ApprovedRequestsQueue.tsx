@@ -54,6 +54,8 @@ interface RequestWithCreator extends PurchaseRequest {
 interface InvoiceWithCreator extends PurchaseInvoice {
   creator_name: string;
   creator_email: string;
+  requester_name?: string;
+  requester_email?: string;
 }
 
 export default function ApprovedRequestsQueue() {
@@ -146,13 +148,45 @@ export default function ApprovedRequestsQueue() {
       };
     });
 
-    // Enrich invoices
+    // For invoices, get requester info from linked purchase_requests
+    const invoiceRequestIds = [...new Set((invoicesData || []).filter(i => i.request_id).map(i => i.request_id!))];
+    let requestCreatorMap = new Map<string, { name: string; email: string }>();
+    
+    if (invoiceRequestIds.length > 0) {
+      const { data: linkedRequests } = await supabase
+        .from('purchase_requests')
+        .select('id, created_by')
+        .in('id', invoiceRequestIds);
+      
+      const linkedRequestCreatorIds = [...new Set((linkedRequests || []).map(r => r.created_by))];
+      const { data: requesterProfiles } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .in('id', linkedRequestCreatorIds);
+      
+      const requesterProfileMap = new Map(requesterProfiles?.map(p => [p.id, p]) || []);
+      
+      for (const req of linkedRequests || []) {
+        const profile = requesterProfileMap.get(req.created_by);
+        if (profile) {
+          requestCreatorMap.set(req.id, { 
+            name: profile.name || profile.email || 'Невідомий', 
+            email: profile.email || '' 
+          });
+        }
+      }
+    }
+
+    // Enrich invoices with requester info
     const enrichedInvoices: InvoiceWithCreator[] = (invoicesData || []).map(inv => {
       const profile = profileMap.get(inv.created_by);
+      const requester = inv.request_id ? requestCreatorMap.get(inv.request_id) : null;
       return {
         ...inv,
         creator_name: profile?.name || profile?.email || 'Невідомий',
         creator_email: profile?.email || '',
+        requester_name: requester?.name || '',
+        requester_email: requester?.email || '',
       };
     });
 
@@ -180,13 +214,45 @@ export default function ApprovedRequestsQueue() {
 
     const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
-    // Enrich invoices
+    // For invoices, get requester info from linked purchase_requests
+    const invoiceRequestIds = [...new Set((invoicesData || []).filter(i => i.request_id).map(i => i.request_id!))];
+    let requestCreatorMap = new Map<string, { name: string; email: string }>();
+    
+    if (invoiceRequestIds.length > 0) {
+      const { data: linkedRequests } = await supabase
+        .from('purchase_requests')
+        .select('id, created_by')
+        .in('id', invoiceRequestIds);
+      
+      const linkedRequestCreatorIds = [...new Set((linkedRequests || []).map(r => r.created_by))];
+      const { data: requesterProfiles } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .in('id', linkedRequestCreatorIds);
+      
+      const requesterProfileMap = new Map(requesterProfiles?.map(p => [p.id, p]) || []);
+      
+      for (const req of linkedRequests || []) {
+        const profile = requesterProfileMap.get(req.created_by);
+        if (profile) {
+          requestCreatorMap.set(req.id, { 
+            name: profile.name || profile.email || 'Невідомий', 
+            email: profile.email || '' 
+          });
+        }
+      }
+    }
+
+    // Enrich invoices with requester info
     const enrichedInvoices: InvoiceWithCreator[] = (invoicesData || []).map(inv => {
       const profile = profileMap.get(inv.created_by);
+      const requester = inv.request_id ? requestCreatorMap.get(inv.request_id) : null;
       return {
         ...inv,
         creator_name: profile?.name || profile?.email || 'Невідомий',
         creator_email: profile?.email || '',
+        requester_name: requester?.name || '',
+        requester_email: requester?.email || '',
       };
     });
 
@@ -657,11 +723,12 @@ export default function ApprovedRequestsQueue() {
                     </TableHeader>
                     <TableBody>
                       {pendingApprovalRequests.map((request) => (
-                        <TableRow key={request.id}>
-                          <TableCell 
-                            className="font-medium cursor-pointer hover:underline"
-                            onClick={() => navigate(`/purchase/requests/${request.id}`)}
-                          >
+                        <TableRow 
+                          key={request.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/purchase/requests/${request.id}`)}
+                        >
+                          <TableCell className="font-medium">
                             {request.number}
                           </TableCell>
                           <TableCell>
@@ -673,7 +740,7 @@ export default function ApprovedRequestsQueue() {
                           <TableCell>{typeLabels[request.purchase_type]}</TableCell>
                           <TableCell>{formatDate(request.desired_date)}</TableCell>
                           <TableCell>{formatDate(request.created_at)}</TableCell>
-                          <TableCell className="text-right space-x-2">
+                          <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
                             <Button 
                               size="sm" 
                               onClick={() => handleApproveRequest(request.id)}
@@ -722,17 +789,18 @@ export default function ApprovedRequestsQueue() {
                         <TableHead>Постачальник</TableHead>
                         <TableHead>Сума</TableHead>
                         <TableHead>Умови оплати</TableHead>
-                        <TableHead>Створив</TableHead>
+                        <TableHead>Замовник</TableHead>
                         <TableHead className="text-right">Дії</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pendingCOOInvoices.map((invoice) => (
-                        <TableRow key={invoice.id}>
-                          <TableCell 
-                            className="font-medium cursor-pointer hover:underline"
-                            onClick={() => navigate(`/purchase/invoices/${invoice.id}`)}
-                          >
+                        <TableRow 
+                          key={invoice.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/purchase/invoices/${invoice.id}`)}
+                        >
+                          <TableCell className="font-medium">
                             {invoice.number}
                           </TableCell>
                           <TableCell>{invoice.supplier_name}</TableCell>
@@ -740,10 +808,13 @@ export default function ApprovedRequestsQueue() {
                           <TableCell>{paymentTermsLabels[invoice.payment_terms]}</TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{invoice.creator_name}</p>
+                              <p className="font-medium">{invoice.requester_name || '—'}</p>
+                              {invoice.requester_email && (
+                                <p className="text-sm text-muted-foreground">{invoice.requester_email}</p>
+                              )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right space-x-2">
+                          <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
                             <Button 
                               size="sm" 
                               onClick={() => handleApproveInvoiceCOO(invoice.id)}
@@ -792,29 +863,32 @@ export default function ApprovedRequestsQueue() {
                         <TableHead>Постачальник</TableHead>
                         <TableHead>Сума</TableHead>
                         <TableHead>Умови оплати</TableHead>
-                        <TableHead>COO рішення</TableHead>
+                        <TableHead>Замовник</TableHead>
                         <TableHead className="text-right">Дії</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pendingCEOInvoices.map((invoice) => (
-                        <TableRow key={invoice.id}>
-                          <TableCell 
-                            className="font-medium cursor-pointer hover:underline"
-                            onClick={() => navigate(`/purchase/invoices/${invoice.id}`)}
-                          >
+                        <TableRow 
+                          key={invoice.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/purchase/invoices/${invoice.id}`)}
+                        >
+                          <TableCell className="font-medium">
                             {invoice.number}
                           </TableCell>
                           <TableCell>{invoice.supplier_name}</TableCell>
                           <TableCell>{formatCurrency(invoice.amount, invoice.currency)}</TableCell>
                           <TableCell>{paymentTermsLabels[invoice.payment_terms]}</TableCell>
                           <TableCell>
-                            <Badge variant="default" className="bg-green-600">
-                              <Check className="h-3 w-3 mr-1" />
-                              Погоджено COO
-                            </Badge>
+                            <div>
+                              <p className="font-medium">{invoice.requester_name || '—'}</p>
+                              {invoice.requester_email && (
+                                <p className="text-sm text-muted-foreground">{invoice.requester_email}</p>
+                              )}
+                            </div>
                           </TableCell>
-                          <TableCell className="text-right space-x-2">
+                          <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
                             <Button 
                               size="sm" 
                               onClick={() => handleApproveInvoiceCEO(invoice.id)}
@@ -870,11 +944,12 @@ export default function ApprovedRequestsQueue() {
                     </TableHeader>
                     <TableBody>
                       {requests.map((request) => (
-                        <TableRow key={request.id}>
-                          <TableCell 
-                            className="font-medium cursor-pointer hover:underline"
-                            onClick={() => navigate(`/purchase/requests/${request.id}`)}
-                          >
+                        <TableRow 
+                          key={request.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/purchase/requests/${request.id}`)}
+                        >
+                          <TableCell className="font-medium">
                             {request.number}
                           </TableCell>
                           <TableCell>
@@ -887,7 +962,7 @@ export default function ApprovedRequestsQueue() {
                           <TableCell>{formatDate(request.desired_date)}</TableCell>
                           <TableCell>{formatDate(request.created_at)}</TableCell>
                           <TableCell>{getStatusBadge(request)}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             {request.has_remaining_items && (
                               <Button
                                 size="sm"
