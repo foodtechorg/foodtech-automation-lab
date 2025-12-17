@@ -19,10 +19,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, Paperclip } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { createPurchaseRequest, createPurchaseRequestItems, updatePurchaseRequestStatus } from '@/services/purchaseApi';
+import { uploadAttachment, validateFile, type Attachment } from '@/services/attachmentService';
+import { AttachmentsList } from '@/components/purchase/AttachmentsList';
 import type { PurchaseType } from '@/types/purchase';
 import { toast } from 'sonner';
 
@@ -30,6 +32,11 @@ interface LocalItem {
   name: string;
   unit: string;
   quantity: string;
+}
+
+interface PendingFile {
+  file: File;
+  id: string;
 }
 
 const emptyItem = (): LocalItem => ({ name: '', unit: '', quantity: '' });
@@ -43,6 +50,8 @@ export default function NewPurchaseRequest() {
   const [description, setDescription] = useState('');
   const [items, setItems] = useState<LocalItem[]>([emptyItem()]);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+  const [uploadedAttachments, setUploadedAttachments] = useState<Attachment[]>([]);
 
   const addItem = () => {
     setItems([...items, emptyItem()]);
@@ -66,6 +75,25 @@ export default function NewPurchaseRequest() {
       return false;
     }
     return true;
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    
+    const files = Array.from(e.target.files);
+    for (const file of files) {
+      const error = validateFile(file);
+      if (error) {
+        toast.error(`${file.name}: ${error}`);
+        continue;
+      }
+      setPendingFiles(prev => [...prev, { file, id: crypto.randomUUID() }]);
+    }
+    e.target.value = '';
+  };
+
+  const removePendingFile = (id: string) => {
+    setPendingFiles(prev => prev.filter(p => p.id !== id));
   };
 
   const handleSave = async (submitForApproval: boolean) => {
@@ -100,7 +128,17 @@ export default function NewPurchaseRequest() {
         );
       }
 
-      // 3. Update status if submitting for approval
+      // 3. Upload pending files
+      for (const pending of pendingFiles) {
+        try {
+          await uploadAttachment(pending.file, 'request', newRequest.id, user.id);
+        } catch (err) {
+          console.error('File upload error:', err);
+          toast.error(`Не вдалося завантажити: ${pending.file.name}`);
+        }
+      }
+
+      // 4. Update status if submitting for approval
       if (submitForApproval) {
         await updatePurchaseRequestStatus(newRequest.id, 'PENDING_APPROVAL');
         toast.success('Заявку відправлено на погодження');
@@ -234,6 +272,64 @@ export default function NewPurchaseRequest() {
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
             />
+          </div>
+
+          {/* File attachments */}
+          <div className="space-y-3 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-2">
+                <Paperclip className="h-4 w-4" />
+                Прикріплені файли
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => document.getElementById('file-input')?.click()}
+              >
+                Додати файл
+              </Button>
+              <input
+                id="file-input"
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
+              />
+            </div>
+            
+            {pendingFiles.length > 0 && (
+              <div className="space-y-2">
+                {pendingFiles.map((pending) => (
+                  <div 
+                    key={pending.id} 
+                    className="flex items-center gap-3 p-3 bg-muted/30 rounded-md border"
+                  >
+                    <span className="text-xl">📎</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{pending.file.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(pending.file.size / 1024 / 1024).toFixed(2)} МБ
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => removePendingFile(pending.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            <p className="text-xs text-muted-foreground">
+              PDF, DOC, DOCX, XLS, XLSX, JPG, PNG • макс. 5 МБ на файл
+            </p>
           </div>
 
           {/* Action buttons */}
