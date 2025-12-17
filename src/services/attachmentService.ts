@@ -42,10 +42,10 @@ export async function uploadAttachment(
   entityId: string,
   userId: string
 ): Promise<Attachment> {
-  // Generate unique file path
-  const fileExt = file.name.split('.').pop();
-  const timestamp = Date.now();
-  const filePath = `${entityType}s/${entityId}/${timestamp}_${file.name}`;
+  // Generate safe file path using UUID to avoid encoding issues with non-ASCII filenames
+  const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
+  const safeFileName = `${Date.now()}_${crypto.randomUUID()}.${fileExt}`;
+  const filePath = `${entityType}s/${entityId}/${safeFileName}`;
 
   // Upload to storage
   const { error: uploadError } = await supabase.storage
@@ -54,7 +54,7 @@ export async function uploadAttachment(
 
   if (uploadError) {
     console.error('Storage upload error:', uploadError);
-    throw new Error('Помилка завантаження файлу');
+    throw new Error(`Помилка завантаження файлу: ${uploadError.message}`);
   }
 
   // Save metadata to the appropriate table
