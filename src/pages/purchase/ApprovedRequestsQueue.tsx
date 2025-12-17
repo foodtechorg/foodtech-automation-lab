@@ -17,6 +17,10 @@ import type { PurchaseRequest, PurchaseType } from '@/types/purchase';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { PurchaseNavTabs } from '@/components/purchase/PurchaseNavTabs';
+import { createPurchaseInvoice, createPurchaseInvoiceItems, logPurchaseEvent, getInvoicedQuantitiesByRequestId } from '@/services/invoiceApi';
+import { getPurchaseRequestItems } from '@/services/purchaseApi';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 const typeLabels: Record<PurchaseType, string> = {
   TMC: 'ТМЦ',
@@ -31,9 +35,11 @@ interface RequestWithCreator extends PurchaseRequest {
 
 export default function ApprovedRequestsQueue() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [requests, setRequests] = useState<RequestWithCreator[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [creatingInvoiceFor, setCreatingInvoiceFor] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadApprovedRequests() {
@@ -98,6 +104,60 @@ export default function ApprovedRequestsQueue() {
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return '—';
     return format(new Date(dateStr), 'dd.MM.yyyy', { locale: uk });
+  };
+
+  const handleCreateInvoice = async (request: RequestWithCreator) => {
+    if (!user?.id) return;
+    
+    setCreatingInvoiceFor(request.id);
+    try {
+      // Get request items
+      const items = await getPurchaseRequestItems(request.id);
+      
+      // Get already invoiced quantities
+      const invoicedQuantities = await getInvoicedQuantitiesByRequestId(request.id);
+      
+      // Create draft invoice
+      const invoice = await createPurchaseInvoice({
+        request_id: request.id,
+        currency: request.currency,
+        created_by: user.id,
+      });
+
+      // Create invoice items from remaining quantities
+      const remainingItems = items
+        .filter(item => {
+          const invoiced = invoicedQuantities.get(item.id) || 0;
+          return item.quantity > invoiced;
+        })
+        .map(item => {
+          const invoiced = invoicedQuantities.get(item.id) || 0;
+          const remaining = item.quantity - invoiced;
+          return {
+            invoice_id: invoice.id,
+            request_item_id: item.id,
+            name: item.name,
+            unit: item.unit,
+            quantity: remaining,
+            price: 0,
+          };
+        });
+
+      if (remainingItems.length > 0) {
+        await createPurchaseInvoiceItems(remainingItems);
+      }
+
+      // Log the creation
+      await logPurchaseEvent('INVOICE', invoice.id, 'CREATED');
+
+      toast.success('Рахунок створено');
+      navigate(`/purchase/invoices/${invoice.id}`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка при створенні рахунку');
+    } finally {
+      setCreatingInvoiceFor(null);
+    }
   };
 
   return (
@@ -176,9 +236,14 @@ export default function ApprovedRequestsQueue() {
                       {!request.has_invoice && (
                         <Button
                           size="sm"
-                          onClick={() => navigate(`/purchase/invoices/new?requestId=${request.id}`)}
+                          onClick={() => handleCreateInvoice(request)}
+                          disabled={creatingInvoiceFor === request.id}
                         >
-                          <Plus className="h-4 w-4 mr-1" />
+                          {creatingInvoiceFor === request.id ? (
+                            <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                          ) : (
+                            <Plus className="h-4 w-4 mr-1" />
+                          )}
                           Створити рахунок
                         </Button>
                       )}
