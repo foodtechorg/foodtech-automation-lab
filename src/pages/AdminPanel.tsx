@@ -194,7 +194,7 @@ export default function AdminPanel() {
                         onValueChange={(newRole) => handleRoleChange(u.id, newRole as UserRole)}
                         disabled={u.id === user?.id || updatingRole === u.id}
                       >
-                        <SelectTrigger className="w-[180px]">
+                        <SelectTrigger className="w-[200px]">
                           {updatingRole === u.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
