@@ -17,6 +17,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         hero: "gradient-primary text-primary-foreground font-semibold shadow-soft hover:shadow-glow hover:scale-105 active:scale-100",
         accent: "gradient-accent text-accent-foreground font-semibold shadow-soft hover:shadow-glow hover:scale-105 active:scale-100",
+        success: "bg-success text-success-foreground hover:bg-success/90",
       },
       size: {
         default: "h-10 px-4 py-2",
