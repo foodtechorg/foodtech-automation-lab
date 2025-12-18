@@ -27,13 +27,13 @@ const statusLabels: Record<PurchaseInvoiceStatus, string> = {
   REJECTED: 'Відхилено',
 };
 
-const statusVariants: Record<PurchaseInvoiceStatus, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+const statusVariants: Record<PurchaseInvoiceStatus, 'default' | 'secondary' | 'destructive' | 'outline' | 'success'> = {
   DRAFT: 'secondary',
   PENDING_COO: 'outline',
   PENDING_CEO: 'outline',
   TO_PAY: 'default',
-  PAID: 'default',
-  DELIVERED: 'default',
+  PAID: 'success',
+  DELIVERED: 'success',
   REJECTED: 'destructive',
 };
 
