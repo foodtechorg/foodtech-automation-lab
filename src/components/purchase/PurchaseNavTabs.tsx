@@ -11,7 +11,11 @@ export function PurchaseNavTabs() {
   const canSeeQueue = profile?.role === 'procurement_manager' 
     || profile?.role === 'coo' 
     || profile?.role === 'ceo' 
+    || profile?.role === 'treasurer'
     || profile?.role === 'admin';
+
+  // Treasurer only sees Queue and Invoices, not Requests
+  const hideRequests = profile?.role === 'treasurer';
 
   const getCurrentTab = () => {
     if (location.pathname.startsWith('/purchase/invoices')) return 'invoices';
@@ -33,19 +37,25 @@ export function PurchaseNavTabs() {
     }
   };
 
+  // Calculate grid columns based on visible tabs
+  const visibleTabsCount = (canSeeQueue ? 1 : 0) + (hideRequests ? 0 : 1) + 1; // queue + requests + invoices
+  const gridCols = visibleTabsCount === 3 ? 'grid-cols-3' : 'grid-cols-2';
+
   return (
     <Tabs value={getCurrentTab()} onValueChange={handleTabChange} className="w-full">
-      <TabsList className={`grid w-full max-w-md ${canSeeQueue ? 'grid-cols-3' : 'grid-cols-2'}`}>
+      <TabsList className={`grid w-full max-w-md ${gridCols}`}>
         {canSeeQueue && (
           <TabsTrigger value="queue" className="flex items-center gap-2">
             <ListChecks className="h-4 w-4" />
             <span className="hidden sm:inline">Черга</span>
           </TabsTrigger>
         )}
-        <TabsTrigger value="requests" className="flex items-center gap-2">
-          <FileText className="h-4 w-4" />
-          <span className="hidden sm:inline">Заявки</span>
-        </TabsTrigger>
+        {!hideRequests && (
+          <TabsTrigger value="requests" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Заявки</span>
+          </TabsTrigger>
+        )}
         <TabsTrigger value="invoices" className="flex items-center gap-2">
           <Receipt className="h-4 w-4" />
           <span className="hidden sm:inline">Рахунки</span>

@@ -22,17 +22,18 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { FileText, Loader2, Plus, Edit, Check, X, Receipt } from 'lucide-react';
+import { FileText, Loader2, Plus, Edit, Check, X, Receipt, CreditCard, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import type { PurchaseRequest, PurchaseType, PurchaseInvoice } from '@/types/purchase';
-import { format } from 'date-fns';
+import { format, isToday, isBefore, startOfDay } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { PurchaseNavTabs } from '@/components/purchase/PurchaseNavTabs';
 import { createPurchaseInvoice, createPurchaseInvoiceItems, logPurchaseEvent, updatePurchaseInvoice } from '@/services/invoiceApi';
 import { getPurchaseRequestItems, updatePurchaseRequestStatus } from '@/services/purchaseApi';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 const typeLabels: Record<PurchaseType, string> = {
   TMC: 'ТМЦ',
@@ -70,6 +71,9 @@ export default function ApprovedRequestsQueue() {
   const [pendingCOOInvoices, setPendingCOOInvoices] = useState<InvoiceWithCreator[]>([]);
   const [pendingCEOInvoices, setPendingCEOInvoices] = useState<InvoiceWithCreator[]>([]);
   
+  // Treasurer queue state
+  const [toPayInvoices, setToPayInvoices] = useState<InvoiceWithCreator[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creatingInvoiceFor, setCreatingInvoiceFor] = useState<string | null>(null);
@@ -79,6 +83,7 @@ export default function ApprovedRequestsQueue() {
   const isCOO = profile?.role === 'coo' || profile?.role === 'admin';
   const isCEO = profile?.role === 'ceo' || profile?.role === 'admin';
   const isProcurementManager = profile?.role === 'procurement_manager' || profile?.role === 'admin';
+  const isTreasurer = profile?.role === 'treasurer' || profile?.role === 'admin';
 
   useEffect(() => {
     loadQueueData();
@@ -98,6 +103,9 @@ export default function ApprovedRequestsQueue() {
       }
       if (isProcurementManager) {
         await loadProcurementQueue();
+      }
+      if (isTreasurer) {
+        await loadTreasurerQueue();
       }
     } catch (err) {
       console.error(err);
@@ -360,6 +368,75 @@ export default function ApprovedRequestsQueue() {
     }
 
     setRequests(enrichedRequests);
+  }
+
+  async function loadTreasurerQueue() {
+    // Get all TO_PAY invoices, sorted by planned_payment_date (null last)
+    const { data: invoicesData, error: invError } = await supabase
+      .from('purchase_invoices')
+      .select('*')
+      .eq('status', 'TO_PAY')
+      .order('planned_payment_date', { ascending: true, nullsFirst: false });
+
+    if (invError) throw invError;
+
+    if (!invoicesData || invoicesData.length === 0) {
+      setToPayInvoices([]);
+      return;
+    }
+
+    // Get creator profiles
+    const creatorIds = [...new Set(invoicesData.map(i => i.created_by))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name, email')
+      .in('id', creatorIds);
+
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+    // Get requester info from linked purchase_requests
+    const invoiceRequestIds = [...new Set(invoicesData.filter(i => i.request_id).map(i => i.request_id!))];
+    let requestCreatorMap = new Map<string, { name: string; email: string }>();
+    
+    if (invoiceRequestIds.length > 0) {
+      const { data: linkedRequests } = await supabase
+        .from('purchase_requests')
+        .select('id, created_by')
+        .in('id', invoiceRequestIds);
+      
+      const linkedRequestCreatorIds = [...new Set((linkedRequests || []).map(r => r.created_by))];
+      const { data: requesterProfiles } = await supabase
+        .from('profiles')
+        .select('id, name, email')
+        .in('id', linkedRequestCreatorIds);
+      
+      const requesterProfileMap = new Map(requesterProfiles?.map(p => [p.id, p]) || []);
+      
+      for (const req of linkedRequests || []) {
+        const profile = requesterProfileMap.get(req.created_by);
+        if (profile) {
+          requestCreatorMap.set(req.id, { 
+            name: profile.name || profile.email || 'Невідомий', 
+            email: profile.email || '' 
+          });
+        }
+      }
+    }
+
+    // Enrich invoices
+    const enrichedInvoices: InvoiceWithCreator[] = invoicesData.map(inv => {
+      const profile = profileMap.get(inv.created_by);
+      const requester = inv.request_id ? requestCreatorMap.get(inv.request_id) : null;
+      return {
+        ...inv,
+        creator_name: profile?.name || profile?.email || 'Невідомий',
+        creator_email: profile?.email || '',
+        requester_name: requester?.name || '',
+        requester_email: requester?.email || '',
+      };
+    });
+
+    setToPayInvoices(enrichedInvoices);
   }
 
   const formatDate = (dateStr: string | null) => {
@@ -640,6 +717,31 @@ export default function ApprovedRequestsQueue() {
     }
   };
 
+  // Treasurer - mark invoice as paid
+  const handleMarkPaid = async (invoiceId: string) => {
+    setProcessingId(invoiceId);
+    try {
+      const { error } = await supabase
+        .from('purchase_invoices')
+        .update({
+          status: 'PAID',
+          paid_date: new Date().toISOString(),
+        })
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      await logPurchaseEvent('INVOICE', invoiceId, 'MARKED_PAID');
+      toast.success('Рахунок позначено як оплачений');
+      await loadQueueData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Помилка при оновленні рахунку');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const getStatusBadge = (request: RequestWithCreator) => {
     if (request.has_draft_invoice && request.has_remaining_items) {
       return <Badge variant="secondary"><Edit className="h-3 w-3 mr-1" />В роботі</Badge>;
@@ -650,7 +752,26 @@ export default function ApprovedRequestsQueue() {
     return <Badge variant="outline">Очікує</Badge>;
   };
 
+  // Get row class for payment date highlighting
+  const getPaymentRowClassName = (invoice: InvoiceWithCreator) => {
+    if (!invoice.planned_payment_date) return '';
+    
+    const paymentDate = startOfDay(new Date(invoice.planned_payment_date));
+    const today = startOfDay(new Date());
+    
+    if (isBefore(paymentDate, today)) {
+      // Overdue - red highlighting
+      return 'bg-red-50 hover:bg-red-100 border-l-4 border-l-red-500';
+    }
+    if (isToday(new Date(invoice.planned_payment_date))) {
+      // Due today - amber highlighting
+      return 'bg-amber-50 hover:bg-amber-100 border-l-4 border-l-amber-500';
+    }
+    return '';
+  };
+
   const getPageTitle = () => {
+    if (profile?.role === 'treasurer') return 'Рахунки до оплати';
     if (profile?.role === 'coo') return 'Заявки та рахунки на погодження';
     if (profile?.role === 'ceo') return 'Рахунки на погодження';
     return 'Заявки, готові до створення рахунку';
@@ -698,7 +819,8 @@ export default function ApprovedRequestsQueue() {
     (isCOO ? pendingApprovalRequests.length + pendingCOOInvoices.length : 0) +
     (isCEO && !isCOO ? pendingCEOInvoices.length : 0) +
     (isCEO && isCOO ? pendingCEOInvoices.length : 0) +
-    (isProcurementManager ? requests.length : 0);
+    (isProcurementManager ? requests.length : 0) +
+    (isTreasurer ? toPayInvoices.length : 0);
 
   return (
     <div className="space-y-6">
@@ -1013,6 +1135,95 @@ export default function ApprovedRequestsQueue() {
                                 Переглянути
                               </Button>
                             )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Treasurer: TO_PAY Invoices */}
+          {isTreasurer && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Рахунки до оплати
+                  {toPayInvoices.length > 0 && (
+                    <Badge variant="secondary" className="ml-2">{toPayInvoices.length}</Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {toPayInvoices.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Немає рахунків до оплати
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Номер</TableHead>
+                        <TableHead>Постачальник</TableHead>
+                        <TableHead>Сума</TableHead>
+                        <TableHead>Дата оплати</TableHead>
+                        <TableHead>Замовник</TableHead>
+                        <TableHead className="text-right">Дії</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {toPayInvoices.map((invoice) => (
+                        <TableRow 
+                          key={invoice.id}
+                          className={cn("cursor-pointer", getPaymentRowClassName(invoice) || "hover:bg-muted/50")}
+                          onClick={() => navigate(`/purchase/invoices/${invoice.id}`, { state: { from: 'queue' } })}
+                        >
+                          <TableCell className="font-medium">
+                            {invoice.number}
+                          </TableCell>
+                          <TableCell>{invoice.supplier_name}</TableCell>
+                          <TableCell>{formatCurrency(invoice.amount, invoice.currency)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {invoice.planned_payment_date ? (
+                                <>
+                                  {isBefore(startOfDay(new Date(invoice.planned_payment_date)), startOfDay(new Date())) && (
+                                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                                  )}
+                                  {isToday(new Date(invoice.planned_payment_date)) && (
+                                    <span className="text-amber-600 font-medium">Сьогодні</span>
+                                  )}
+                                  {!isToday(new Date(invoice.planned_payment_date)) && formatDate(invoice.planned_payment_date)}
+                                </>
+                              ) : (
+                                <span className="text-muted-foreground">Не вказано</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{invoice.requester_name || '—'}</p>
+                              {invoice.requester_email && (
+                                <p className="text-sm text-muted-foreground">{invoice.requester_email}</p>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <Button 
+                              size="sm" 
+                              onClick={() => handleMarkPaid(invoice.id)}
+                              disabled={processingId === invoice.id}
+                            >
+                              {processingId === invoice.id ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : (
+                                <CreditCard className="h-4 w-4 mr-1" />
+                              )}
+                              Оплачено
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
