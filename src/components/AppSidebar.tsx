@@ -1,11 +1,9 @@
 import { useLocation } from 'react-router-dom';
-import { FileText, ShoppingCart, UserCog, LogOut } from 'lucide-react';
+import { FileText, ShoppingCart, UserCog } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
-import { t } from '@/lib/i18n';
 import foodtechLogo from '@/assets/foodtech-logo.png';
-import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
-import { Button } from '@/components/ui/button';
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
 type UserRole = 'sales_manager' | 'rd_dev' | 'rd_manager' | 'admin' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant';
 interface Module {
   id: string;
@@ -49,16 +47,13 @@ function isModuleActive(moduleId: string, pathname: string): boolean {
   }
 }
 export function AppSidebar() {
-  const {
-    profile,
-    signOut
-  } = useAuth();
+  const { profile } = useAuth();
   const location = useLocation();
-  const {
-    state
-  } = useSidebar();
+  const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
+  
   if (!profile) return null;
+  
   const userRole = profile.role as UserRole;
   const visibleModules = modules.filter(module => {
     if (module.roles === 'all') return true;
@@ -67,7 +62,7 @@ export function AppSidebar() {
   return <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-2">
-          <img src={foodtechLogo} alt="FoodTech Logo" className="h-8 w-8 flex-shrink-0" />
+          <img src={foodtechLogo} alt="FoodTech Logo" className="max-h-8 w-auto flex-shrink-0 object-contain" />
           {!isCollapsed && <span className="font-semibold text-sidebar-foreground">FoodTech Automation</span>}
         </div>
       </SidebarHeader>
@@ -93,21 +88,5 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border">
-        <div className="flex items-center gap-3 px-2 py-2">
-          {!isCollapsed && <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">
-                {profile.name}
-              </p>
-              <p className="text-xs text-sidebar-foreground/70 truncate">
-                {t.role(profile.role)}
-              </p>
-            </div>}
-          <Button variant="ghost" size="icon" onClick={signOut} title="Вийти" className="flex-shrink-0">
-            <LogOut className="h-4 w-4" />
-          </Button>
-        </div>
-      </SidebarFooter>
     </Sidebar>;
 }
