@@ -26,7 +26,7 @@ export function Layout({
     }];
     
     // Purchase module navigation - route depends on role
-    const canSeeQueue = ['procurement_manager', 'coo', 'ceo', 'admin'].includes(profile.role);
+    const canSeeQueue = ['procurement_manager', 'coo', 'ceo', 'treasurer', 'admin'].includes(profile.role);
     const purchaseNav = [{
       to: canSeeQueue ? '/purchase/queue' : '/purchase/requests',
       label: 'Закупівля ТМЦ',
