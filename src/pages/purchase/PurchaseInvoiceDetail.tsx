@@ -109,6 +109,8 @@ export default function PurchaseInvoiceDetail() {
   const [logs, setLogs] = useState<PurchaseLog[]>([]);
   const [creatorName, setCreatorName] = useState<string>("");
   const [requestNumber, setRequestNumber] = useState<string>("");
+  const [requesterName, setRequesterName] = useState<string>("");
+  const [requesterEmail, setRequesterEmail] = useState<string>("");
 
   // Attachments state
   const [requestAttachments, setRequestAttachments] = useState<Attachment[]>([]);
@@ -182,7 +184,7 @@ export default function PurchaseInvoiceDetail() {
         // Load request-related data if linked
         if (invoiceData.request_id) {
           const [requestData, requestAttachmentsData, requestItems, invoicedQty] = await Promise.all([
-            supabase.from("purchase_requests").select("number").eq("id", invoiceData.request_id).single(),
+            supabase.from("purchase_requests").select("number, created_by").eq("id", invoiceData.request_id).single(),
             getAttachments("request", invoiceData.request_id),
             getPurchaseRequestItems(invoiceData.request_id),
             getInvoicedQuantitiesByRequestId(invoiceData.request_id),
@@ -190,6 +192,20 @@ export default function PurchaseInvoiceDetail() {
 
           if (requestData.data) {
             setRequestNumber(requestData.data.number);
+            
+            // Fetch requester profile
+            if (requestData.data.created_by) {
+              const { data: requesterProfile } = await supabase
+                .from("profiles")
+                .select("name, email")
+                .eq("id", requestData.data.created_by)
+                .single();
+              
+              if (requesterProfile) {
+                setRequesterName(requesterProfile.name || "");
+                setRequesterEmail(requesterProfile.email);
+              }
+            }
           }
           setRequestAttachments(requestAttachmentsData);
 
@@ -826,6 +842,13 @@ export default function PurchaseInvoiceDetail() {
                   <p className="font-medium">—</p>
                 )}
               </div>
+              {requesterEmail && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Замовник</p>
+                  <p className="font-medium">{requesterName || requesterEmail}</p>
+                  {requesterName && <p className="text-sm text-muted-foreground">{requesterEmail}</p>}
+                </div>
+              )}
               <div>
                 <p className="text-sm text-muted-foreground">Сума</p>
                 <p className="font-medium text-lg">
