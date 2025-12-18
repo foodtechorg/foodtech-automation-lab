@@ -14,7 +14,7 @@ import { uk } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
 import { t } from '@/lib/i18n';
 
-type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager';
+type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant';
 
 interface UserProfile {
   id: string;
@@ -141,6 +141,11 @@ export default function AdminPanel() {
                   <SelectItem value="sales_manager">Менеджер продажів</SelectItem>
                   <SelectItem value="rd_dev">Розробник R&D</SelectItem>
                   <SelectItem value="rd_manager">Менеджер R&D</SelectItem>
+                  <SelectItem value="procurement_manager">Менеджер закупівель</SelectItem>
+                  <SelectItem value="coo">COO</SelectItem>
+                  <SelectItem value="ceo">CEO</SelectItem>
+                  <SelectItem value="treasurer">Казначей</SelectItem>
+                  <SelectItem value="accountant">Бухгалтер</SelectItem>
                   <SelectItem value="admin">Адміністратор</SelectItem>
                 </SelectContent>
               </Select>
@@ -200,6 +205,11 @@ export default function AdminPanel() {
                           <SelectItem value="sales_manager">Менеджер продажів</SelectItem>
                           <SelectItem value="rd_dev">Розробник R&D</SelectItem>
                           <SelectItem value="rd_manager">Менеджер R&D</SelectItem>
+                          <SelectItem value="procurement_manager">Менеджер закупівель</SelectItem>
+                          <SelectItem value="coo">COO</SelectItem>
+                          <SelectItem value="ceo">CEO</SelectItem>
+                          <SelectItem value="treasurer">Казначей</SelectItem>
+                          <SelectItem value="accountant">Бухгалтер</SelectItem>
                           <SelectItem value="admin">Адміністратор</SelectItem>
                         </SelectContent>
                       </Select>
