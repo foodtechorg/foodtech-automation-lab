@@ -1213,7 +1213,8 @@ export default function ApprovedRequestsQueue() {
                           </TableCell>
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <Button 
-                              size="sm" 
+                              size="sm"
+                              variant="success"
                               onClick={() => handleMarkPaid(invoice.id)}
                               disabled={processingId === invoice.id}
                             >
