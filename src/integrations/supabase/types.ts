@@ -521,6 +521,9 @@ export type Database = {
         Row: {
           author_email: string
           code: string
+          complexity_level:
+            | Database["public"]["Enums"]["complexity_level"]
+            | null
           created_at: string
           customer_company: string
           customer_contact: string | null
@@ -545,6 +548,9 @@ export type Database = {
         Insert: {
           author_email: string
           code: string
+          complexity_level?:
+            | Database["public"]["Enums"]["complexity_level"]
+            | null
           created_at?: string
           customer_company: string
           customer_contact?: string | null
@@ -569,6 +575,9 @@ export type Database = {
         Update: {
           author_email?: string
           code?: string
+          complexity_level?:
+            | Database["public"]["Enums"]["complexity_level"]
+            | null
           created_at?: string
           customer_company?: string
           customer_contact?: string | null
@@ -701,6 +710,7 @@ export type Database = {
         | "accountant"
       approval_decision: "PENDING" | "APPROVED" | "REJECTED"
       client_result: "PRODUCTION" | "REWORK" | "DECLINE"
+      complexity_level: "EASY" | "MEDIUM" | "COMPLEX" | "EXPERT"
       direction: "FUNCTIONAL" | "FLAVOR" | "COLORANT" | "COMPLEX"
       domain:
         | "MEAT"
@@ -890,6 +900,7 @@ export const Constants = {
       ],
       approval_decision: ["PENDING", "APPROVED", "REJECTED"],
       client_result: ["PRODUCTION", "REWORK", "DECLINE"],
+      complexity_level: ["EASY", "MEDIUM", "COMPLEX", "EXPERT"],
       direction: ["FUNCTIONAL", "FLAVOR", "COLORANT", "COMPLEX"],
       domain: [
         "MEAT",
