@@ -9,7 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, CalendarIcon } from 'lucide-react';
+import { Loader2, ArrowLeft, CalendarIcon, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -160,7 +161,19 @@ export default function NewRequest() {
             </div>
 
             <div className="space-y-2">
-              <Label>{translations.newRequest.form.description} *</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>{translations.newRequest.form.description} *</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-sm">
+                      <p>В описі важливо дати максимум інформації для розробника, щоб процес розробки і результат були якісними. Приклад необхідної додаткової інформації: рекомендоване дозування, ціна (бажана вартість для оригіналу, за необхідності), сфера та особливості застосування, технологічні особливості виробництва, рецептури продукту, сировина, бажаний технологічний ефект.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Textarea value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} rows={4} required />
             </div>
 
