@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, CalendarIcon, Edit, Loader2, MessageSquare, Play } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -31,6 +32,7 @@ export default function RequestDetail() {
   const [takeDialogOpen, setTakeDialogOpen] = useState(false);
   const [etaDate, setEtaDate] = useState<Date | undefined>();
   const [rdComment, setRdComment] = useState('');
+  const [complexityLevel, setComplexityLevel] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   // Edit dialog state
@@ -333,7 +335,12 @@ export default function RequestDetail() {
   };
 
   const handleTakeRequest = async () => {
-    if (!etaDate || !profile?.email || !id) return;
+    if (!etaDate || !complexityLevel || !profile?.email || !id) {
+      if (!complexityLevel) {
+        toast.error('Оберіть рівень складності');
+      }
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -345,7 +352,8 @@ export default function RequestDetail() {
           responsible_email: profile.email,
           eta_first_stage: format(etaDate, 'yyyy-MM-dd'),
           rd_comment: rdComment || null,
-        })
+          complexity_level: complexityLevel,
+        } as any)
         .eq('id', id);
 
       if (updateError) throw updateError;
@@ -355,7 +363,7 @@ export default function RequestDetail() {
         p_request_id: id,
         p_actor_email: profile.email,
         p_event_type: 'ASSIGNED',
-        p_payload: { responsible_email: profile.email },
+        p_payload: { responsible_email: profile.email, complexity_level: complexityLevel },
       });
 
       // Log STATUS_CHANGED event
@@ -380,6 +388,7 @@ export default function RequestDetail() {
       setTakeDialogOpen(false);
       setEtaDate(undefined);
       setRdComment('');
+      setComplexityLevel('');
       queryClient.invalidateQueries({ queryKey: ['request', id] });
       queryClient.invalidateQueries({ queryKey: ['request-events', id] });
     } catch (error) {
@@ -533,6 +542,26 @@ export default function RequestDetail() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.responsibleDev}:</span><p className="font-medium">{request.responsible_email ? emailToName[request.responsible_email] : translations.requests.unassigned}</p></div>
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.etaFirstStage}:</span><p className="font-medium">{request.eta_first_stage ? format(new Date(request.eta_first_stage), 'PPP', { locale: uk }) : '-'}</p></div>
+              {(request as any).complexity_level && (
+                <div>
+                  <span className="text-muted-foreground">Рівень складності:</span>
+                  <p className="font-medium">
+                    <Badge variant="outline" className={cn(
+                      (request as any).complexity_level === 'EASY' && 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300',
+                      (request as any).complexity_level === 'MEDIUM' && 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300',
+                      (request as any).complexity_level === 'COMPLEX' && 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300',
+                      (request as any).complexity_level === 'EXPERT' && 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                    )}>
+                      {{
+                        'EASY': '1 – Легкий',
+                        'MEDIUM': '2 – Середній',
+                        'COMPLEX': '3 – Складний',
+                        'EXPERT': '4 – Надскладний'
+                      }[(request as any).complexity_level as string]}
+                    </Badge>
+                  </p>
+                </div>
+              )}
             </div>
             {request.date_sent_for_test && <div><span className="text-muted-foreground">{translations.requestDetail.fields.dateSentForTest}:</span><p className="font-medium">{format(new Date(request.date_sent_for_test), 'PPP', { locale: uk })}</p></div>}
             {/* Comments Feed */}
@@ -594,6 +623,40 @@ export default function RequestDetail() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
+              <Label>Рівень складності *</Label>
+              <Select value={complexityLevel} onValueChange={setComplexityLevel}>
+                <SelectTrigger className={cn(!complexityLevel && "text-muted-foreground")}>
+                  <SelectValue placeholder="Оберіть рівень складності" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="EASY">
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">1 – Легкий</span>
+                      <span className="text-xs text-muted-foreground">Стандартні компоненти, до 3 днів</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="MEDIUM">
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">2 – Середній</span>
+                      <span className="text-xs text-muted-foreground">Адаптація рецептур, 3–10 днів</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="COMPLEX">
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">3 – Складний</span>
+                      <span className="text-xs text-muted-foreground">Нові розробки, 10–20 днів</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="EXPERT">
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">4 – Надскладний</span>
+                      <span className="text-xs text-muted-foreground">Довготривалі дослідження, 30–90 днів</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label>ETA першого етапу *</Label>
               <Popover>
                 <PopoverTrigger asChild>
@@ -634,7 +697,7 @@ export default function RequestDetail() {
             <Button variant="outline" onClick={() => setTakeDialogOpen(false)}>
               Скасувати
             </Button>
-            <Button onClick={handleTakeRequest} disabled={!etaDate || submitting}>
+            <Button onClick={handleTakeRequest} disabled={!etaDate || !complexityLevel || submitting}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Взяти в роботу
             </Button>
