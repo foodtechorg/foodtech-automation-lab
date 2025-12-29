@@ -42,7 +42,12 @@ export const translations = {
     coo: "Операційний директор",
     ceo: "Генеральний директор",
     treasurer: "Казначей",
-    accountant: "Бухгалтер"
+    accountant: "Бухгалтер",
+    quality_manager: "Керівник відділу ССіЯ",
+    admin_director: "Адміністративний директор",
+    chief_engineer: "Головний інженер",
+    production_deputy: "Заст. директора з виробництва",
+    warehouse_manager: "Начальник складу"
   },
   eventType: {
     CREATED: "Створено",
