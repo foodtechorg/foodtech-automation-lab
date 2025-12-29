@@ -4,7 +4,7 @@ import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
 import foodtechLogo from '@/assets/foodtech-logo.png';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
-type UserRole = 'sales_manager' | 'rd_dev' | 'rd_manager' | 'admin' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant';
+type UserRole = 'sales_manager' | 'rd_dev' | 'rd_manager' | 'admin' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager';
 interface Module {
   id: string;
   label: string;
@@ -16,7 +16,7 @@ const modules: Module[] = [{
   id: 'rd',
   label: 'Заявки R&D',
   icon: FileText,
-  roles: ['sales_manager', 'rd_dev', 'rd_manager', 'admin'],
+  roles: ['sales_manager', 'rd_dev', 'rd_manager', 'admin', 'quality_manager', 'admin_director'],
   getPath: role => role === 'sales_manager' ? '/requests/my' : '/rd/board'
 }, {
   id: 'purchase',

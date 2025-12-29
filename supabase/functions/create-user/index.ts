@@ -12,7 +12,7 @@ const corsHeaders = {
 interface CreateUserRequest {
   email: string;
   name: string;
-  role: 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager';
+  role: 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager';
 }
 
 const handler = async (req: Request): Promise<Response> => {

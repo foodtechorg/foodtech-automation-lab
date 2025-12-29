@@ -14,7 +14,7 @@ import { uk } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
 import { t } from '@/lib/i18n';
 
-type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant';
+type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager';
 
 interface UserProfile {
   id: string;
@@ -146,6 +146,11 @@ export default function AdminPanel() {
                   <SelectItem value="ceo">CEO</SelectItem>
                   <SelectItem value="treasurer">Казначей</SelectItem>
                   <SelectItem value="accountant">Бухгалтер</SelectItem>
+                  <SelectItem value="quality_manager">Керівник відділу ССіЯ</SelectItem>
+                  <SelectItem value="admin_director">Адміністративний директор</SelectItem>
+                  <SelectItem value="chief_engineer">Головний інженер</SelectItem>
+                  <SelectItem value="production_deputy">Заст. директора з виробництва</SelectItem>
+                  <SelectItem value="warehouse_manager">Начальник складу</SelectItem>
                   <SelectItem value="admin">Адміністратор</SelectItem>
                 </SelectContent>
               </Select>
@@ -210,6 +215,11 @@ export default function AdminPanel() {
                           <SelectItem value="ceo">CEO</SelectItem>
                           <SelectItem value="treasurer">Казначей</SelectItem>
                           <SelectItem value="accountant">Бухгалтер</SelectItem>
+                          <SelectItem value="quality_manager">Керівник відділу ССіЯ</SelectItem>
+                          <SelectItem value="admin_director">Адміністративний директор</SelectItem>
+                          <SelectItem value="chief_engineer">Головний інженер</SelectItem>
+                          <SelectItem value="production_deputy">Заст. директора з виробництва</SelectItem>
+                          <SelectItem value="warehouse_manager">Начальник складу</SelectItem>
                           <SelectItem value="admin">Адміністратор</SelectItem>
                         </SelectContent>
                       </Select>

@@ -708,6 +708,11 @@ export type Database = {
         | "ceo"
         | "treasurer"
         | "accountant"
+        | "quality_manager"
+        | "admin_director"
+        | "chief_engineer"
+        | "production_deputy"
+        | "warehouse_manager"
       approval_decision: "PENDING" | "APPROVED" | "REJECTED"
       client_result: "PRODUCTION" | "REWORK" | "DECLINE"
       complexity_level: "EASY" | "MEDIUM" | "COMPLEX" | "EXPERT"
@@ -897,6 +902,11 @@ export const Constants = {
         "ceo",
         "treasurer",
         "accountant",
+        "quality_manager",
+        "admin_director",
+        "chief_engineer",
+        "production_deputy",
+        "warehouse_manager",
       ],
       approval_decision: ["PENDING", "APPROVED", "REJECTED"],
       client_result: ["PRODUCTION", "REWORK", "DECLINE"],
