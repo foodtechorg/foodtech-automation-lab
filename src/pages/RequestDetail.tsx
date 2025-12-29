@@ -6,7 +6,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, CalendarIcon, Edit, Loader2, MessageSquare, Play } from 'lucide-react';
+import { ArrowLeft, CalendarIcon, Edit, Loader2, MessageSquare, Play, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
@@ -623,7 +624,24 @@ export default function RequestDetail() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Рівень складності *</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Рівень складності *</Label>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-md text-sm">
+                      <div className="space-y-2">
+                        <p><strong>1 – Легкий (до 3 днів):</strong> Підбір існуючого асортименту. Підбір аналогу сировини для заміни. Тестування нових зразків сировини. Виготовлення зразків продукції.</p>
+                        <p><strong>2 – Середній (3–10 днів):</strong> Завдання потребує базового аналізу та коригування. Доопрацювання рецептури. Доопрацювання тестових зразків. Виготовлення нового продукту/аналогу із визначеним вмістом.</p>
+                        <p><strong>3 – Складний (10–20 днів):</strong> Визначення вмісту інгредієнтів та розробка аналогу. Розробка нового виду продукту. Розробка за двома напрямками: смако-ароматичний та функціональний/барвник.</p>
+                        <p><strong>4 – Надскладний (30–90 днів):</strong> Розробка «складної» суміші та принципово нового виду продукту за власною ініціативою або в межах внутрішнього R&D.</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <Select value={complexityLevel} onValueChange={setComplexityLevel}>
                 <SelectTrigger className={cn(!complexityLevel && "text-muted-foreground")}>
                   <SelectValue placeholder="Оберіть рівень складності" />
@@ -631,25 +649,25 @@ export default function RequestDetail() {
                 <SelectContent>
                   <SelectItem value="EASY">
                     <div className="flex flex-col items-start">
-                      <span className="font-medium">1 – Легкий</span>
+                      <span className="font-medium">Легкий</span>
                       <span className="text-xs text-muted-foreground">Стандартні компоненти, до 3 днів</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="MEDIUM">
                     <div className="flex flex-col items-start">
-                      <span className="font-medium">2 – Середній</span>
+                      <span className="font-medium">Середній</span>
                       <span className="text-xs text-muted-foreground">Адаптація рецептур, 3–10 днів</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="COMPLEX">
                     <div className="flex flex-col items-start">
-                      <span className="font-medium">3 – Складний</span>
+                      <span className="font-medium">Складний</span>
                       <span className="text-xs text-muted-foreground">Нові розробки, 10–20 днів</span>
                     </div>
                   </SelectItem>
                   <SelectItem value="EXPERT">
                     <div className="flex flex-col items-start">
-                      <span className="font-medium">4 – Надскладний</span>
+                      <span className="font-medium">Надскладний</span>
                       <span className="text-xs text-muted-foreground">Довготривалі дослідження, 30–90 днів</span>
                     </div>
                   </SelectItem>
