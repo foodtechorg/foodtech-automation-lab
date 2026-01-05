@@ -20,6 +20,7 @@ interface UserProfile {
   id: string;
   email: string;
   name: string;
+  phone: string | null;
   role: UserRole;
   created_at: string;
 }
@@ -30,6 +31,7 @@ export default function AdminPanel() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('sales_manager');
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -56,12 +58,12 @@ export default function AdminPanel() {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-user', {
-        body: { email, name, role }
+        body: { email, name, phone, role }
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast({ title: 'Успіх', description: `Користувача ${name} створено. Email-запрошення надіслано.` });
-      setEmail(''); setName(''); setRole('sales_manager');
+      setEmail(''); setName(''); setPhone(''); setRole('sales_manager');
       fetchUsers();
     } catch (error: any) {
       toast({ title: 'Помилка', description: error.message, variant: 'destructive' });
@@ -124,7 +126,7 @@ export default function AdminPanel() {
           <CardDescription>Створення нових користувачів системи. Після створення на вказану пошту буде надіслано запрошення для встановлення паролю.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleCreateUser} className="grid gap-4 md:grid-cols-4">
+          <form onSubmit={handleCreateUser} className="grid gap-4 md:grid-cols-5">
             <div className="space-y-2">
               <Label>Email *</Label>
               <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@foodtech.org.ua" required />
@@ -132,6 +134,17 @@ export default function AdminPanel() {
             <div className="space-y-2">
               <Label>Ім'я *</Label>
               <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Іван Петренко" required />
+            </div>
+            <div className="space-y-2">
+              <Label>Телефон *</Label>
+              <Input 
+                type="tel" 
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value)} 
+                placeholder="+380XXXXXXXXX" 
+                pattern="^\+380[0-9]{9}$"
+                required 
+              />
             </div>
             <div className="space-y-2">
               <Label>Роль *</Label>
@@ -183,6 +196,7 @@ export default function AdminPanel() {
                 <TableRow>
                   <TableHead>Ім'я</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Телефон</TableHead>
                   <TableHead>Роль</TableHead>
                   <TableHead>Створено</TableHead>
                   <TableHead>Дії</TableHead>
@@ -193,6 +207,7 @@ export default function AdminPanel() {
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">{u.name}</TableCell>
                     <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                    <TableCell className="text-muted-foreground">{u.phone || '—'}</TableCell>
                     <TableCell>
                       <Select 
                         value={u.role} 

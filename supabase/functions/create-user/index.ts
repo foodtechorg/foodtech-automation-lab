@@ -12,6 +12,7 @@ const corsHeaders = {
 interface CreateUserRequest {
   email: string;
   name: string;
+  phone: string;
   role: 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager';
 }
 
@@ -21,11 +22,17 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, name, role }: CreateUserRequest = await req.json();
-    console.log('Creating user:', { email, name, role });
+    const { email, name, phone, role }: CreateUserRequest = await req.json();
+    console.log('Creating user:', { email, name, phone, role });
 
-    if (!email || !name || !role) {
-      throw new Error('Missing required fields: email, name or role');
+    if (!email || !name || !phone || !role) {
+      throw new Error('Missing required fields: email, name, phone or role');
+    }
+
+    // Валідація формату телефону
+    const phoneRegex = /^\+380[0-9]{9}$/;
+    if (!phoneRegex.test(phone)) {
+      throw new Error('Invalid phone format. Use +380XXXXXXXXX');
     }
 
     const supabaseAdmin = createClient(
@@ -37,7 +44,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
       email_confirm: true,
-      user_metadata: { name }
+      user_metadata: { name, phone }
     });
 
     if (authError) throw authError;
@@ -51,7 +58,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { error: profileError } = await supabaseAdmin
       .from('profiles')
-      .update({ role, name })
+      .update({ role, name, phone })
       .eq('id', authUser.user.id);
 
     if (profileError) console.error('Profile update error:', profileError);
