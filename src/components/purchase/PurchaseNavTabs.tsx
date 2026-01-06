@@ -14,8 +14,6 @@ export function PurchaseNavTabs() {
     || profile?.role === 'treasurer'
     || profile?.role === 'admin';
 
-  // Treasurer only sees Queue and Invoices, not Requests
-  const hideRequests = profile?.role === 'treasurer';
 
   const getCurrentTab = () => {
     if (location.pathname.startsWith('/purchase/invoices')) return 'invoices';
@@ -38,7 +36,7 @@ export function PurchaseNavTabs() {
   };
 
   // Calculate grid columns based on visible tabs
-  const visibleTabsCount = (canSeeQueue ? 1 : 0) + (hideRequests ? 0 : 1) + 1; // queue + requests + invoices
+  const visibleTabsCount = (canSeeQueue ? 1 : 0) + 1 + 1; // queue + requests + invoices
   const gridCols = visibleTabsCount === 3 ? 'grid-cols-3' : 'grid-cols-2';
 
   return (
@@ -50,12 +48,10 @@ export function PurchaseNavTabs() {
             <span className="hidden sm:inline">Черга</span>
           </TabsTrigger>
         )}
-        {!hideRequests && (
-          <TabsTrigger value="requests" className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            <span className="hidden sm:inline">Заявки</span>
-          </TabsTrigger>
-        )}
+        <TabsTrigger value="requests" className="flex items-center gap-2">
+          <FileText className="h-4 w-4" />
+          <span className="hidden sm:inline">Заявки</span>
+        </TabsTrigger>
         <TabsTrigger value="invoices" className="flex items-center gap-2">
           <Receipt className="h-4 w-4" />
           <span className="hidden sm:inline">Рахунки</span>
