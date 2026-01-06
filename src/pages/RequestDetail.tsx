@@ -117,7 +117,9 @@ export default function RequestDetail() {
 
   const canEditRequest = 
     (request?.status === 'PENDING' || request?.status === 'IN_PROGRESS') && 
-    (profile?.role === 'rd_manager' || profile?.role === 'admin');
+    (profile?.role === 'rd_manager' || profile?.role === 'admin' || 
+     profile?.role === 'ceo' || profile?.role === 'coo' || 
+     profile?.role === 'quality_manager' || profile?.role === 'admin_director');
 
   const canProvideFeedback = 
     request?.status === 'SENT_FOR_TEST' && 
@@ -132,7 +134,11 @@ export default function RequestDetail() {
       (profile?.role === 'sales_manager' && request?.author_email === profile?.email) ||
       profile?.role === 'rd_dev' || 
       profile?.role === 'rd_manager' || 
-      profile?.role === 'admin'
+      profile?.role === 'admin' ||
+      profile?.role === 'ceo' ||
+      profile?.role === 'coo' ||
+      profile?.role === 'quality_manager' ||
+      profile?.role === 'admin_director'
     );
 
   const openEditDialog = () => {
