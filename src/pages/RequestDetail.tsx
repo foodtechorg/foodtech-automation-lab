@@ -40,6 +40,7 @@ export default function RequestDetail() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editEtaDate, setEditEtaDate] = useState<Date | undefined>();
   const [editRdComment, setEditRdComment] = useState('');
+  const [originalRdComment, setOriginalRdComment] = useState('');
   const [editPriority, setEditPriority] = useState<string>('');
   const [editComplexityLevel, setEditComplexityLevel] = useState<string>('');
   const [selectedAction, setSelectedAction] = useState<'update' | 'send_for_test' | 'cancel'>('update');
@@ -143,7 +144,9 @@ export default function RequestDetail() {
 
   const openEditDialog = () => {
     setEditEtaDate(request?.eta_first_stage ? new Date(request.eta_first_stage) : undefined);
-    setEditRdComment(request?.rd_comment || '');
+    const currentRdComment = request?.rd_comment || '';
+    setEditRdComment(currentRdComment);
+    setOriginalRdComment(currentRdComment);
     setEditPriority(request?.priority || 'MEDIUM');
     setEditComplexityLevel((request as any)?.complexity_level || '');
     setSelectedAction('update');
@@ -206,8 +209,8 @@ export default function RequestDetail() {
           });
         }
 
-        // Log R&D comment as FEEDBACK_ADDED event
-        if (editRdComment && editRdComment.trim()) {
+        // Log R&D comment as FEEDBACK_ADDED event only if changed
+        if (editRdComment && editRdComment.trim() && editRdComment.trim() !== originalRdComment.trim()) {
           await supabase.rpc('log_request_event', {
             p_request_id: id,
             p_actor_email: profile.email,
