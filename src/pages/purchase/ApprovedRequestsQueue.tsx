@@ -29,6 +29,7 @@ import type { PurchaseRequest, PurchaseType, PurchaseInvoice } from '@/types/pur
 import { format, isToday, isBefore, startOfDay } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { PurchaseNavTabs } from '@/components/purchase/PurchaseNavTabs';
+import { PurchasePageHeader } from '@/components/purchase/PurchasePageHeader';
 import { createPurchaseInvoice, createPurchaseInvoiceItems, logPurchaseEvent, updatePurchaseInvoice } from '@/services/invoiceApi';
 import { getPurchaseRequestItems, updatePurchaseRequestStatus } from '@/services/purchaseApi';
 import { useAuth } from '@/hooks/useAuth';
@@ -824,12 +825,7 @@ export default function ApprovedRequestsQueue() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Закупівля ТМЦ</h1>
-          <p className="text-muted-foreground">{getPageTitle()}</p>
-        </div>
-      </div>
+      <PurchasePageHeader description={getPageTitle()} />
 
       <PurchaseNavTabs />
 
