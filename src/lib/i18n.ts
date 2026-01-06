@@ -57,6 +57,7 @@ export const translations = {
     ETA_SET: "Встановлено термін",
     SENT_FOR_TEST: "Відправлено на тестування",
     FEEDBACK_PROVIDED: "Надано відгук про тестування",
+    FEEDBACK_ADDED: "Додано коментар",
     APPROVED: "Затверджено",
     REJECTED: "Відхилено",
     FIELD_UPDATED: "Оновлено інформацію"

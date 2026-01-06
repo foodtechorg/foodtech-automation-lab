@@ -170,16 +170,35 @@ export default function RequestDetail() {
 
         if (error) throw error;
 
-        const updatedFields = ['eta_first_stage'];
-        if (editPriority !== request?.priority) updatedFields.push('priority');
-        if (editComplexityLevel !== (request as any)?.complexity_level) updatedFields.push('complexity_level');
+        // Log separate events for each changed field
+        if (editPriority !== request?.priority) {
+          await supabase.rpc('log_request_event', {
+            p_request_id: id,
+            p_actor_email: profile.email,
+            p_event_type: 'FIELD_UPDATED',
+            p_payload: { field: 'priority', from: request?.priority, to: editPriority },
+          });
+        }
 
-        await supabase.rpc('log_request_event', {
-          p_request_id: id,
-          p_actor_email: profile.email,
-          p_event_type: 'FIELD_UPDATED',
-          p_payload: { fields: updatedFields },
-        });
+        if (editComplexityLevel !== (request as any)?.complexity_level) {
+          await supabase.rpc('log_request_event', {
+            p_request_id: id,
+            p_actor_email: profile.email,
+            p_event_type: 'FIELD_UPDATED',
+            p_payload: { field: 'complexity_level', from: (request as any)?.complexity_level, to: editComplexityLevel },
+          });
+        }
+
+        const currentEta = request?.eta_first_stage;
+        const newEta = editEtaDate ? format(editEtaDate, 'yyyy-MM-dd') : null;
+        if (newEta !== currentEta) {
+          await supabase.rpc('log_request_event', {
+            p_request_id: id,
+            p_actor_email: profile.email,
+            p_event_type: 'FIELD_UPDATED',
+            p_payload: { field: 'eta_first_stage', to: newEta },
+          });
+        }
 
         // Log R&D comment as FEEDBACK_ADDED event
         if (editRdComment && editRdComment.trim()) {
@@ -615,12 +634,39 @@ export default function RequestDetail() {
         <CardContent>
           {events && events.length > 0 ? (
             <div className="space-y-4">
-              {events.map((event) => (
-                <div key={event.id} className="flex gap-4 text-sm">
-                  <div className="text-muted-foreground whitespace-nowrap">{format(new Date(event.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}</div>
-                  <div><span className="font-medium">{t.eventType(event.event_type)}</span><span className="text-muted-foreground"> - {emailToName[event.actor_email] || event.actor_email}</span></div>
-                </div>
-              ))}
+              {events.map((event) => {
+                const getEventDescription = () => {
+                  const payload = event.payload as any;
+                  if (event.event_type === 'FIELD_UPDATED' && payload?.field) {
+                    if (payload.field === 'priority') {
+                      return `Змінено пріоритет на "${t.priority(payload.to)}"`;
+                    }
+                    if (payload.field === 'complexity_level') {
+                      const complexityLabels: Record<string, string> = {
+                        'EASY': '1 – Легкий',
+                        'MEDIUM': '2 – Середній',
+                        'COMPLEX': '3 – Складний',
+                        'EXPERT': '4 – Надскладний'
+                      };
+                      return `Змінено рівень складності на "${complexityLabels[payload.to] || payload.to}"`;
+                    }
+                    if (payload.field === 'eta_first_stage') {
+                      return `Встановлено термін: ${payload.to ? format(new Date(payload.to), 'dd.MM.yyyy') : 'не вказано'}`;
+                    }
+                  }
+                  if (event.event_type === 'FEEDBACK_ADDED') {
+                    return 'Додано коментар';
+                  }
+                  return t.eventType(event.event_type);
+                };
+
+                return (
+                  <div key={event.id} className="flex gap-4 text-sm">
+                    <div className="text-muted-foreground whitespace-nowrap">{format(new Date(event.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}</div>
+                    <div><span className="font-medium">{getEventDescription()}</span><span className="text-muted-foreground"> - {emailToName[event.actor_email] || event.actor_email}</span></div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <p className="text-muted-foreground">{translations.requestDetail.noEvents}</p>
