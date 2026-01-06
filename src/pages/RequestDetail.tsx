@@ -744,7 +744,9 @@ export default function RequestDetail() {
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Пріоритет</Label>
+                <div className="flex items-center gap-1 h-5">
+                  <Label>Пріоритет</Label>
+                </div>
                 <Select value={editPriority} onValueChange={setEditPriority}>
                   <SelectTrigger>
                     <SelectValue placeholder="Оберіть пріоритет" />
@@ -757,7 +759,7 @@ export default function RequestDetail() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1 h-5">
                   <Label>Складність розробки</Label>
                   <TooltipProvider>
                     <Tooltip>
