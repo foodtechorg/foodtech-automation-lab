@@ -40,6 +40,8 @@ export default function RequestDetail() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editEtaDate, setEditEtaDate] = useState<Date | undefined>();
   const [editRdComment, setEditRdComment] = useState('');
+  const [editPriority, setEditPriority] = useState<string>('');
+  const [editComplexityLevel, setEditComplexityLevel] = useState<string>('');
   const [selectedAction, setSelectedAction] = useState<'update' | 'send_for_test' | 'cancel'>('update');
 
   // Feedback dialog state
@@ -114,10 +116,8 @@ export default function RequestDetail() {
     (profile?.role === 'rd_dev' || profile?.role === 'rd_manager' || profile?.role === 'admin');
 
   const canEditRequest = 
-    request?.status === 'IN_PROGRESS' && 
-    (profile?.role === 'rd_manager' || 
-     profile?.role === 'admin' || 
-     (profile?.role === 'rd_dev' && request?.responsible_email === profile?.email));
+    (request?.status === 'PENDING' || request?.status === 'IN_PROGRESS') && 
+    (profile?.role === 'rd_manager' || profile?.role === 'admin');
 
   const canProvideFeedback = 
     request?.status === 'SENT_FOR_TEST' && 
@@ -138,6 +138,8 @@ export default function RequestDetail() {
   const openEditDialog = () => {
     setEditEtaDate(request?.eta_first_stage ? new Date(request.eta_first_stage) : undefined);
     setEditRdComment(request?.rd_comment || '');
+    setEditPriority(request?.priority || 'MEDIUM');
+    setEditComplexityLevel((request as any)?.complexity_level || '');
     setSelectedAction('update');
     setEditDialogOpen(true);
   };
@@ -152,21 +154,31 @@ export default function RequestDetail() {
     setSubmitting(true);
     try {
       if (selectedAction === 'update') {
+        const updateData: any = {
+          eta_first_stage: editEtaDate ? format(editEtaDate, 'yyyy-MM-dd') : null,
+          rd_comment: editRdComment || null,
+          priority: editPriority,
+        };
+        if (editComplexityLevel) {
+          updateData.complexity_level = editComplexityLevel;
+        }
+
         const { error } = await supabase
           .from('requests')
-          .update({
-            eta_first_stage: editEtaDate ? format(editEtaDate, 'yyyy-MM-dd') : null,
-            rd_comment: editRdComment || null,
-          })
+          .update(updateData)
           .eq('id', id);
 
         if (error) throw error;
+
+        const updatedFields = ['eta_first_stage'];
+        if (editPriority !== request?.priority) updatedFields.push('priority');
+        if (editComplexityLevel !== (request as any)?.complexity_level) updatedFields.push('complexity_level');
 
         await supabase.rpc('log_request_event', {
           p_request_id: id,
           p_actor_email: profile.email,
           p_event_type: 'FIELD_UPDATED',
-          p_payload: { fields: ['eta_first_stage'] },
+          p_payload: { fields: updatedFields },
         });
 
         // Log R&D comment as FEEDBACK_ADDED event
@@ -730,6 +742,54 @@ export default function RequestDetail() {
             <DialogTitle>Редагувати заявку</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Пріоритет</Label>
+                <Select value={editPriority} onValueChange={setEditPriority}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Оберіть пріоритет" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="HIGH">Високий</SelectItem>
+                    <SelectItem value="MEDIUM">Середній</SelectItem>
+                    <SelectItem value="LOW">Низький</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-1">
+                  <Label>Складність розробки</Label>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs text-xs">
+                        <p className="font-semibold mb-1">Легка:</p>
+                        <p className="mb-2">Новий аромат на базі наявного рецепту, зміна дозування, підбір аналогу із наявних в асортименті</p>
+                        <p className="font-semibold mb-1">Середня:</p>
+                        <p className="mb-2">Розробка нового рецепту на основі наявних сировинних матеріалів</p>
+                        <p className="font-semibold mb-1">Складна:</p>
+                        <p className="mb-2">Розробка нового рецепту з пошуком/замовленням нової сировини</p>
+                        <p className="font-semibold mb-1">Експертна:</p>
+                        <p>Розробка нової технології або рішення, що потребує досліджень</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+                <Select value={editComplexityLevel} onValueChange={setEditComplexityLevel}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Оберіть складність" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="EASY">Легка</SelectItem>
+                    <SelectItem value="MEDIUM">Середня</SelectItem>
+                    <SelectItem value="COMPLEX">Складна</SelectItem>
+                    <SelectItem value="EXPERT">Експертна</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>ETA першого етапу</Label>
               <Popover>
