@@ -176,8 +176,11 @@ export default function RDBoard() {
                       <StatusBadge status={request.status as any} />
                     </div>
                     <p className="text-sm font-medium mb-1">{request.customer_company}</p>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      Автор: {emailToName[request.author_email] || request.author_email}
+                    </p>
                     <p className="text-xs text-muted-foreground mb-2">
-                      {request.responsible_email ? emailToName[request.responsible_email] : translations.rdBoard.unassigned}
+                      Відповідальний: {request.responsible_email ? emailToName[request.responsible_email] : translations.rdBoard.unassigned}
                     </p>
                     <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                       <span>{t.direction(request.direction)}</span>
@@ -200,6 +203,7 @@ export default function RDBoard() {
                     <TableRow>
                       <TableHead>{translations.requests.table.code}</TableHead>
                       <TableHead>{translations.requests.table.customer}</TableHead>
+                      <TableHead>Автор</TableHead>
                       <TableHead>{translations.requests.table.direction}</TableHead>
                       <TableHead>{translations.requests.table.domain}</TableHead>
                       <TableHead>{translations.requests.table.status}</TableHead>
@@ -217,6 +221,7 @@ export default function RDBoard() {
                       >
                         <TableCell className="font-medium">{request.code}</TableCell>
                         <TableCell>{request.customer_company}</TableCell>
+                        <TableCell>{emailToName[request.author_email] || request.author_email}</TableCell>
                         <TableCell>{t.direction(request.direction)}</TableCell>
                         <TableCell>{t.domain(request.domain)}</TableCell>
                         <TableCell><StatusBadge status={request.status as any} /></TableCell>
