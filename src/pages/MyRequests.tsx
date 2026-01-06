@@ -67,21 +67,21 @@ export default function MyRequests() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">{translations.requests.myRequests}</h2>
-        <p className="text-muted-foreground">{translations.requests.myRequestsDesc}</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">{translations.requests.myRequests}</h2>
+          <p className="text-muted-foreground">{translations.requests.myRequestsDesc}</p>
+        </div>
+        <Button onClick={() => navigate('/requests/new')}>
+          <Plus className="h-4 w-4 mr-2" />
+          Нова заявка
+        </Button>
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle>{translations.requests.requestList}</CardTitle>
-            <CardDescription>{filteredRequests.length} {translations.requests.requestsFound}</CardDescription>
-          </div>
-          <Button onClick={() => navigate('/requests/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Нова заявка
-          </Button>
+        <CardHeader>
+          <CardTitle>{translations.requests.requestList}</CardTitle>
+          <CardDescription>{filteredRequests.length} {translations.requests.requestsFound}</CardDescription>
         </CardHeader>
         <CardContent>
           {/* Filters */}
