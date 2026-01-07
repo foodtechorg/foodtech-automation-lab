@@ -14,3 +14,6 @@ verify_jwt = true
 
 [functions.update-user-role]
 verify_jwt = true
+
+[functions.get-users-auth-info]
+verify_jwt = false
