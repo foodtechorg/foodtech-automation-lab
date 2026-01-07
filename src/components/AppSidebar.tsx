@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-import { FileText, ShoppingCart, UserCog } from 'lucide-react';
+import { FileText, ShoppingCart, UserCog, BookOpen } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
 import foodtechLogo from '@/assets/foodtech-logo.png';
@@ -28,6 +28,12 @@ const modules: Module[] = [{
     return queueRoles.includes(role) ? '/purchase/queue' : '/purchase/requests';
   }
 }, {
+  id: 'kb',
+  label: 'Бібліотека знань',
+  icon: BookOpen,
+  roles: ['coo', 'admin'],
+  getPath: () => '/kb'
+}, {
   id: 'admin',
   label: 'Адміністрування',
   icon: UserCog,
@@ -40,6 +46,8 @@ function isModuleActive(moduleId: string, pathname: string): boolean {
       return pathname.startsWith('/rd') || pathname.startsWith('/requests') || pathname === '/analytics';
     case 'purchase':
       return pathname.startsWith('/purchase');
+    case 'kb':
+      return pathname.startsWith('/kb');
     case 'admin':
       return pathname === '/admin';
     default:

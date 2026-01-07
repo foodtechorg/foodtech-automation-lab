@@ -17,3 +17,6 @@ verify_jwt = true
 
 [functions.get-users-auth-info]
 verify_jwt = false
+
+[functions.kb-trigger-ingest]
+verify_jwt = false

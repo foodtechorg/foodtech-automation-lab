@@ -23,6 +23,10 @@ import PurchaseRequestDetail from "./pages/purchase/PurchaseRequestDetail";
 import PurchaseInvoices from "./pages/purchase/PurchaseInvoices";
 import PurchaseInvoiceDetail from "./pages/purchase/PurchaseInvoiceDetail";
 import ApprovedRequestsQueue from "./pages/purchase/ApprovedRequestsQueue";
+// Knowledge Base pages
+import KnowledgeBase from "./pages/kb/KnowledgeBase";
+import KBDocumentForm from "./pages/kb/KBDocumentForm";
+import KBDocumentDetail from "./pages/kb/KBDocumentDetail";
 
 const queryClient = new QueryClient();
 
@@ -163,6 +167,47 @@ const App = () => (
                 <ProtectedRoute allowedRoles={['procurement_manager', 'coo', 'ceo', 'treasurer', 'admin']}>
                   <Layout>
                     <ApprovedRequestsQueue />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            {/* Knowledge Base routes */}
+            <Route
+              path="/kb"
+              element={
+                <ProtectedRoute allowedRoles={['coo', 'admin']}>
+                  <Layout>
+                    <KnowledgeBase />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/kb/new"
+              element={
+                <ProtectedRoute allowedRoles={['coo', 'admin']}>
+                  <Layout>
+                    <KBDocumentForm />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/kb/:id"
+              element={
+                <ProtectedRoute allowedRoles={['coo', 'admin']}>
+                  <Layout>
+                    <KBDocumentDetail />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/kb/:id/edit"
+              element={
+                <ProtectedRoute allowedRoles={['coo', 'admin']}>
+                  <Layout>
+                    <KBDocumentForm />
                   </Layout>
                 </ProtectedRoute>
               }
