@@ -13,7 +13,7 @@ interface ImportUser {
   email: string;
   name?: string;
   phone?: string;
-  role?: 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager';
+  role?: 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'chief_accountant' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst';
 }
 
 interface ImportRequest {

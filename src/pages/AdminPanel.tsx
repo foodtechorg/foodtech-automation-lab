@@ -14,7 +14,7 @@ import { uk } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
 import { t } from '@/lib/i18n';
 
-type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager';
+type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst';
 
 interface UserProfile {
   id: string;
@@ -158,12 +158,18 @@ export default function AdminPanel() {
                   <SelectItem value="coo">COO</SelectItem>
                   <SelectItem value="ceo">CEO</SelectItem>
                   <SelectItem value="treasurer">Казначей</SelectItem>
+                  <SelectItem value="chief_accountant">Головний бухгалтер</SelectItem>
                   <SelectItem value="accountant">Бухгалтер</SelectItem>
                   <SelectItem value="quality_manager">Керівник відділу ССіЯ</SelectItem>
                   <SelectItem value="admin_director">Адміністративний директор</SelectItem>
                   <SelectItem value="chief_engineer">Головний інженер</SelectItem>
                   <SelectItem value="production_deputy">Заст. директора з виробництва</SelectItem>
                   <SelectItem value="warehouse_manager">Начальник складу</SelectItem>
+                  <SelectItem value="lawyer">Юрист</SelectItem>
+                  <SelectItem value="office_manager">Офіс-менеджер</SelectItem>
+                  <SelectItem value="foreign_trade_manager">Менеджер ЗЕД</SelectItem>
+                  <SelectItem value="finance_deputy">Заст. директора з фінансів</SelectItem>
+                  <SelectItem value="financial_analyst">Фінансовий аналітик</SelectItem>
                   <SelectItem value="admin">Адміністратор</SelectItem>
                 </SelectContent>
               </Select>
@@ -229,12 +235,18 @@ export default function AdminPanel() {
                           <SelectItem value="coo">COO</SelectItem>
                           <SelectItem value="ceo">CEO</SelectItem>
                           <SelectItem value="treasurer">Казначей</SelectItem>
+                          <SelectItem value="chief_accountant">Головний бухгалтер</SelectItem>
                           <SelectItem value="accountant">Бухгалтер</SelectItem>
                           <SelectItem value="quality_manager">Керівник відділу ССіЯ</SelectItem>
                           <SelectItem value="admin_director">Адміністративний директор</SelectItem>
                           <SelectItem value="chief_engineer">Головний інженер</SelectItem>
                           <SelectItem value="production_deputy">Заст. директора з виробництва</SelectItem>
                           <SelectItem value="warehouse_manager">Начальник складу</SelectItem>
+                          <SelectItem value="lawyer">Юрист</SelectItem>
+                          <SelectItem value="office_manager">Офіс-менеджер</SelectItem>
+                          <SelectItem value="foreign_trade_manager">Менеджер ЗЕД</SelectItem>
+                          <SelectItem value="finance_deputy">Заст. директора з фінансів</SelectItem>
+                          <SelectItem value="financial_analyst">Фінансовий аналітик</SelectItem>
                           <SelectItem value="admin">Адміністратор</SelectItem>
                         </SelectContent>
                       </Select>

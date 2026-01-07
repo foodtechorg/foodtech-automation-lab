@@ -12,6 +12,7 @@ export function PurchaseNavTabs() {
     || profile?.role === 'coo' 
     || profile?.role === 'ceo' 
     || profile?.role === 'treasurer'
+    || profile?.role === 'chief_accountant'
     || profile?.role === 'admin';
 
 
