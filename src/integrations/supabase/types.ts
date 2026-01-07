@@ -604,6 +604,44 @@ export type Database = {
         }
         Relationships: []
       }
+      telegram_links: {
+        Row: {
+          created_at: string
+          phone: string | null
+          profile_id: string | null
+          role: Database["public"]["Enums"]["app_role"] | null
+          status: string
+          telegram_user_id: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          phone?: string | null
+          profile_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          status?: string
+          telegram_user_id: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          phone?: string | null
+          profile_id?: string | null
+          role?: Database["public"]["Enums"]["app_role"] | null
+          status?: string
+          telegram_user_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telegram_links_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_results: {
         Row: {
           actor_email: string
