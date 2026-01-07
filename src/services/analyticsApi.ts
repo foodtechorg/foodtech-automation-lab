@@ -25,6 +25,17 @@ export interface ActivitySummary {
   mostActiveUser: { name: string; eventsCount: number } | null;
 }
 
+export interface UserLoginInfo {
+  userId: string;
+  email: string;
+  name: string;
+  role: string;
+  confirmedAt: string | null;
+  lastSignInAt: string | null;
+  hasLoggedIn: boolean;
+  createdAt: string;
+}
+
 export async function getUserActivityStats(days: number = 30): Promise<UserActivityStats[]> {
   const sinceDate = new Date();
   sinceDate.setDate(sinceDate.getDate() - days);
@@ -219,4 +230,35 @@ export async function getActivitySummary(days: number = 30): Promise<ActivitySum
     totalEventsCount: totalEvents,
     mostActiveUser,
   };
+}
+
+export async function getUsersLoginInfo(): Promise<UserLoginInfo[]> {
+  // Fetch profiles to get names and roles
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('id, email, name, role');
+
+  if (profilesError) throw profilesError;
+
+  // Call edge function to get auth info
+  const { data, error } = await supabase.functions.invoke('get-users-auth-info');
+
+  if (error) throw error;
+
+  const authUsers = data?.users || [];
+
+  // Merge auth info with profiles
+  return authUsers.map((authUser: { id: string; email: string; confirmed_at: string | null; last_sign_in_at: string | null; has_logged_in: boolean; created_at: string }) => {
+    const profile = profiles?.find((p) => p.id === authUser.id);
+    return {
+      userId: authUser.id,
+      email: authUser.email,
+      name: profile?.name || authUser.email,
+      role: profile?.role || 'unknown',
+      confirmedAt: authUser.confirmed_at,
+      lastSignInAt: authUser.last_sign_in_at,
+      hasLoggedIn: authUser.has_logged_in,
+      createdAt: authUser.created_at,
+    };
+  });
 }

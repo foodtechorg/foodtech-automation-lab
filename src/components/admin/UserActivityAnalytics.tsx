@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Activity, Trophy, TrendingUp } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Users, Activity, Trophy, TrendingUp, UserCheck, UserX, LogIn } from 'lucide-react';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { t } from '@/lib/i18n';
@@ -12,9 +13,11 @@ import {
   getUserActivityStats,
   getActivityTimeline,
   getActivitySummary,
+  getUsersLoginInfo,
   type UserActivityStats,
   type ActivityTimelinePoint,
   type ActivitySummary,
+  type UserLoginInfo,
 } from '@/services/analyticsApi';
 import {
   LineChart,
@@ -50,6 +53,14 @@ export default function UserActivityAnalytics() {
     queryKey: ['activity-timeline', days],
     queryFn: () => getActivityTimeline(days),
   });
+
+  const { data: loginInfo, isLoading: loginInfoLoading } = useQuery({
+    queryKey: ['users-login-info'],
+    queryFn: getUsersLoginInfo,
+  });
+
+  const loggedInCount = loginInfo?.filter((u) => u.hasLoggedIn).length || 0;
+  const notLoggedInCount = loginInfo?.filter((u) => !u.hasLoggedIn).length || 0;
 
   return (
     <div className="space-y-6">
@@ -125,6 +136,119 @@ export default function UserActivityAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Login status section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <LogIn className="h-5 w-5" />
+            Статус входу користувачів
+          </CardTitle>
+          <CardDescription>Інформація про перший та останній вхід в систему</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Login summary */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+              <UserCheck className="h-8 w-8 text-green-600" />
+              <div>
+                {loginInfoLoading ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  <div className="text-2xl font-bold text-green-600">{loggedInCount}</div>
+                )}
+                <p className="text-sm text-muted-foreground">Здійснили вхід</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-orange-500/10 border border-orange-500/20">
+              <UserX className="h-8 w-8 text-orange-600" />
+              <div>
+                {loginInfoLoading ? (
+                  <Skeleton className="h-8 w-16" />
+                ) : (
+                  <div className="text-2xl font-bold text-orange-600">{notLoggedInCount}</div>
+                )}
+                <p className="text-sm text-muted-foreground">Очікують входу</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Login status table */}
+          {loginInfoLoading ? (
+            <div className="space-y-2">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Користувач</TableHead>
+                    <TableHead>Роль</TableHead>
+                    <TableHead>Створено</TableHead>
+                    <TableHead>Перший вхід</TableHead>
+                    <TableHead>Останній вхід</TableHead>
+                    <TableHead>Статус</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loginInfo
+                    ?.sort((a, b) => {
+                      // Sort: not logged in first, then by creation date
+                      if (a.hasLoggedIn !== b.hasLoggedIn) {
+                        return a.hasLoggedIn ? 1 : -1;
+                      }
+                      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                    })
+                    .map((user) => (
+                      <TableRow key={user.userId}>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{user.name}</div>
+                            <div className="text-xs text-muted-foreground">{user.email}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {t.role(user.role)}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {format(new Date(user.createdAt), 'dd.MM.yyyy', { locale: uk })}
+                        </TableCell>
+                        <TableCell>
+                          {user.confirmedAt ? (
+                            format(new Date(user.confirmedAt), 'dd.MM.yyyy HH:mm', { locale: uk })
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {user.lastSignInAt ? (
+                            format(new Date(user.lastSignInAt), 'dd.MM.yyyy HH:mm', { locale: uk })
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {user.hasLoggedIn ? (
+                            <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                              Активний
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/20">
+                              Очікує входу
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Activity chart */}
       <Card>
