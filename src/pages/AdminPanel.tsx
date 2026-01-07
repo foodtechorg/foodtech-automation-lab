@@ -6,13 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { UserPlus, Loader2, Users, RefreshCw, Trash2 } from 'lucide-react';
+import { UserPlus, Loader2, Users, RefreshCw, Trash2, BarChart3 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
 import { t } from '@/lib/i18n';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import UserActivityAnalytics from '@/components/admin/UserActivityAnalytics';
 
 type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst';
 
@@ -120,7 +122,20 @@ export default function AdminPanel() {
         <p className="text-muted-foreground">Управління користувачами системи</p>
       </div>
 
-      <Card>
+      <Tabs defaultValue="users" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="users" className="gap-2">
+            <Users className="h-4 w-4" />
+            Користувачі
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Аналітика
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="users" className="space-y-6">
+          <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5" />Адміністрування користувачів</CardTitle>
           <CardDescription>Створення нових користувачів системи. Після створення на вказану пошту буде надіслано запрошення для встановлення паролю.</CardDescription>
@@ -273,6 +288,13 @@ export default function AdminPanel() {
           </div>
         </CardContent>
       </Card>
+
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <UserActivityAnalytics />
+        </TabsContent>
+      </Tabs>
 
       <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ ...deleteDialog, open })}>
         <AlertDialogContent>
