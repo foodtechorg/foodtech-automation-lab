@@ -716,6 +716,12 @@ export type Database = {
         | "chief_engineer"
         | "production_deputy"
         | "warehouse_manager"
+        | "chief_accountant"
+        | "lawyer"
+        | "office_manager"
+        | "foreign_trade_manager"
+        | "finance_deputy"
+        | "financial_analyst"
       approval_decision: "PENDING" | "APPROVED" | "REJECTED"
       client_result: "PRODUCTION" | "REWORK" | "DECLINE"
       complexity_level: "EASY" | "MEDIUM" | "COMPLEX" | "EXPERT"
@@ -910,6 +916,12 @@ export const Constants = {
         "chief_engineer",
         "production_deputy",
         "warehouse_manager",
+        "chief_accountant",
+        "lawyer",
+        "office_manager",
+        "foreign_trade_manager",
+        "finance_deputy",
+        "financial_analyst",
       ],
       approval_decision: ["PENDING", "APPROVED", "REJECTED"],
       client_result: ["PRODUCTION", "REWORK", "DECLINE"],
