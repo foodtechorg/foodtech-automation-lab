@@ -14,6 +14,106 @@ export type Database = {
   }
   public: {
     Tables: {
+      kb_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          id: number
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          id?: number
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "kb_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_documents: {
+        Row: {
+          access_level: string
+          category: string
+          created_at: string
+          created_by: string
+          id: string
+          index_error: string | null
+          index_status: string
+          indexed_at: string | null
+          mime_type: string | null
+          raw_text: string | null
+          status: string
+          storage_bucket: string | null
+          storage_path: string | null
+          title: string
+          updated_at: string
+          version: string | null
+        }
+        Insert: {
+          access_level?: string
+          category: string
+          created_at?: string
+          created_by: string
+          id?: string
+          index_error?: string | null
+          index_status?: string
+          indexed_at?: string | null
+          mime_type?: string | null
+          raw_text?: string | null
+          status?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          title: string
+          updated_at?: string
+          version?: string | null
+        }
+        Update: {
+          access_level?: string
+          category?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          index_error?: string | null
+          index_status?: string
+          indexed_at?: string | null
+          mime_type?: string | null
+          raw_text?: string | null
+          status?: string
+          storage_bucket?: string | null
+          storage_path?: string | null
+          title?: string
+          updated_at?: string
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_documents_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -718,6 +818,21 @@ export type Database = {
             Returns: boolean
           }
         | { Args: { p_role: string }; Returns: boolean }
+      is_coo: { Args: never; Returns: boolean }
+      kb_match_chunks: {
+        Args: {
+          doc_status?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          chunk_index: number
+          content: string
+          document_id: string
+          similarity: number
+          title: string
+        }[]
+      }
       log_purchase_event: {
         Args: {
           p_action: string
