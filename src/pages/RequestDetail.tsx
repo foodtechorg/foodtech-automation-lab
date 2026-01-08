@@ -484,31 +484,33 @@ export default function RequestDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-4 w-4" /></Button>
-        <div className="flex-1">
-          <div className="flex items-center gap-3">
-            <h2 className="text-3xl font-bold tracking-tight">{request.code}</h2>
+      <div className="flex items-start gap-3">
+        <Button variant="ghost" size="icon" className="shrink-0 mt-1" onClick={() => navigate(-1)}><ArrowLeft className="h-4 w-4" /></Button>
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-xl md:text-3xl font-bold tracking-tight">{request.code}</h2>
             <StatusBadge status={request.status as any} />
             <Badge variant="outline" className={getPriorityColor(request.priority)}>{t.priority(request.priority)}</Badge>
           </div>
-          <p className="text-muted-foreground">{request.customer_company}</p>
+          <p className="text-muted-foreground truncate">{request.customer_company}</p>
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardHeader className="space-y-3">
             <CardTitle>{translations.requestDetail.sections.requestInfo}</CardTitle>
             {canProvideFeedback && (
-              <Button variant="outline" onClick={() => setFeedbackDialogOpen(true)}>
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Результати тестування
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => setFeedbackDialogOpen(true)}>
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Результати тестування
+                </Button>
+              </div>
             )}
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.customerCompany}:</span><p className="font-medium">{request.customer_company}</p></div>
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.customerContact}:</span><p className="font-medium">{request.customer_contact || '-'}</p></div>
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.direction}:</span><p className="font-medium">{t.direction(request.direction)}</p></div>
@@ -519,7 +521,7 @@ export default function RequestDetail() {
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.hasSampleAnalog}:</span><p className="font-medium">{request.has_sample_analog ? translations.requestDetail.fields.sampleAnalogYes : translations.requestDetail.fields.sampleAnalogNo}</p></div>
             </div>
             <Separator />
-            <div><span className="text-muted-foreground">{translations.requestDetail.fields.description}:</span><p className="mt-1">{request.description}</p></div>
+            <div><span className="text-muted-foreground">{translations.requestDetail.fields.description}:</span><p className="mt-1 break-words">{request.description}</p></div>
             {/* Test Results History */}
             {testResults && testResults.length > 0 && (
               <>
@@ -556,31 +558,33 @@ export default function RequestDetail() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardHeader className="space-y-3">
             <CardTitle>{translations.requestDetail.sections.rdInfo}</CardTitle>
-            <div className="flex gap-2">
-              {canTakeRequest && (
-                <Button variant="outline" onClick={() => setTakeDialogOpen(true)}>
-                  <Play className="mr-2 h-4 w-4" />
-                  Взяти в роботу
-                </Button>
-              )}
-              {canEditRequest && (
-                <Button variant="outline" onClick={openEditDialog}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Редагувати
-                </Button>
-              )}
-              {canAddComment && (
-                <Button variant="outline" onClick={() => setCommentDialogOpen(true)}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Додати коментар
-                </Button>
-              )}
-            </div>
+            {(canTakeRequest || canEditRequest || canAddComment) && (
+              <div className="flex flex-wrap gap-2">
+                {canTakeRequest && (
+                  <Button size="sm" variant="outline" onClick={() => setTakeDialogOpen(true)}>
+                    <Play className="mr-2 h-4 w-4" />
+                    Взяти в роботу
+                  </Button>
+                )}
+                {canEditRequest && (
+                  <Button size="sm" variant="outline" onClick={openEditDialog}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Редагувати
+                  </Button>
+                )}
+                {canAddComment && (
+                  <Button size="sm" variant="outline" onClick={() => setCommentDialogOpen(true)}>
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Коментар
+                  </Button>
+                )}
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.responsibleDev}:</span><p className="font-medium">{request.responsible_email ? emailToName[request.responsible_email] : translations.requests.unassigned}</p></div>
               <div><span className="text-muted-foreground">{translations.requestDetail.fields.etaFirstStage}:</span><p className="font-medium">{request.eta_first_stage ? format(new Date(request.eta_first_stage), 'PPP', { locale: uk }) : '-'}</p></div>
               {(request as any).complexity_level && (
@@ -670,9 +674,9 @@ export default function RequestDetail() {
                 };
 
                 return (
-                  <div key={event.id} className="flex gap-4 text-sm">
-                    <div className="text-muted-foreground whitespace-nowrap">{format(new Date(event.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}</div>
-                    <div><span className="font-medium">{getEventDescription()}</span><span className="text-muted-foreground"> - {emailToName[event.actor_email] || event.actor_email}</span></div>
+                  <div key={event.id} className="flex flex-col sm:flex-row gap-1 sm:gap-4 text-sm">
+                    <div className="text-xs sm:text-sm text-muted-foreground whitespace-nowrap">{format(new Date(event.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}</div>
+                    <div className="break-words"><span className="font-medium">{getEventDescription()}</span><span className="text-muted-foreground"> - {emailToName[event.actor_email] || event.actor_email}</span></div>
                   </div>
                 );
               })}
