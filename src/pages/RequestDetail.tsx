@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, CalendarIcon, Edit, Loader2, MessageSquare, Play, Info } from 'lucide-react';
+import { ArrowLeft, CalendarIcon, Edit, Loader2, MessageSquare, Play, Info, Download, Trash2, FileText } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
@@ -23,6 +23,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { getRdAttachments, deleteRdAttachment, getRdSignedUrl, formatFileSize, getFileIcon, RdAttachment } from '@/services/rdAttachmentService';
 
 export default function RequestDetail() {
   const { id } = useParams();
@@ -96,6 +97,37 @@ export default function RequestDetail() {
     },
     enabled: !!id,
   });
+
+  const { data: attachments, refetch: refetchAttachments } = useQuery({
+    queryKey: ['rd-attachments', id],
+    queryFn: async () => getRdAttachments(id!),
+    enabled: !!id,
+  });
+
+  const isAuthor = request?.author_email === profile?.email;
+
+  const handleDownloadAttachment = async (attachment: RdAttachment) => {
+    try {
+      const url = await getRdSignedUrl(attachment.file_path);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = attachment.file_name;
+      link.target = '_blank';
+      link.click();
+    } catch (error) {
+      toast.error('Помилка завантаження файлу');
+    }
+  };
+
+  const handleDeleteAttachment = async (attachment: RdAttachment) => {
+    try {
+      await deleteRdAttachment(attachment.id, attachment.file_path);
+      toast.success('Файл видалено');
+      refetchAttachments();
+    } catch (error) {
+      toast.error('Помилка видалення файлу');
+    }
+  };
 
   const emailToName = profiles?.reduce((acc, p) => {
     acc[p.email] = p.name || p.email;
@@ -639,6 +671,58 @@ export default function RequestDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Attachments Section */}
+      {attachments && attachments.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Документи
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {attachments.map((attachment) => (
+                <div
+                  key={attachment.id}
+                  className="flex items-center justify-between p-3 rounded-md border bg-muted/30 text-sm"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-lg">{getFileIcon(attachment.file_type)}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{attachment.file_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatFileSize(attachment.file_size)} • {format(new Date(attachment.created_at), 'dd.MM.yyyy', { locale: uk })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => handleDownloadAttachment(attachment)}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    {isAuthor && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDeleteAttachment(attachment)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
