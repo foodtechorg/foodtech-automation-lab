@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface RdAttachment {
   id: string;
   request_id: string;
+  event_id?: string | null;
   file_name: string;
   file_path: string;
   file_type: string;
@@ -50,7 +51,8 @@ export function validateRdFile(file: File): string | null {
 export async function uploadRdAttachment(
   file: File,
   requestId: string,
-  userId: string
+  userId: string,
+  eventId?: string
 ): Promise<RdAttachment> {
   const fileExt = file.name.split('.').pop()?.toLowerCase() || 'bin';
   const safeFileName = `${Date.now()}_${crypto.randomUUID()}.${fileExt}`;
@@ -65,16 +67,22 @@ export async function uploadRdAttachment(
     throw new Error(`Помилка завантаження файлу: ${uploadError.message}`);
   }
 
+  const insertData: any = {
+    request_id: requestId,
+    file_name: file.name,
+    file_path: filePath,
+    file_type: file.type,
+    file_size: file.size,
+    uploaded_by: userId,
+  };
+  
+  if (eventId) {
+    insertData.event_id = eventId;
+  }
+
   const { data, error: dbError } = await supabase
     .from('rd_request_attachments')
-    .insert({
-      request_id: requestId,
-      file_name: file.name,
-      file_path: filePath,
-      file_type: file.type,
-      file_size: file.size,
-      uploaded_by: userId,
-    })
+    .insert(insertData)
     .select()
     .single();
 
@@ -152,4 +160,8 @@ export function getFileIcon(mimeType: string): string {
   if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z')) return '📦';
   if (mimeType === 'text/plain' || mimeType === 'text/csv') return '📃';
   return '📎';
+}
+
+export function isImageType(mimeType: string): boolean {
+  return mimeType.startsWith('image/');
 }

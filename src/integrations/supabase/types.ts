@@ -588,6 +588,7 @@ export type Database = {
       rd_request_attachments: {
         Row: {
           created_at: string | null
+          event_id: string | null
           file_name: string
           file_path: string
           file_size: number
@@ -598,6 +599,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          event_id?: string | null
           file_name: string
           file_path: string
           file_size: number
@@ -608,6 +610,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          event_id?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
@@ -617,6 +620,13 @@ export type Database = {
           uploaded_by?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rd_request_attachments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "request_events"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "rd_request_attachments_request_id_fkey"
             columns: ["request_id"]
