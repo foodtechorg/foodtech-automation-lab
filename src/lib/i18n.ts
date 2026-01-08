@@ -15,13 +15,14 @@ export const translations = {
   },
   domain: {
     MEAT: "М'ясна",
+    SEMI_FINISHED: "Напівфабрикати",
     CONFECTIONERY: "Кондитерська",
+    SNACKS: "Снекова",
     DAIRY: "Молочна",
-    BAKERY: "Хлібопекарська",
-    FISH: "Рибна",
     FATS_OILS: "Масложирова",
     ICE_CREAM: "Морозиво",
-    SEMI_FINISHED: "Напівфабрикати"
+    FISH: "Рибна",
+    BAKERY: "Хлібопекарська"
   },
   priority: {
     LOW: "Низький",
@@ -34,7 +35,7 @@ export const translations = {
     DECLINE: "Відмова"
   },
   role: {
-    sales_manager: "Менеджер продажів",
+    sales_manager: "Менеджер-технолог",
     rd_dev: "Розробник R&D",
     rd_manager: "Менеджер R&D",
     admin: "Адміністратор",

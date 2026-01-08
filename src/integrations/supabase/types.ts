@@ -585,6 +585,47 @@ export type Database = {
           },
         ]
       }
+      rd_request_attachments: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          request_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          request_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          request_id?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rd_request_attachments_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_events: {
         Row: {
           actor_email: string
@@ -888,6 +929,7 @@ export type Database = {
         | "FATS_OILS"
         | "ICE_CREAM"
         | "SEMI_FINISHED"
+        | "SNACKS"
       event_type:
         | "CREATED"
         | "ASSIGNED"
@@ -1089,6 +1131,7 @@ export const Constants = {
         "FATS_OILS",
         "ICE_CREAM",
         "SEMI_FINISHED",
+        "SNACKS",
       ],
       event_type: [
         "CREATED",
