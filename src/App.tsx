@@ -63,7 +63,7 @@ const App = () => (
             <Route
               path="/requests/my"
               element={
-                <ProtectedRoute allowedRoles={['sales_manager']}>
+                <ProtectedRoute allowedRoles={['sales_manager', 'admin']}>
                   <Layout>
                     <MyRequests />
                   </Layout>
@@ -73,7 +73,7 @@ const App = () => (
             <Route
               path="/requests/new"
               element={
-                <ProtectedRoute allowedRoles={['sales_manager']}>
+                <ProtectedRoute allowedRoles={['sales_manager', 'admin']}>
                   <Layout>
                     <NewRequest />
                   </Layout>
