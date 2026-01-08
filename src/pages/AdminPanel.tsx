@@ -16,7 +16,14 @@ import { t } from '@/lib/i18n';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import UserActivityAnalytics from '@/components/admin/UserActivityAnalytics';
 
-type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst';
+type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst' | 'economist';
+
+const availableRoles: UserRole[] = [
+  'sales_manager', 'rd_dev', 'rd_manager', 'procurement_manager', 'coo', 'ceo',
+  'treasurer', 'chief_accountant', 'accountant', 'quality_manager', 'admin_director',
+  'chief_engineer', 'production_deputy', 'warehouse_manager', 'lawyer', 'office_manager',
+  'foreign_trade_manager', 'finance_deputy', 'financial_analyst', 'economist', 'admin'
+];
 
 interface UserProfile {
   id: string;
@@ -166,26 +173,9 @@ export default function AdminPanel() {
               <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sales_manager">Менеджер продажів</SelectItem>
-                  <SelectItem value="rd_dev">Розробник R&D</SelectItem>
-                  <SelectItem value="rd_manager">Менеджер R&D</SelectItem>
-                  <SelectItem value="procurement_manager">Менеджер закупівель</SelectItem>
-                  <SelectItem value="coo">COO</SelectItem>
-                  <SelectItem value="ceo">CEO</SelectItem>
-                  <SelectItem value="treasurer">Казначей</SelectItem>
-                  <SelectItem value="chief_accountant">Головний бухгалтер</SelectItem>
-                  <SelectItem value="accountant">Бухгалтер</SelectItem>
-                  <SelectItem value="quality_manager">Керівник відділу ССіЯ</SelectItem>
-                  <SelectItem value="admin_director">Адміністративний директор</SelectItem>
-                  <SelectItem value="chief_engineer">Головний інженер</SelectItem>
-                  <SelectItem value="production_deputy">Заст. директора з виробництва</SelectItem>
-                  <SelectItem value="warehouse_manager">Начальник складу</SelectItem>
-                  <SelectItem value="lawyer">Юрист</SelectItem>
-                  <SelectItem value="office_manager">Офіс-менеджер</SelectItem>
-                  <SelectItem value="foreign_trade_manager">Менеджер ЗЕД</SelectItem>
-                  <SelectItem value="finance_deputy">Заст. директора з фінансів</SelectItem>
-                  <SelectItem value="financial_analyst">Фінансовий аналітик</SelectItem>
-                  <SelectItem value="admin">Адміністратор</SelectItem>
+                  {availableRoles.map((roleKey) => (
+                    <SelectItem key={roleKey} value={roleKey}>{t.role(roleKey)}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -243,26 +233,9 @@ export default function AdminPanel() {
                           )}
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="sales_manager">Менеджер продажів</SelectItem>
-                          <SelectItem value="rd_dev">Розробник R&D</SelectItem>
-                          <SelectItem value="rd_manager">Менеджер R&D</SelectItem>
-                          <SelectItem value="procurement_manager">Менеджер закупівель</SelectItem>
-                          <SelectItem value="coo">COO</SelectItem>
-                          <SelectItem value="ceo">CEO</SelectItem>
-                          <SelectItem value="treasurer">Казначей</SelectItem>
-                          <SelectItem value="chief_accountant">Головний бухгалтер</SelectItem>
-                          <SelectItem value="accountant">Бухгалтер</SelectItem>
-                          <SelectItem value="quality_manager">Керівник відділу ССіЯ</SelectItem>
-                          <SelectItem value="admin_director">Адміністративний директор</SelectItem>
-                          <SelectItem value="chief_engineer">Головний інженер</SelectItem>
-                          <SelectItem value="production_deputy">Заст. директора з виробництва</SelectItem>
-                          <SelectItem value="warehouse_manager">Начальник складу</SelectItem>
-                          <SelectItem value="lawyer">Юрист</SelectItem>
-                          <SelectItem value="office_manager">Офіс-менеджер</SelectItem>
-                          <SelectItem value="foreign_trade_manager">Менеджер ЗЕД</SelectItem>
-                          <SelectItem value="finance_deputy">Заст. директора з фінансів</SelectItem>
-                          <SelectItem value="financial_analyst">Фінансовий аналітик</SelectItem>
-                          <SelectItem value="admin">Адміністратор</SelectItem>
+                          {availableRoles.map((roleKey) => (
+                            <SelectItem key={roleKey} value={roleKey}>{t.role(roleKey)}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
