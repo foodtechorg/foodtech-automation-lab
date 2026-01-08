@@ -6,12 +6,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
+import { Plus } from 'lucide-react';
 import { translations, t } from '@/lib/i18n';
 import { Constants } from '@/integrations/supabase/types';
 
@@ -76,9 +78,17 @@ export default function RDBoard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">{translations.rdBoard.title}</h2>
-        <p className="text-muted-foreground">{translations.rdBoard.description}</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">{translations.rdBoard.title}</h2>
+          <p className="text-muted-foreground">{translations.rdBoard.description}</p>
+        </div>
+        {profile?.role === 'admin' && (
+          <Button onClick={() => navigate('/requests/new')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Нова заявка
+          </Button>
+        )}
       </div>
 
       <Card>
