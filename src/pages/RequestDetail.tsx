@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, CalendarIcon, Edit, Loader2, MessageSquare, Play, Info, Download, Trash2, FileText } from 'lucide-react';
+import { ArrowLeft, CalendarIcon, Edit, Loader2, MessageSquare, Play, Info, Download, Trash2, FileText, Upload, X } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { format } from 'date-fns';
@@ -23,7 +23,17 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { getRdAttachments, deleteRdAttachment, getRdSignedUrl, formatFileSize, getFileIcon, RdAttachment } from '@/services/rdAttachmentService';
+import { 
+  getRdAttachments, 
+  deleteRdAttachment, 
+  getRdSignedUrl, 
+  formatFileSize, 
+  getFileIcon, 
+  RdAttachment, 
+  uploadRdAttachment, 
+  validateRdFile,
+  isImageType 
+} from '@/services/rdAttachmentService';
 
 export default function RequestDetail() {
   const { id } = useParams();
@@ -54,6 +64,17 @@ export default function RequestDetail() {
   // Comment dialog state
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   const [newComment, setNewComment] = useState('');
+
+  // Edit dialog files state
+  const [editPendingFiles, setEditPendingFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+
+  // Image preview state
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [previewImageName, setPreviewImageName] = useState<string>('');
+  
+  // Attachment URLs cache
+  const [attachmentUrls, setAttachmentUrls] = useState<Record<string, string>>({});
 
   const { data: request, isLoading } = useQuery({
     queryKey: ['request', id],
@@ -182,8 +203,66 @@ export default function RequestDetail() {
     setEditPriority(request?.priority || 'MEDIUM');
     setEditComplexityLevel((request as any)?.complexity_level || '');
     setSelectedAction('update');
+    setEditPendingFiles([]);
     setEditDialogOpen(true);
   };
+
+  // Handle file selection in edit dialog
+  const handleEditFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+    
+    const newFiles: File[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const error = validateRdFile(file);
+      if (error) {
+        toast.error(`${file.name}: ${error}`);
+      } else {
+        newFiles.push(file);
+      }
+    }
+    setEditPendingFiles(prev => [...prev, ...newFiles]);
+    e.target.value = '';
+  }, []);
+
+  const removeEditPendingFile = (index: number) => {
+    setEditPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Handle image thumbnail click
+  const handleImagePreview = async (attachment: RdAttachment) => {
+    try {
+      // Use cached URL or fetch new one
+      let url = attachmentUrls[attachment.id];
+      if (!url) {
+        url = await getRdSignedUrl(attachment.file_path);
+        setAttachmentUrls(prev => ({ ...prev, [attachment.id]: url }));
+      }
+      setPreviewImageUrl(url);
+      setPreviewImageName(attachment.file_name);
+    } catch (error) {
+      toast.error('Помилка завантаження зображення');
+    }
+  };
+
+  // Load thumbnail URLs for attachments in comments
+  useEffect(() => {
+    const loadThumbnails = async () => {
+      if (!attachments) return;
+      const imageAttachments = attachments.filter(a => isImageType(a.file_type) && !attachmentUrls[a.id]);
+      
+      for (const att of imageAttachments) {
+        try {
+          const url = await getRdSignedUrl(att.file_path);
+          setAttachmentUrls(prev => ({ ...prev, [att.id]: url }));
+        } catch (error) {
+          console.error('Error loading thumbnail:', error);
+        }
+      }
+    };
+    loadThumbnails();
+  }, [attachments]);
 
   const handleEditRequest = async () => {
     if (!profile?.email || !id) return;
@@ -241,14 +320,40 @@ export default function RequestDetail() {
           });
         }
 
-        // Log R&D comment as FEEDBACK_ADDED event only if changed
-        if (editRdComment && editRdComment.trim() && editRdComment.trim() !== originalRdComment.trim()) {
-          await supabase.rpc('log_request_event', {
-            p_request_id: id,
-            p_actor_email: profile.email,
-            p_event_type: 'FEEDBACK_ADDED',
-            p_payload: { comment: editRdComment.trim() },
-          });
+        // Log R&D comment as FEEDBACK_ADDED event only if changed or has files
+        let eventId: string | null = null;
+        if ((editRdComment && editRdComment.trim() && editRdComment.trim() !== originalRdComment.trim()) || editPendingFiles.length > 0) {
+          const { data: eventData, error: eventError } = await supabase
+            .from('request_events')
+            .insert({
+              request_id: id,
+              actor_email: profile.email,
+              event_type: 'FEEDBACK_ADDED',
+              payload: { comment: editRdComment?.trim() || '' },
+            })
+            .select('id')
+            .single();
+          
+          if (eventError) {
+            console.error('Error creating event:', eventError);
+          } else {
+            eventId = eventData.id;
+          }
+        }
+
+        // Upload files and link to the event
+        if (editPendingFiles.length > 0 && profile?.id) {
+          setUploadingFiles(true);
+          try {
+            for (const file of editPendingFiles) {
+              await uploadRdAttachment(file, id, profile.id, eventId || undefined);
+            }
+          } catch (uploadError) {
+            console.error('Error uploading files:', uploadError);
+            toast.error('Деякі файли не вдалося завантажити');
+          } finally {
+            setUploadingFiles(false);
+          }
         }
 
         toast.success('Інформацію оновлено');
@@ -302,8 +407,10 @@ export default function RequestDetail() {
       }
 
       setEditDialogOpen(false);
+      setEditPendingFiles([]);
       queryClient.invalidateQueries({ queryKey: ['request', id] });
       queryClient.invalidateQueries({ queryKey: ['request-events', id] });
+      queryClient.invalidateQueries({ queryKey: ['rd-attachments', id] });
     } catch (error) {
       console.error('Error editing request:', error);
       toast.error('Помилка при оновленні заявки');
@@ -650,21 +757,71 @@ export default function RequestDetail() {
                   {events
                     .filter(e => e.event_type === 'FEEDBACK_ADDED')
                     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-                    .map((event) => (
-                      <div key={event.id} className="p-3 rounded-md border text-sm bg-muted/30">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-medium">
-                            {emailToName[event.actor_email] || event.actor_email}
-                          </span>
-                          <span className="text-muted-foreground text-xs">
-                            {format(new Date(event.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}
-                          </span>
+                    .map((event) => {
+                      // Get attachments for this event
+                      const eventAttachments = attachments?.filter(a => a.event_id === event.id) || [];
+                      const imageAttachments = eventAttachments.filter(a => isImageType(a.file_type));
+                      const otherAttachments = eventAttachments.filter(a => !isImageType(a.file_type));
+                      
+                      return (
+                        <div key={event.id} className="p-3 rounded-md border text-sm bg-muted/30">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-medium">
+                              {emailToName[event.actor_email] || event.actor_email}
+                            </span>
+                            <span className="text-muted-foreground text-xs">
+                              {format(new Date(event.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}
+                            </span>
+                          </div>
+                          {(event.payload as any)?.comment && (
+                            <p className="text-muted-foreground">
+                              {(event.payload as any)?.comment}
+                            </p>
+                          )}
+                          {/* Image thumbnails */}
+                          {imageAttachments.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {imageAttachments.map((att) => (
+                                <div
+                                  key={att.id}
+                                  className="relative group cursor-pointer"
+                                  onClick={() => handleImagePreview(att)}
+                                >
+                                  {attachmentUrls[att.id] ? (
+                                    <img
+                                      src={attachmentUrls[att.id]}
+                                      alt={att.file_name}
+                                      className="h-16 w-16 object-cover rounded border hover:opacity-80 transition-opacity"
+                                    />
+                                  ) : (
+                                    <div className="h-16 w-16 rounded border bg-muted flex items-center justify-center">
+                                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {/* Other attachments */}
+                          {otherAttachments.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {otherAttachments.map((att) => (
+                                <Button
+                                  key={att.id}
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-auto py-1 px-2 text-xs"
+                                  onClick={() => handleDownloadAttachment(att)}
+                                >
+                                  <span className="mr-1">{getFileIcon(att.file_type)}</span>
+                                  <span className="truncate max-w-[120px]">{att.file_name}</span>
+                                </Button>
+                              ))}
+                            </div>
+                          )}
                         </div>
-                        <p className="text-muted-foreground">
-                          {(event.payload as any)?.comment}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </>
             )}
@@ -971,6 +1128,53 @@ export default function RequestDetail() {
               />
               <p className="text-xs text-muted-foreground text-right">{editRdComment.length}/500 символів</p>
             </div>
+            {/* File upload section */}
+            <div className="space-y-2">
+              <Label>Прикріпити файли</Label>
+              <div className="border-2 border-dashed rounded-lg p-4">
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleEditFileSelect}
+                  className="hidden"
+                  id="edit-file-input"
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp,.zip,.rar,.7z"
+                />
+                <label
+                  htmlFor="edit-file-input"
+                  className="flex flex-col items-center justify-center gap-2 cursor-pointer text-center"
+                >
+                  <Upload className="h-6 w-6 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">
+                    Натисніть для вибору файлів
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    До 5 МБ на файл
+                  </span>
+                </label>
+              </div>
+              {editPendingFiles.length > 0 && (
+                <div className="space-y-2 mt-2">
+                  {editPendingFiles.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span>{getFileIcon(file.type)}</span>
+                        <span className="truncate">{file.name}</span>
+                        <span className="text-xs text-muted-foreground">({formatFileSize(file.size)})</span>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => removeEditPendingFile(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="space-y-3">
               <Label>Оберіть дію</Label>
               <RadioGroup value={selectedAction} onValueChange={(v) => setSelectedAction(v as any)}>
@@ -1002,12 +1206,12 @@ export default function RequestDetail() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+            <Button variant="outline" onClick={() => { setEditDialogOpen(false); setEditPendingFiles([]); }}>
               Скасувати
             </Button>
-            <Button onClick={handleEditRequest} disabled={submitting}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Зберегти
+            <Button onClick={handleEditRequest} disabled={submitting || uploadingFiles}>
+              {(submitting || uploadingFiles) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {uploadingFiles ? 'Завантаження...' : 'Зберегти'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1113,6 +1317,42 @@ export default function RequestDetail() {
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Додати
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Preview Dialog */}
+      <Dialog open={!!previewImageUrl} onOpenChange={(open) => { if (!open) { setPreviewImageUrl(null); setPreviewImageName(''); } }}>
+        <DialogContent className="max-w-3xl p-2">
+          <DialogHeader className="p-2">
+            <DialogTitle className="text-sm truncate">{previewImageName}</DialogTitle>
+          </DialogHeader>
+          {previewImageUrl && (
+            <div className="flex items-center justify-center max-h-[70vh] overflow-auto">
+              <img 
+                src={previewImageUrl} 
+                alt={previewImageName}
+                className="max-w-full max-h-[70vh] object-contain"
+              />
+            </div>
+          )}
+          <DialogFooter className="p-2">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {
+                if (previewImageUrl) {
+                  const link = document.createElement('a');
+                  link.href = previewImageUrl;
+                  link.download = previewImageName;
+                  link.target = '_blank';
+                  link.click();
+                }
+              }}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Завантажити
             </Button>
           </DialogFooter>
         </DialogContent>
