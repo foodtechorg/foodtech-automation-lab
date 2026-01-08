@@ -16,6 +16,7 @@ import { uk } from 'date-fns/locale';
 import { translations, t } from '@/lib/i18n';
 import { Constants } from '@/integrations/supabase/types';
 import { Plus } from 'lucide-react';
+import { RDNavTabs } from '@/components/rd/RDNavTabs';
 export default function MyRequests() {
   const {
     profile
@@ -79,6 +80,8 @@ export default function MyRequests() {
           Нова заявка
         </Button>
       </div>
+
+      <RDNavTabs />
 
       <Card>
         <CardHeader>

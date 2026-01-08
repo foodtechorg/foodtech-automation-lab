@@ -16,6 +16,7 @@ import { uk } from 'date-fns/locale';
 import { Plus } from 'lucide-react';
 import { translations, t } from '@/lib/i18n';
 import { Constants } from '@/integrations/supabase/types';
+import { RDNavTabs } from '@/components/rd/RDNavTabs';
 
 export default function RDBoard() {
   const { profile } = useAuth();
@@ -90,6 +91,8 @@ export default function RDBoard() {
           </Button>
         )}
       </div>
+
+      <RDNavTabs />
 
       <Card>
         <CardHeader>
