@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { subDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { RDNavTabs } from '@/components/rd/RDNavTabs';
 import { translations } from '@/lib/i18n';
 
@@ -147,20 +146,29 @@ export default function RDAnalytics() {
             ) : authorStats.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">{translations.common.noData}</div>
             ) : (
-              <ChartContainer config={chartConfig} className="h-[400px] w-full">
+              <div className="h-[400px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={authorStats} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <BarChart data={authorStats} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis 
                       dataKey="name" 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                       angle={-45}
                       textAnchor="end"
                       height={80}
                       interval={0}
                     />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip content={<ChartTooltipContent />} />
+                    <YAxis 
+                      allowDecimals={false} 
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                    />
                     <Legend />
                     <Bar dataKey="pending" stackId="a" fill={statusColors.pending} name={translations.rdAnalytics.statuses.pending} />
                     <Bar dataKey="inProgress" stackId="a" fill={statusColors.inProgress} name={translations.rdAnalytics.statuses.inProgress} />
@@ -169,7 +177,7 @@ export default function RDAnalytics() {
                     <Bar dataKey="rejected" stackId="a" fill={statusColors.rejected} name={translations.rdAnalytics.statuses.rejected} />
                   </BarChart>
                 </ResponsiveContainer>
-              </ChartContainer>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -186,20 +194,29 @@ export default function RDAnalytics() {
             ) : developerStats.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">{translations.common.noData}</div>
             ) : (
-              <ChartContainer config={chartConfig} className="h-[400px] w-full">
+              <div className="h-[400px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={developerStats} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <BarChart data={developerStats} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis 
                       dataKey="name" 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
                       angle={-45}
                       textAnchor="end"
                       height={80}
                       interval={0}
                     />
-                    <YAxis allowDecimals={false} />
-                    <Tooltip content={<ChartTooltipContent />} />
+                    <YAxis 
+                      allowDecimals={false} 
+                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--background))', 
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px'
+                      }}
+                    />
                     <Legend />
                     <Bar dataKey="inProgress" stackId="a" fill={statusColors.inProgress} name={translations.rdAnalytics.statuses.inProgress} />
                     <Bar dataKey="testing" stackId="a" fill={statusColors.testing} name={translations.rdAnalytics.statuses.testing} />
@@ -207,7 +224,7 @@ export default function RDAnalytics() {
                     <Bar dataKey="rejected" stackId="a" fill={statusColors.rejected} name={translations.rdAnalytics.statuses.rejected} />
                   </BarChart>
                 </ResponsiveContainer>
-              </ChartContainer>
+              </div>
             )}
           </CardContent>
         </Card>
