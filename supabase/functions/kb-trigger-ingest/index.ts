@@ -92,6 +92,38 @@ Deno.serve(async (req) => {
 
     console.log(`Processing ingest request for document: ${document_id}`);
 
+    // Fetch document to validate
+    const { data: document, error: docError } = await supabaseAdmin
+      .from('kb_documents')
+      .select('id, status, raw_text')
+      .eq('id', document_id)
+      .single();
+
+    // Check: document not found
+    if (docError || !document) {
+      console.error('Document not found:', docError);
+      return new Response(
+        JSON.stringify({ error: 'Документ не знайдено' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check: document not active
+    if (document.status !== 'active') {
+      return new Response(
+        JSON.stringify({ error: 'Індексувати можна тільки активні документи' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Check: raw_text is empty
+    if (!document.raw_text || document.raw_text.trim() === '') {
+      return new Response(
+        JSON.stringify({ error: 'Заповніть текст для індексації' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Update document status to pending
     const { error: updateError } = await supabaseAdmin
       .from('kb_documents')

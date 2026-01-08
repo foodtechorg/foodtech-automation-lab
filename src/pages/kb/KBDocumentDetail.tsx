@@ -113,7 +113,17 @@ export default function KBDocumentDetail() {
   }
 
   const indexStatus = document.index_status as KBIndexStatus;
-  const canIndex = document.raw_text && indexStatus !== 'pending';
+  const isPending = indexStatus === 'pending';
+  const isNotActive = document.status !== 'active';
+  const hasNoText = !document.raw_text;
+  const canIndex = !isPending && !isNotActive && !hasNoText;
+  
+  const getIndexButtonTitle = () => {
+    if (isPending) return 'Індексація в процесі...';
+    if (isNotActive) return 'Документ має бути активним';
+    if (hasNoText) return 'Додайте текст для індексації';
+    return 'Запустити індексацію';
+  };
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -199,7 +209,7 @@ export default function KBDocumentDetail() {
             <Button
               onClick={handleTriggerIngest}
               disabled={!canIndex || isIndexing}
-              title={!document.raw_text ? 'Додайте текст для індексації' : undefined}
+              title={getIndexButtonTitle()}
             >
               {isIndexing ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />

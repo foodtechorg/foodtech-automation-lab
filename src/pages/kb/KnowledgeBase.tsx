@@ -236,15 +236,30 @@ export default function KnowledgeBase() {
                         >
                           <Archive className="w-4 h-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleTriggerIngest(doc.id)}
-                          disabled={doc.index_status === 'pending' || !doc.raw_text}
-                          title={!doc.raw_text ? 'Додайте текст для індексації' : 'Проіндексувати'}
-                        >
-                          <RefreshCw className={`w-4 h-4 ${doc.index_status === 'pending' ? 'animate-spin' : ''}`} />
-                        </Button>
+                        {(() => {
+                          const isPending = doc.index_status === 'pending';
+                          const isNotActive = doc.status !== 'active';
+                          const hasNoText = !doc.raw_text;
+                          const isDisabled = isPending || isNotActive || hasNoText;
+                          const title = isPending 
+                            ? 'Індексація в процесі...'
+                            : isNotActive
+                              ? 'Документ має бути активним'
+                              : hasNoText
+                                ? 'Додайте текст для індексації'
+                                : 'Проіндексувати';
+                          return (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleTriggerIngest(doc.id)}
+                              disabled={isDisabled}
+                              title={title}
+                            >
+                              <RefreshCw className={`w-4 h-4 ${isPending ? 'animate-spin' : ''}`} />
+                            </Button>
+                          );
+                        })()}
                       </div>
                     </TableCell>
                   </TableRow>
