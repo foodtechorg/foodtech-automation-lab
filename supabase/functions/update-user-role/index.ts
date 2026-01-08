@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
       throw new Error('userId and newRole are required');
     }
 
-    const validRoles = ['admin', 'sales_manager', 'rd_dev', 'rd_manager', 'procurement_manager', 'coo', 'ceo', 'treasurer', 'chief_accountant', 'accountant', 'quality_manager', 'admin_director', 'chief_engineer', 'production_deputy', 'warehouse_manager', 'lawyer', 'office_manager', 'foreign_trade_manager', 'finance_deputy', 'financial_analyst'];
+    const validRoles = ['admin', 'sales_manager', 'rd_dev', 'rd_manager', 'procurement_manager', 'coo', 'ceo', 'treasurer', 'chief_accountant', 'accountant', 'quality_manager', 'admin_director', 'chief_engineer', 'production_deputy', 'warehouse_manager', 'lawyer', 'office_manager', 'foreign_trade_manager', 'finance_deputy', 'financial_analyst', 'economist'];
     if (!validRoles.includes(newRole)) {
       throw new Error(`Invalid role. Must be one of: ${validRoles.join(', ')}`);
     }
