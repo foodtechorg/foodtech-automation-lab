@@ -4,7 +4,7 @@ import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
 import foodtechLogo from '@/assets/foodtech-logo.png';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
-type UserRole = 'sales_manager' | 'rd_dev' | 'rd_manager' | 'admin' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst';
+type UserRole = 'sales_manager' | 'rd_dev' | 'rd_manager' | 'admin' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst' | 'economist';
 interface Module {
   id: string;
   label: string;
