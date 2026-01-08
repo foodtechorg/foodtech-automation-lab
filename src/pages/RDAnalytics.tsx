@@ -44,7 +44,8 @@ type StatusCount = {
   rejected: number;
 };
 export default function RDAnalytics() {
-  const cutoffDate = subDays(new Date(), 90).toISOString();
+  const cutoffDate = useMemo(() => subDays(new Date(), 90).toISOString(), []);
+
   const {
     data: requests,
     isLoading: requestsLoading
