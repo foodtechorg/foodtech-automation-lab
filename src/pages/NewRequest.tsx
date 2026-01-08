@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, CalendarIcon, Info } from 'lucide-react';
+import { Loader2, ArrowLeft, CalendarIcon, Info, Upload, X, FileText } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -18,6 +18,18 @@ import { uk } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { translations, t } from '@/lib/i18n';
 import { Checkbox } from '@/components/ui/checkbox';
+import { uploadRdAttachment, validateRdFile, formatFileSize, getFileIcon } from '@/services/rdAttachmentService';
+
+interface PendingFile {
+  file: File;
+  error?: string;
+}
+
+const DOMAIN_ORDER = [
+  'MEAT', 'SEMI_FINISHED', 'CONFECTIONERY', 'SNACKS',
+  'DAIRY', 'FATS_OILS', 'ICE_CREAM', 'FISH', 'BAKERY'
+];
+
 export default function NewRequest() {
   const {
     profile
@@ -34,12 +46,42 @@ export default function NewRequest() {
     desired_due_date: undefined as Date | undefined,
     has_sample_analog: false
   });
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newFiles: PendingFile[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const error = validateRdFile(file);
+      newFiles.push({ file, error: error || undefined });
+    }
+    setPendingFiles(prev => [...prev, ...newFiles]);
+    e.target.value = '';
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.desired_due_date) {
       toast({
         title: translations.newRequest.errorTitle,
         description: 'Оберіть бажану дату завершення',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const validFiles = pendingFiles.filter(pf => !pf.error);
+    if (pendingFiles.some(pf => pf.error)) {
+      toast({
+        title: translations.newRequest.errorTitle,
+        description: 'Видаліть файли з помилками перед створенням заявки',
         variant: 'destructive'
       });
       return;
@@ -73,6 +115,18 @@ export default function NewRequest() {
           customer_company: formData.customer_company
         }
       });
+
+      // Upload attachments
+      if (validFiles.length > 0 && profile?.id) {
+        for (const pf of validFiles) {
+          try {
+            await uploadRdAttachment(pf.file, data.id, profile.id);
+          } catch (uploadError) {
+            console.error('Error uploading attachment:', uploadError);
+          }
+        }
+      }
+
       toast({
         title: translations.newRequest.successTitle,
         description: translations.newRequest.success.replace('{code}', codeData)
@@ -142,7 +196,11 @@ export default function NewRequest() {
               })}>
                   <SelectTrigger><SelectValue placeholder={translations.newRequest.form.domainPlaceholder} /></SelectTrigger>
                   <SelectContent>
-                    {Object.entries(translations.domain).map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}
+                    {DOMAIN_ORDER.map((key) => (
+                      <SelectItem key={key} value={key}>
+                        {translations.domain[key as keyof typeof translations.domain]}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -206,6 +264,68 @@ export default function NewRequest() {
               has_sample_analog: c as boolean
             })} />
               <Label htmlFor="hasSample">{translations.newRequest.form.hasSampleAnalogYes}</Label>
+            </div>
+
+            {/* File Attachments */}
+            <div className="space-y-3">
+              <Label>Прикріплені файли</Label>
+              <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-muted-foreground/50 transition-colors">
+                <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground mb-2">
+                  Перетягніть файли сюди або натисніть для вибору
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  PDF, DOC, XLS, PPT, TXT, CSV, JPG, PNG, ZIP • до 5 МБ
+                </p>
+                <Input
+                  type="file"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="file-upload"
+                />
+                <Button type="button" variant="outline" size="sm" asChild>
+                  <label htmlFor="file-upload" className="cursor-pointer">
+                    Обрати файли
+                  </label>
+                </Button>
+              </div>
+
+              {pendingFiles.length > 0 && (
+                <div className="space-y-2">
+                  {pendingFiles.map((pf, idx) => (
+                    <div
+                      key={idx}
+                      className={cn(
+                        "flex items-center justify-between p-2 rounded-md border text-sm",
+                        pf.error ? "border-destructive bg-destructive/10" : "bg-muted/50"
+                      )}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span>{getFileIcon(pf.file.type)}</span>
+                        <span className="truncate">{pf.file.name}</span>
+                        <span className="text-muted-foreground text-xs whitespace-nowrap">
+                          {formatFileSize(pf.file.size)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {pf.error && (
+                          <span className="text-xs text-destructive">{pf.error}</span>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          onClick={() => removePendingFile(idx)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="flex gap-4">
