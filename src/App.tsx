@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import MyRequests from "./pages/MyRequests";
 import NewRequest from "./pages/NewRequest";
 import RDBoard from "./pages/RDBoard";
+import RDAnalytics from "./pages/RDAnalytics";
 import Analytics from "./pages/Analytics";
 import RequestDetail from "./pages/RequestDetail";
 import AdminPanel from "./pages/AdminPanel";
@@ -96,6 +97,16 @@ const App = () => (
                 <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director']}>
                   <Layout>
                     <RDBoard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/rd/analytics"
+              element={
+                <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'sales_manager']}>
+                  <Layout>
+                    <RDAnalytics />
                   </Layout>
                 </ProtectedRoute>
               }

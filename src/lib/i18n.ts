@@ -297,6 +297,21 @@ export const translations = {
       rejectionRate: "відсоток відхилених",
       approvalRate: "відсоток затверджених"
     }
+  },
+  rdAnalytics: {
+    title: "Аналітика R&D",
+    description: "Статистика заявок за останні 90 днів",
+    chartAuthors: "Заявки по менеджерам-технологам",
+    chartAuthorsDesc: "Кількість заявок, створених кожним менеджером-технологом",
+    chartDevelopers: "Заявки по розробникам R&D",
+    chartDevelopersDesc: "Кількість заявок, взятих в роботу кожним розробником",
+    statuses: {
+      pending: "Очікує",
+      inProgress: "В роботі",
+      testing: "Тестування",
+      approved: "Затверджено",
+      rejected: "Відхилено"
+    }
   }
 };
 
