@@ -70,6 +70,23 @@ export const translations = {
     REJECTED: "Відхилено",
     FIELD_UPDATED: "Оновлено інформацію"
   },
+  purchaseAction: {
+    CREATED: "Створено",
+    SUBMITTED_FOR_APPROVAL: "Відправлено на погодження",
+    COO_APPROVED: "Погоджено COO",
+    CEO_APPROVED: "Погоджено CEO",
+    COO_REJECTED: "Відхилено COO",
+    CEO_REJECTED: "Відхилено CEO",
+    APPROVED_BY_COO: "Погоджено COO",
+    REJECTED_BY_COO: "Відхилено COO",
+    APPROVED_BY_CEO: "Погоджено CEO",
+    REJECTED_BY_CEO: "Відхилено CEO",
+    MARKED_PAID: "Позначено як оплачено",
+    MARKED_DELIVERED: "Позначено як доставлено",
+    UPDATED: "Оновлено",
+    DELETED: "Видалено",
+    STATUS_CHANGED: "Статус змінено"
+  },
   common: {
     loading: "Завантаження...",
     save: "Зберегти",
@@ -323,4 +340,5 @@ export const t = {
   clientResult: (key: string) => translations.clientResult[key as keyof typeof translations.clientResult] || key,
   role: (key: string) => translations.role[key as keyof typeof translations.role] || key,
   eventType: (key: string) => translations.eventType[key as keyof typeof translations.eventType] || key,
+  purchaseAction: (key: string) => translations.purchaseAction[key as keyof typeof translations.purchaseAction] || key,
 };
