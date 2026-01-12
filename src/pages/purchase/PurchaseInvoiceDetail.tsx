@@ -67,6 +67,7 @@ import { format } from "date-fns";
 import { uk } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 const statusLabels: Record<PurchaseInvoiceStatus, string> = {
   DRAFT: "Чернетка",
@@ -1130,7 +1131,7 @@ export default function PurchaseInvoiceDetail() {
                   <FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div>
                     <p>
-                      <span className="font-medium">{log.action}</span> — {log.user_email}
+                      <span className="font-medium">{t.purchaseAction(log.action)}</span> — {log.user_email}
                     </p>
                     {log.comment && <p className="text-muted-foreground">{log.comment}</p>}
                     <p className="text-xs text-muted-foreground">{formatDate(log.created_at)}</p>
