@@ -396,11 +396,23 @@ export default function RequestDetail() {
 
         if (error) throw error;
 
+        // Логувати коментар як FEEDBACK_ADDED якщо він є
+        if (editRdComment && editRdComment.trim()) {
+          await supabase
+            .from('request_events')
+            .insert({
+              request_id: id,
+              actor_email: profile.email,
+              event_type: 'FEEDBACK_ADDED',
+              payload: { comment: editRdComment.trim(), action: 'cancel' },
+            });
+        }
+
         await supabase.rpc('log_request_event', {
           p_request_id: id,
           p_actor_email: profile.email,
           p_event_type: 'STATUS_CHANGED',
-          p_payload: { from: 'IN_PROGRESS', to: 'CANCELLED' },
+          p_payload: { from: request?.status || 'IN_PROGRESS', to: 'CANCELLED' },
         });
 
         toast.success('Розробку скасовано');
@@ -693,6 +705,32 @@ export default function RequestDetail() {
                 </div>
               </>
             )}
+            {/* Cancellation Decision - display rd_comment for CANCELLED status */}
+            {request.status === 'CANCELLED' && request.rd_comment && (
+              <>
+                <Separator />
+                <div className="space-y-3">
+                  <span className="text-sm text-muted-foreground font-medium">Рішення про скасування:</span>
+                  <div className="p-3 rounded-md border text-sm bg-red-50 border-red-200 dark:bg-red-950/30 dark:border-red-800">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-medium flex items-center gap-2">
+                        <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">Скасовано</Badge>
+                        Розробку скасовано
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {events?.find(e => e.event_type === 'STATUS_CHANGED' && (e.payload as any)?.to === 'CANCELLED')?.created_at
+                          ? format(new Date(events.find(e => e.event_type === 'STATUS_CHANGED' && (e.payload as any)?.to === 'CANCELLED')!.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })
+                          : '-'}
+                      </span>
+                    </div>
+                    <p className="text-muted-foreground">{request.rd_comment}</p>
+                    <p className="text-xs mt-1">— {events?.find(e => e.event_type === 'STATUS_CHANGED' && (e.payload as any)?.to === 'CANCELLED')?.actor_email 
+                      ? (emailToName[events.find(e => e.event_type === 'STATUS_CHANGED' && (e.payload as any)?.to === 'CANCELLED')!.actor_email] || events.find(e => e.event_type === 'STATUS_CHANGED' && (e.payload as any)?.to === 'CANCELLED')!.actor_email)
+                      : '-'}</p>
+                  </div>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -909,7 +947,12 @@ export default function RequestDetail() {
                     }
                   }
                   if (event.event_type === 'FEEDBACK_ADDED') {
-                    return 'Додано коментар';
+                    const comment = (event.payload as any)?.comment;
+                    const action = (event.payload as any)?.action;
+                    if (action === 'cancel') {
+                      return comment ? `Причина скасування: "${comment}"` : 'Розробку скасовано';
+                    }
+                    return comment ? `Коментар: "${comment}"` : 'Додано коментар';
                   }
                   return t.eventType(event.event_type);
                 };
