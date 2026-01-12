@@ -126,11 +126,12 @@ export default function ApprovedRequestsQueue() {
 
     if (reqError) throw reqError;
 
-    // Load PENDING_COO invoices
+    // Load PENDING_COO invoices where COO hasn't decided yet
     const { data: invoicesData, error: invError } = await supabase
       .from('purchase_invoices')
       .select('*')
       .eq('status', 'PENDING_COO')
+      .eq('coo_decision', 'PENDING')
       .order('created_at', { ascending: false });
 
     if (invError) throw invError;
@@ -781,11 +782,12 @@ export default function ApprovedRequestsQueue() {
   const renderRejectDialog = (
     id: string, 
     onReject: (id: string) => void, 
-    title: string
+    title: string,
+    buttonClassName?: string
   ) => (
     <AlertDialog>
       <AlertDialogTrigger asChild>
-        <Button size="sm" variant="destructive" disabled={processingId === id}>
+        <Button size="sm" variant="destructive" className={buttonClassName} disabled={processingId === id}>
           <X className="h-4 w-4 mr-1" />
           Відхилити
         </Button>
@@ -885,20 +887,23 @@ export default function ApprovedRequestsQueue() {
                           <TableCell>{typeLabels[request.purchase_type]}</TableCell>
                           <TableCell>{formatDate(request.desired_date)}</TableCell>
                           <TableCell>{formatDate(request.created_at)}</TableCell>
-                          <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleApproveRequest(request.id)}
-                              disabled={processingId === request.id}
-                            >
-                              {processingId === request.id ? (
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              ) : (
-                                <Check className="h-4 w-4 mr-1" />
-                              )}
-                              Погодити
-                            </Button>
-                            {renderRejectDialog(request.id, handleRejectRequest, 'Відхилити заявку')}
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-end gap-2">
+                              <Button 
+                                size="sm"
+                                className="min-w-[100px]"
+                                onClick={() => handleApproveRequest(request.id)}
+                                disabled={processingId === request.id}
+                              >
+                                {processingId === request.id ? (
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4 mr-1" />
+                                )}
+                                Погодити
+                              </Button>
+                              {renderRejectDialog(request.id, handleRejectRequest, 'Відхилити заявку', 'min-w-[100px]')}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -959,20 +964,23 @@ export default function ApprovedRequestsQueue() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleApproveInvoiceCOO(invoice.id)}
-                              disabled={processingId === invoice.id}
-                            >
-                              {processingId === invoice.id ? (
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              ) : (
-                                <Check className="h-4 w-4 mr-1" />
-                              )}
-                              Погодити
-                            </Button>
-                            {renderRejectDialog(invoice.id, handleRejectInvoiceCOO, 'Відхилити рахунок')}
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-end gap-2">
+                              <Button 
+                                size="sm"
+                                className="min-w-[100px]"
+                                onClick={() => handleApproveInvoiceCOO(invoice.id)}
+                                disabled={processingId === invoice.id}
+                              >
+                                {processingId === invoice.id ? (
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4 mr-1" />
+                                )}
+                                Погодити
+                              </Button>
+                              {renderRejectDialog(invoice.id, handleRejectInvoiceCOO, 'Відхилити рахунок', 'min-w-[100px]')}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -1033,20 +1041,23 @@ export default function ApprovedRequestsQueue() {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right space-x-2" onClick={(e) => e.stopPropagation()}>
-                            <Button 
-                              size="sm" 
-                              onClick={() => handleApproveInvoiceCEO(invoice.id)}
-                              disabled={processingId === invoice.id}
-                            >
-                              {processingId === invoice.id ? (
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                              ) : (
-                                <Check className="h-4 w-4 mr-1" />
-                              )}
-                              Погодити
-                            </Button>
-                            {renderRejectDialog(invoice.id, handleRejectInvoiceCEO, 'Відхилити рахунок')}
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex justify-end gap-2">
+                              <Button 
+                                size="sm"
+                                className="min-w-[100px]"
+                                onClick={() => handleApproveInvoiceCEO(invoice.id)}
+                                disabled={processingId === invoice.id}
+                              >
+                                {processingId === invoice.id ? (
+                                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4 mr-1" />
+                                )}
+                                Погодити
+                              </Button>
+                              {renderRejectDialog(invoice.id, handleRejectInvoiceCEO, 'Відхилити рахунок', 'min-w-[100px]')}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
