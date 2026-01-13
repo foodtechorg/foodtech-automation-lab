@@ -43,6 +43,9 @@ export function AttachmentsList({
 
   const handleDownload = async (attachment: Attachment) => {
     setDownloadingId(attachment.id);
+    // Open window immediately to avoid Safari popup blocker
+    const newWindow = window.open('about:blank', '_blank');
+    
     try {
       const url = await getSignedUrl(attachment.file_path);
       
@@ -52,9 +55,14 @@ export function AttachmentsList({
         throw new Error(`Файл не знайдено (HTTP ${response.status})`);
       }
       
-      window.open(url, '_blank');
+      if (newWindow) {
+        newWindow.location.href = url;
+      }
     } catch (error: any) {
       console.error('Download error:', error);
+      if (newWindow) {
+        newWindow.close();
+      }
       const message = error?.message || 'Невідома помилка';
       toast.error(`Помилка завантаження: ${message}`);
     } finally {
