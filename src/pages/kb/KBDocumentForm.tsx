@@ -20,8 +20,10 @@ import {
 import {
   KBCategory,
   KBStatus,
+  KBAccessLevel,
   KB_CATEGORY_LABELS,
   KB_STATUS_LABELS,
+  KB_ACCESS_LEVEL_LABELS,
 } from '@/types/kb';
 
 export default function KBDocumentForm() {
@@ -36,6 +38,7 @@ export default function KBDocumentForm() {
   const [category, setCategory] = useState<KBCategory>('SOP');
   const [version, setVersion] = useState('');
   const [status, setStatus] = useState<KBStatus>('active');
+  const [accessLevel, setAccessLevel] = useState<KBAccessLevel>('open');
   const [rawText, setRawText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [existingFilePath, setExistingFilePath] = useState<string | null>(null);
@@ -56,6 +59,7 @@ export default function KBDocumentForm() {
       setCategory(document.category);
       setVersion(document.version || '');
       setStatus(document.status);
+      setAccessLevel((document.access_level as KBAccessLevel) || 'open');
       setRawText(document.raw_text || '');
       setExistingFilePath(document.storage_path);
     }
@@ -110,6 +114,7 @@ export default function KBDocumentForm() {
           category,
           version: version || null,
           status,
+          access_level: accessLevel,
           raw_text: rawText || null,
           storage_bucket: storageBucket,
           storage_path: storagePath,
@@ -122,6 +127,7 @@ export default function KBDocumentForm() {
           category,
           version: version || null,
           status,
+          access_level: accessLevel,
           raw_text: rawText || null,
           storage_bucket: storageBucket,
           storage_path: storagePath,
@@ -244,6 +250,20 @@ export default function KBDocumentForm() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="accessLevel">Рівень доступу</Label>
+              <Select value={accessLevel} onValueChange={(v) => setAccessLevel(v as KBAccessLevel)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(KB_ACCESS_LEVEL_LABELS).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

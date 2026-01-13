@@ -14,9 +14,11 @@ import {
   KBCategory,
   KBStatus,
   KBIndexStatus,
+  KBAccessLevel,
   KB_CATEGORY_LABELS,
   KB_STATUS_LABELS,
   KB_INDEX_STATUS_LABELS,
+  KB_ACCESS_LEVEL_LABELS,
 } from '@/types/kb';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
@@ -247,7 +249,11 @@ export default function KBDocumentDetail() {
             </div>
             <div>
               <dt className="text-muted-foreground">Рівень доступу</dt>
-              <dd>{document.access_level === 'coo_only' ? 'Тільки COO' : document.access_level}</dd>
+              <dd>
+                <Badge variant={document.access_level === 'open' ? 'outline' : 'secondary'}>
+                  {KB_ACCESS_LEVEL_LABELS[document.access_level as KBAccessLevel] || document.access_level}
+                </Badge>
+              </dd>
             </div>
             {document.storage_path && (
               <div>
