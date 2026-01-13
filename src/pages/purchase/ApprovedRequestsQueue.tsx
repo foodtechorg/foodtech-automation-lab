@@ -84,7 +84,7 @@ export default function ApprovedRequestsQueue() {
   const isCOO = profile?.role === 'coo' || profile?.role === 'admin';
   const isCEO = profile?.role === 'ceo' || profile?.role === 'admin';
   const isProcurementManager = profile?.role === 'procurement_manager' || profile?.role === 'admin';
-  const isTreasurer = profile?.role === 'treasurer' || profile?.role === 'admin';
+  const isTreasurer = profile?.role === 'treasurer' || profile?.role === 'chief_accountant' || profile?.role === 'admin';
 
   useEffect(() => {
     loadQueueData();
@@ -773,7 +773,7 @@ export default function ApprovedRequestsQueue() {
   };
 
   const getPageTitle = () => {
-    if (profile?.role === 'treasurer') return 'Рахунки до оплати';
+    if (profile?.role === 'treasurer' || profile?.role === 'chief_accountant') return 'Рахунки до оплати';
     if (profile?.role === 'coo') return 'Заявки та рахунки на погодження';
     if (profile?.role === 'ceo') return 'Рахунки на погодження';
     return 'Заявки, готові до створення рахунку';
