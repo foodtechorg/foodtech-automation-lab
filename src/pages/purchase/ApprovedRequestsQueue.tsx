@@ -205,11 +205,12 @@ export default function ApprovedRequestsQueue() {
   }
 
   async function loadCEOQueue() {
-    // Load PENDING_COO invoices where CEO hasn't decided yet (parallel approval)
+    // Load invoices where CEO hasn't decided yet (parallel approval)
+    // Include both PENDING_COO (COO not yet decided) and PENDING_CEO (COO approved, awaiting CEO)
     const { data: invoicesData, error: invError } = await supabase
       .from('purchase_invoices')
       .select('*')
-      .eq('status', 'PENDING_COO')
+      .in('status', ['PENDING_COO', 'PENDING_CEO'])
       .eq('ceo_decision', 'PENDING')
       .order('created_at', { ascending: false });
 
