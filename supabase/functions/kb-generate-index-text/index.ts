@@ -1,53 +1,164 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const SYSTEM_PROMPT = `Ти - асистент для створення індексаційного тексту Knowledge Base документів.
+// ============ PROMPTS ============
+
+const SYSTEM_PROMPT = `Ти — експерт з корпоративної документації та knowledge base компанії FoodTech.
+Твоя мета — створити текст для векторного пошуку (RAG), щоб співробітники знаходили точні відповіді через Telegram-бота.
+Пиши ВИКЛЮЧНО українською.
+КАТЕГОРИЧНО ЗАБОРОНЕНО вигадувати.
+Якщо даних немає у вхідному тексті — пиши "Інформація відсутня у документі".
+Зберігай числа, дати, назви, посади ДОСЛІВНО.`;
+
+const STAGE1_INSTRUCTIONS = `Витягни тільки підтверджені факти з документа у JSON форматі.
+
+ВИХІДНИЙ ФОРМАТ (суворий JSON):
+{
+  "doc_title": "...",
+  "doc_category": "...",
+  "version": "...",
+  "status": "...",
+  "access_level": "...",
+  "keywords": ["..."],
+  "purpose": ["..."],
+  "scope": {
+    "start": "...",
+    "end_positive": "...",
+    "end_negative": "..."
+  },
+  "roles": [
+    {"role": "...", "responsibility": "..."}
+  ],
+  "process_steps": [
+    {"step_no": 1, "name": "...", "description": "...", "responsible": "...", "sla": "...", "status": "..."}
+  ],
+  "rules_limits_deadlines": ["..."],
+  "exceptions": ["..."],
+  "artifacts_systems": ["..."],
+  "faq_candidates": [
+    {"q": "...", "a": "..."}
+  ],
+  "extraction_quality": {
+    "is_graphical_or_unreadable": false,
+    "notes": "..."
+  }
+}
 
 ПРАВИЛА:
-- Українська мова
-- Тільки факти з документа, без вигадок
-- Якщо даних немає - пиши "не вказано" або пропускай секцію
-- Вихід ТІЛЬКИ у форматі Markdown
-- Структуруй текст логічними блоками для ефективного векторного пошуку
+- keywords: 15-30 термінів, ТІЛЬКИ якщо вони реально є у тексті
+- purpose: 1-3 пункти призначення документа
+- roles: ролі та їх відповідальності
+- process_steps: кроки процесу з SLA та відповідальними
+- artifacts_systems: згадані системи, форми, файли (FTA, 1C, тощо)
+- faq_candidates: можливі Q&A, тільки якщо є прямі відповіді у тексті
+- Якщо блоку немає — порожній масив або "Інформація відсутня у документі"
+- ЖОДНИХ припущень чи вигадок
+- Повертай ТІЛЬКИ валідний JSON без markdown-обгортки`;
+
+const STAGE2_INSTRUCTIONS = `На основі JSON створи фінальний Markdown для індексації.
 
 ФОРМАТ ВИХОДУ:
-# {title} — {category}
 
-**Версія:** {version або "не вказано"}
-**Статус:** {status}
-**Рівень доступу:** {access_level}
+# {doc_title}
+
+## Метадані
+- Категорія: ...
+- Версія: ...
+- Статус: ...
+- Доступ: ...
 
 ## Ключові слова
-10-20 ключових термінів через кому, які найкраще характеризують документ
+... (комами, 15-30 термінів)
 
-## Опис
-Короткий опис документа (2-3 речення про призначення та суть)
+## Призначення документа
+... (2-4 речення з purpose)
 
-## Основний зміст
-{Залежно від типу документа:
-- Для SOP/Інструкцій: покрокові дії, правила, обов'язки
-- Для Оргструктури: підрозділи, ієрархія, відповідальні
-- Для Політик: принципи, норми, обмеження
-- Для Бізнес-процесів: етапи, учасники, входи/виходи}
+## Межі / область дії
+- Початок: ...
+- Завершення (позитивний): ...
+- Завершення (негативний): ...
 
-## Винятки та особливі випадки
-{Якщо є - опиши випадки, коли правила відрізняються}
+## Ролі та відповідальні
+- [Роль]: [Відповідальність]
+- ...
+
+## Процес / зміст
+(нумерований список кроків з SLA та відповідальними)
+(якщо is_graphical_or_unreadable = true → виведи попередження, що потрібен ручний опис)
+
+## Артефакти та системи
+- ... (FTA, 1C, форми, документи)
+
+## Правила, обмеження, дедлайни
+- ...
+
+## Винятки
+- ... або "Винятків не зазначено"
 
 ## FAQ
-5-10 питань і відповідей на основі документа у форматі:
-**Q:** Питання?
-**A:** Відповідь.
+6-12 питань-відповідей, але ТІЛЬКИ якщо є faq_candidates у JSON.
+Якщо faq_candidates порожній — напиши "FAQ неможливо сформувати: у документі відсутні прямі відповіді."
 
----
-МЕТА: текст має бути "вектор-дружній" - логічні блоки, списки, ключові терміни, правила, винятки для точного пошуку.`;
+ПРАВИЛА ЗА КАТЕГОРІЯМИ:
+- Для SOP/Інструкція — підкреслюй покроковість, артефакти, терміни
+- Для Оргструктури — ієрархія, підпорядкування, функції підрозділів
+- Для BPMN (графіка) — опиши структуру (Тригер, Ролі, Гілки, SLA, Вихід)
+- Для Політики — принципи, що дозволено/заборонено, санкції`;
+
+const GRAPHICAL_DOC_TEMPLATE = (title: string, category: string, version: string, status: string, accessLevel: string) => `# ${title}
+
+## ⚠️ Увага
+Документ переважно графічний або текст неможливо витягнути автоматично.
+Заповніть шаблон вручну:
+
+## Метадані
+- Категорія: ${category}
+- Версія: ${version || 'не вказано'}
+- Статус: ${status}
+- Доступ: ${accessLevel}
+
+## Ключові слова
+[Введіть 15-20 ключових термінів, пов'язаних з документом]
+
+## Призначення документа
+[Опишіть призначення 2-4 реченнями: для кого, яку проблему вирішує]
+
+## Тригер (коли запускається)
+[Опишіть умови старту процесу]
+
+## Учасники та ролі
+- [Роль 1]: [Відповідальність]
+- [Роль 2]: [Відповідальність]
+
+## Основні кроки
+1. [Крок 1] — [Відповідальний] — [SLA]
+2. [Крок 2] — [Відповідальний] — [SLA]
+3. [Крок 3] — [Відповідальний] — [SLA]
+
+## Вхідні дані / документи
+- [Документ 1]
+- [Документ 2]
+
+## Вихідні дані / артефакти
+- [Результат 1]
+- [Результат 2]
+
+## FAQ
+**Q:** [Типове питання 1]?
+**A:** [Відповідь]
+
+**Q:** [Типове питання 2]?
+**A:** [Відповідь]`;
+
+// ============ LABEL MAPPINGS ============
 
 const CATEGORY_LABELS: Record<string, string> = {
-  SOP: 'SOP',
+  SOP: 'SOP (Стандартна операційна процедура)',
   OrgStructure: 'Оргструктура',
   Policy: 'Політика',
   Instructions: 'Інструкції',
@@ -65,358 +176,419 @@ const ACCESS_LABELS: Record<string, string> = {
   restricted: 'Обмежений доступ',
 };
 
+// ============ QUALITY CHECK ============
+
+interface QualityCheckResult {
+  isLowQuality: boolean;
+  reason: string;
+}
+
+function checkTextQuality(text: string): QualityCheckResult {
+  if (text.length < 800) {
+    return { isLowQuality: true, reason: 'Текст занадто короткий (< 800 символів)' };
+  }
+
+  const noiseKeywords = [
+    'Producer', 'Adobe', 'Visio', 'XMP', 'Creator Tool',
+    'ModDate', 'CreationDate', 'PDFVersion', 'Acrobat',
+    'Microsoft Office', 'Generated by', 'xmlns', 'xpacket',
+    'DocumentProperties', 'meta:creation-date', 'dc:creator',
+  ];
+
+  const lowerText = text.toLowerCase();
+  const noiseCount = noiseKeywords.filter(kw =>
+    lowerText.includes(kw.toLowerCase())
+  ).length;
+
+  const businessWords = text.match(
+    /\b(процес|крок|відповідальн|термін|документ|заявка|погодження|затвердження|підрозділ|керівник|менеджер|спеціаліст|виконавець|замовник|постачальник|договір|рахунок|оплата|доставка)\b/gi
+  ) || [];
+
+  if (noiseCount > 5 && businessWords.length < 10) {
+    return {
+      isLowQuality: true,
+      reason: 'Текст переважно містить технічні метадані без бізнес-змісту',
+    };
+  }
+
+  return { isLowQuality: false, reason: '' };
+}
+
+// ============ TEXT EXTRACTION ============
+
+function cleanText(text: string): string {
+  return text
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\x00/g, '')
+    .trim();
+}
+
+function extractTextFromPDF(data: Uint8Array): string {
+  try {
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(data);
+    const textMatches: string[] = [];
+
+    const btEtRegex = /BT\s*([\s\S]*?)\s*ET/g;
+    let match;
+    while ((match = btEtRegex.exec(text)) !== null) {
+      const content = match[1];
+      const stringRegex = /\(([^)]*)\)|<([0-9A-Fa-f]+)>/g;
+      let strMatch;
+      while ((strMatch = stringRegex.exec(content)) !== null) {
+        if (strMatch[1]) {
+          textMatches.push(strMatch[1]);
+        }
+      }
+    }
+
+    const readableRegex = /\/T[cj]\s*\(([^)]+)\)/g;
+    while ((match = readableRegex.exec(text)) !== null) {
+      textMatches.push(match[1]);
+    }
+
+    const streamRegex = /stream\s*([\s\S]*?)\s*endstream/g;
+    while ((match = streamRegex.exec(text)) !== null) {
+      const streamContent = match[1];
+      const textInStream = streamContent.match(/\(([^)]{2,})\)/g);
+      if (textInStream) {
+        textInStream.forEach(t => {
+          const cleaned = t.slice(1, -1);
+          if (cleaned.length > 2 && /[а-яА-ЯіІїЇєЄa-zA-Z]/.test(cleaned)) {
+            textMatches.push(cleaned);
+          }
+        });
+      }
+    }
+
+    const result = textMatches.join(' ');
+    return result.length > 100 ? result : '';
+  } catch {
+    return '';
+  }
+}
+
+function extractTextFromDOCX(data: Uint8Array): string {
+  try {
+    const text = new TextDecoder('utf-8', { fatal: false }).decode(data);
+    const textParts: string[] = [];
+
+    const textRegex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
+    let match;
+    while ((match = textRegex.exec(text)) !== null) {
+      if (match[1].trim()) {
+        textParts.push(match[1]);
+      }
+    }
+
+    const paraRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/g;
+    const paragraphs: string[] = [];
+    while ((match = paraRegex.exec(text)) !== null) {
+      const paraText = match[1].replace(/<w:t[^>]*>([^<]*)<\/w:t>/g, '$1');
+      if (paraText.trim()) {
+        paragraphs.push(paraText.trim());
+      }
+    }
+
+    return paragraphs.length > 0 ? paragraphs.join('\n') : textParts.join(' ');
+  } catch {
+    return '';
+  }
+}
+
+// ============ MAIN HANDLER ============
+
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
 
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('Missing Supabase environment variables');
+    }
     if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY is not configured');
-      return new Response(
-        JSON.stringify({ error: 'AI service is not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error('Missing LOVABLE_API_KEY');
     }
 
-    // Create clients
+    const authHeader = req.headers.get('Authorization');
     const supabaseUser = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      global: { headers: { Authorization: req.headers.get('Authorization') || '' } },
+      global: { headers: { Authorization: authHeader || '' } },
     });
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // Verify user authentication
     const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
     if (authError || !user) {
-      console.error('Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Check user role
-    const { data: profile, error: profileError } = await supabaseUser
-      .from('profiles')
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: roles } = await supabaseAdmin
+      .from('user_roles')
       .select('role')
-      .eq('id', user.id)
-      .single();
+      .eq('user_id', user.id);
 
-    if (profileError || !profile) {
-      console.error('Profile error:', profileError);
-      return new Response(
-        JSON.stringify({ error: 'Profile not found' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const userRoles = roles?.map(r => r.role) || [];
+    if (!userRoles.includes('coo') && !userRoles.includes('admin')) {
+      return new Response(JSON.stringify({ error: 'Access denied' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    if (profile.role !== 'coo' && profile.role !== 'admin') {
-      return new Response(
-        JSON.stringify({ error: 'Доступ заборонено. Потрібна роль COO або Admin.' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Parse request body
     const { document_id } = await req.json();
     if (!document_id) {
-      return new Response(
-        JSON.stringify({ error: 'document_id is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'document_id required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Fetch document
-    const { data: doc, error: docError } = await supabaseUser
+    console.log('=== KB Generate Index Text (GPT-5 Two-Stage) ===');
+    console.log(`Document ID: ${document_id}`);
+
+    const { data: doc, error: docError } = await supabaseAdmin
       .from('kb_documents')
       .select('*')
       .eq('id', document_id)
       .single();
 
     if (docError || !doc) {
-      console.error('Document error:', docError);
-      return new Response(
-        JSON.stringify({ error: 'Документ не знайдено' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error(`Document not found: ${docError?.message}`);
     }
+
+    console.log(`Title: ${doc.title}`);
+    console.log(`Category: ${doc.category}`);
+    console.log(`MIME Type: ${doc.mime_type || 'not set'}`);
+    console.log(`Storage Path: ${doc.storage_path || 'not set'}`);
+
+    const metadataContext = `
+Назва: ${doc.title}
+Категорія: ${CATEGORY_LABELS[doc.category] || doc.category}
+Версія: ${doc.version || 'не вказано'}
+Статус: ${STATUS_LABELS[doc.status] || doc.status}
+Рівень доступу: ${ACCESS_LABELS[doc.access_level] || doc.access_level}
+`.trim();
 
     let extractedText = '';
-    let sourceInfo = '';
+    let fileSize = 0;
+    let textSource = 'none';
 
-    // Try to extract text from file if available
     if (doc.storage_bucket && doc.storage_path) {
-      console.log(`Downloading file from ${doc.storage_bucket}/${doc.storage_path}`);
-      
-      const { data: fileData, error: downloadError } = await supabaseAdmin.storage
-        .from(doc.storage_bucket)
-        .download(doc.storage_path);
+      try {
+        const { data: fileData, error: downloadError } = await supabaseAdmin.storage
+          .from(doc.storage_bucket)
+          .download(doc.storage_path);
 
-      if (downloadError) {
-        console.error('Download error:', downloadError);
-        // Fallback to raw_text if file download fails
-        if (doc.raw_text) {
-          extractedText = doc.raw_text;
-          sourceInfo = 'Використано існуючий текст (файл недоступний)';
-        } else {
-          return new Response(
-            JSON.stringify({ error: 'Не вдалося завантажити файл. Введіть текст вручну.' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-      } else {
-        // Extract text based on mime type
-        const mimeType = doc.mime_type || '';
-        console.log(`Processing file with mime type: ${mimeType}`);
+        if (downloadError) {
+          console.log(`File download error: ${downloadError.message}`);
+        } else if (fileData) {
+          fileSize = fileData.size;
+          console.log(`File size: ${fileSize} bytes`);
 
-        try {
-          if (mimeType === 'text/plain' || mimeType === 'text/markdown') {
-            extractedText = await fileData.text();
-            sourceInfo = 'Витягнуто з текстового файлу';
-          } else if (mimeType === 'text/xml' || mimeType === 'application/xml' || mimeType.includes('bpmn')) {
-            const xmlText = await fileData.text();
-            // Extract text content from XML, removing tags
-            extractedText = xmlText
-              .replace(/<[^>]*>/g, ' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            sourceInfo = 'Витягнуто з XML/BPMN файлу';
-          } else if (mimeType === 'application/pdf') {
-            // For PDF, we'll use a simple approach - try to read as text
-            // In production, you'd use a proper PDF parser
-            const arrayBuffer = await fileData.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-            
-            // Simple text extraction from PDF (basic approach)
-            let textContent = '';
-            const decoder = new TextDecoder('utf-8', { fatal: false });
-            const pdfText = decoder.decode(uint8Array);
-            
-            // Extract text between stream and endstream, or between BT and ET
-            const textMatches = pdfText.match(/\(((?:[^()\\]|\\.)*)\)/g) || [];
-            textContent = textMatches
-              .map(m => m.slice(1, -1).replace(/\\/g, ''))
-              .join(' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            
-            if (textContent.length > 100) {
-              extractedText = textContent;
-              sourceInfo = 'Витягнуто з PDF файлу (базовий парсинг)';
-            } else if (doc.raw_text) {
-              extractedText = doc.raw_text;
-              sourceInfo = 'PDF важко прочитати автоматично, використано існуючий текст';
-            } else {
-              return new Response(
-                JSON.stringify({ 
-                  error: 'PDF файл неможливо автоматично прочитати. Будь ласка, скопіюйте текст вручну.',
-                  warning: true
-                }),
-                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
-            }
-          } else if (mimeType.includes('word') || mimeType.includes('document')) {
-            // DOCX is a ZIP file with XML inside
-            // Simple extraction - in production use mammoth or similar
-            const arrayBuffer = await fileData.arrayBuffer();
-            const uint8Array = new Uint8Array(arrayBuffer);
-            const decoder = new TextDecoder('utf-8', { fatal: false });
-            const rawContent = decoder.decode(uint8Array);
-            
-            // Extract text from XML parts
-            const textMatches = rawContent.match(/<w:t[^>]*>([^<]*)<\/w:t>/g) || [];
-            const docxText = textMatches
-              .map(m => m.replace(/<[^>]*>/g, ''))
-              .join(' ')
-              .replace(/\s+/g, ' ')
-              .trim();
-            
-            if (docxText.length > 50) {
-              extractedText = docxText;
-              sourceInfo = 'Витягнуто з DOCX файлу';
-            } else if (doc.raw_text) {
-              extractedText = doc.raw_text;
-              sourceInfo = 'DOCX важко прочитати автоматично, використано існуючий текст';
-            } else {
-              return new Response(
-                JSON.stringify({ 
-                  error: 'DOCX файл неможливо автоматично прочитати. Будь ласка, скопіюйте текст вручну.',
-                  warning: true
-                }),
-                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
-            }
-          } else if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType.includes('xlsx')) {
-            // Excel files are complex - use fallback
-            if (doc.raw_text) {
-              extractedText = doc.raw_text;
-              sourceInfo = 'Excel-файли потребують ручного копіювання, використано існуючий текст';
-            } else {
-              return new Response(
-                JSON.stringify({ 
-                  error: 'Excel файли потребують ручного копіювання тексту. Будь ласка, введіть текст вручну.',
-                  warning: true
-                }),
-                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
-            }
-          } else if (mimeType.startsWith('image/')) {
-            if (doc.raw_text) {
-              extractedText = doc.raw_text;
-              sourceInfo = 'Зображення не підтримують автоматичне витягування, використано існуючий текст';
-            } else {
-              return new Response(
-                JSON.stringify({ 
-                  error: 'Для зображень текст потрібно ввести вручну. OCR поки не підтримується.',
-                  warning: true
-                }),
-                { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-              );
-            }
+          const arrayBuffer = await fileData.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const mimeType = doc.mime_type || '';
+
+          if (mimeType.includes('text/plain') || mimeType.includes('text/xml') || mimeType.includes('application/xml')) {
+            extractedText = new TextDecoder('utf-8').decode(uint8Array);
+            textSource = 'text/xml';
+          } else if (mimeType.includes('application/pdf')) {
+            extractedText = extractTextFromPDF(uint8Array);
+            textSource = 'pdf';
+          } else if (mimeType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml')) {
+            extractedText = extractTextFromDOCX(uint8Array);
+            textSource = 'docx';
+          } else if (mimeType.includes('image/')) {
+            textSource = 'image';
+            console.log('Image file detected - OCR not available');
+          } else if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
+            textSource = 'xlsx';
+            console.log('Excel file detected - extraction limited');
           } else {
-            // Unknown format - try as text
-            try {
-              extractedText = await fileData.text();
-              sourceInfo = `Витягнуто як текст (${mimeType})`;
-            } catch {
-              if (doc.raw_text) {
-                extractedText = doc.raw_text;
-                sourceInfo = 'Невідомий формат, використано існуючий текст';
-              } else {
-                return new Response(
-                  JSON.stringify({ error: `Формат ${mimeType} не підтримується для автоматичного витягування` }),
-                  { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-                );
-              }
-            }
-          }
-        } catch (parseError) {
-          console.error('Parse error:', parseError);
-          if (doc.raw_text) {
-            extractedText = doc.raw_text;
-            sourceInfo = 'Помилка парсингу файлу, використано існуючий текст';
-          } else {
-            return new Response(
-              JSON.stringify({ error: 'Помилка при обробці файлу. Введіть текст вручну.' }),
-              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+            extractedText = new TextDecoder('utf-8', { fatal: false }).decode(uint8Array);
+            textSource = 'generic';
           }
         }
+      } catch (e) {
+        console.log(`File processing error: ${e}`);
       }
-    } else if (doc.raw_text) {
-      // No file, use existing raw_text
+    }
+
+    if (!extractedText && doc.raw_text) {
       extractedText = doc.raw_text;
-      sourceInfo = 'Використано існуючий текст (файл не завантажено)';
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'Немає файлу або тексту для обробки. Спочатку завантажте файл або введіть текст.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      textSource = 'raw_text_field';
+    }
+
+    extractedText = cleanText(extractedText);
+    console.log(`Text source: ${textSource}`);
+    console.log(`Extracted text length: ${extractedText.length} chars`);
+
+    const qualityCheck = checkTextQuality(extractedText);
+    console.log(`Quality check: ${qualityCheck.isLowQuality ? 'LOW - ' + qualityCheck.reason : 'OK'}`);
+
+    if (qualityCheck.isLowQuality || textSource === 'image') {
+      const template = GRAPHICAL_DOC_TEMPLATE(
+        doc.title,
+        CATEGORY_LABELS[doc.category] || doc.category,
+        doc.version || '',
+        STATUS_LABELS[doc.status] || doc.status,
+        ACCESS_LABELS[doc.access_level] || doc.access_level
       );
+
+      console.log('Returning template for manual editing');
+      return new Response(JSON.stringify({
+        generatedText: template,
+        source: textSource,
+        isTemplate: true,
+        qualityNote: qualityCheck.reason || 'Графічний або нечитабельний документ',
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    // Clean and truncate text if needed
-    extractedText = extractedText
-      .replace(/\r\n/g, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/[ \t]+/g, ' ')
-      .trim();
-
-    const MAX_CHARS = 50000;
-    let truncated = false;
+    const MAX_CHARS = 80000;
+    let wasTruncated = false;
     if (extractedText.length > MAX_CHARS) {
-      extractedText = extractedText.substring(0, MAX_CHARS);
-      truncated = true;
-      console.log(`Text truncated to ${MAX_CHARS} characters`);
+      extractedText = extractedText.slice(0, MAX_CHARS);
+      wasTruncated = true;
+      console.log(`Text truncated to ${MAX_CHARS} chars`);
     }
 
-    // Prepare context for AI
-    const context = `
-МЕТАДАНІ ДОКУМЕНТА:
-- Назва: ${doc.title}
-- Категорія: ${CATEGORY_LABELS[doc.category] || doc.category}
-- Версія: ${doc.version || 'не вказано'}
-- Статус: ${STATUS_LABELS[doc.status] || doc.status}
-- Рівень доступу: ${ACCESS_LABELS[doc.access_level] || doc.access_level}
+    // ============ STAGE 1: Extract Facts as JSON ============
+    console.log('--- Stage 1: Extracting facts to JSON ---');
 
-ВИХІДНИЙ ТЕКСТ ДОКУМЕНТА:
-${extractedText}
-`;
-
-    console.log(`Sending to AI: ${context.length} characters`);
-
-    // Call Lovable AI Gateway
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const stage1Response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'openai/gpt-5',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: context }
+          {
+            role: 'user',
+            content: `${STAGE1_INSTRUCTIONS}
+
+=== МЕТАДАНІ ДОКУМЕНТА ===
+${metadataContext}
+
+=== ТЕКСТ ДОКУМЕНТА ДЛЯ АНАЛІЗУ ===
+${extractedText}
+
+=== КІНЕЦЬ ДОКУМЕНТА ===`,
+          },
         ],
       }),
     });
 
-    if (!aiResponse.ok) {
-      const status = aiResponse.status;
-      const errorText = await aiResponse.text();
-      console.error(`AI Gateway error: ${status}`, errorText);
+    if (!stage1Response.ok) {
+      const errorText = await stage1Response.text();
+      console.error(`Stage 1 API error: ${stage1Response.status} - ${errorText}`);
 
-      if (status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Перевищено ліміт запитів AI. Спробуйте через хвилину.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (stage1Response.status === 429) {
+        return new Response(JSON.stringify({
+          error: 'Перевищено ліміт запитів. Спробуйте пізніше.',
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-      if (status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Потрібно поповнити баланс Lovable AI.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      if (stage1Response.status === 402) {
+        return new Response(JSON.stringify({
+          error: 'Недостатньо кредитів AI. Зверніться до адміністратора.',
+        }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
       }
-
-      return new Response(
-        JSON.stringify({ error: 'Помилка AI сервісу. Спробуйте пізніше.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      throw new Error(`Stage 1 failed: ${stage1Response.status}`);
     }
 
-    const aiData = await aiResponse.json();
-    const generatedText = aiData.choices?.[0]?.message?.content;
+    const stage1Data = await stage1Response.json();
+    const factsJson = stage1Data.choices?.[0]?.message?.content || '';
+    console.log(`Stage 1 output length: ${factsJson.length} chars`);
 
-    if (!generatedText) {
-      console.error('No content in AI response:', aiData);
-      return new Response(
-        JSON.stringify({ error: 'AI не згенерував текст. Спробуйте ще раз.' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    // ============ STAGE 2: Generate Markdown from JSON ============
+    console.log('--- Stage 2: Generating Markdown from JSON ---');
 
-    console.log(`Generated text: ${generatedText.length} characters`);
+    const stage2Response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-5',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: `${STAGE2_INSTRUCTIONS}
 
-    return new Response(
-      JSON.stringify({ 
-        generatedText,
-        sourceInfo,
-        truncated,
+=== JSON ФАКТИ З ДОКУМЕНТА ===
+${factsJson}
+
+=== КІНЕЦЬ JSON ===`,
+          },
+        ],
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    });
+
+    if (!stage2Response.ok) {
+      const errorText = await stage2Response.text();
+      console.error(`Stage 2 API error: ${stage2Response.status} - ${errorText}`);
+
+      if (stage2Response.status === 429) {
+        return new Response(JSON.stringify({
+          error: 'Перевищено ліміт запитів. Спробуйте пізніше.',
+        }), {
+          status: 429,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (stage2Response.status === 402) {
+        return new Response(JSON.stringify({
+          error: 'Недостатньо кредитів AI. Зверніться до адміністратора.',
+        }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      throw new Error(`Stage 2 failed: ${stage2Response.status}`);
+    }
+
+    const stage2Data = await stage2Response.json();
+    const generatedText = stage2Data.choices?.[0]?.message?.content || '';
+    console.log(`Stage 2 output length: ${generatedText.length} chars`);
+    console.log('=== Generation complete ===');
+
+    return new Response(JSON.stringify({
+      generatedText,
+      source: textSource,
+      wasTruncated,
+      isTemplate: false,
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('Unexpected error:', error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unexpected error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error('KB Generate Index Text error:', error);
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 });
