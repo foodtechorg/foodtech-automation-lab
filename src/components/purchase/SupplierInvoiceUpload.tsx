@@ -125,11 +125,19 @@ export function SupplierInvoiceUpload({
   const handleDownload = async () => {
     if (!supplierInvoiceFile) return;
     setIsDownloading(true);
+    // Open window immediately to avoid Safari popup blocker
+    const newWindow = window.open('about:blank', '_blank');
+    
     try {
       const url = await getSignedUrl(supplierInvoiceFile.file_path);
-      window.open(url, '_blank');
+      if (newWindow) {
+        newWindow.location.href = url;
+      }
     } catch (error) {
       console.error('Download error:', error);
+      if (newWindow) {
+        newWindow.close();
+      }
       toast.error('Помилка завантаження файлу');
     } finally {
       setIsDownloading(false);

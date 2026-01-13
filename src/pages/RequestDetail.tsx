@@ -128,10 +128,18 @@ export default function RequestDetail() {
   const isAuthor = request?.author_email === profile?.email;
 
   const handleDownloadAttachment = async (attachment: RdAttachment) => {
+    // Open window immediately to avoid Safari popup blocker
+    const newWindow = window.open('about:blank', '_blank');
+    
     try {
       const url = await getRdSignedUrl(attachment.file_path);
-      window.open(url, '_blank');
+      if (newWindow) {
+        newWindow.location.href = url;
+      }
     } catch (error) {
+      if (newWindow) {
+        newWindow.close();
+      }
       toast.error('Помилка завантаження файлу');
     }
   };
