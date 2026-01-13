@@ -130,11 +130,7 @@ export default function RequestDetail() {
   const handleDownloadAttachment = async (attachment: RdAttachment) => {
     try {
       const url = await getRdSignedUrl(attachment.file_path);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = attachment.file_name;
-      link.target = '_blank';
-      link.click();
+      window.open(url, '_blank');
     } catch (error) {
       toast.error('Помилка завантаження файлу');
     }
@@ -1386,11 +1382,7 @@ export default function RequestDetail() {
               size="sm"
               onClick={() => {
                 if (previewImageUrl) {
-                  const link = document.createElement('a');
-                  link.href = previewImageUrl;
-                  link.download = previewImageName;
-                  link.target = '_blank';
-                  link.click();
+                  window.open(previewImageUrl, '_blank');
                 }
               }}
             >
