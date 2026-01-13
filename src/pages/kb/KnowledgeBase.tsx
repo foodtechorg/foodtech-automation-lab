@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { fetchKBDocuments, updateKBDocument, triggerKBIngest } from '@/services/kbApi';
 import { useToast } from '@/hooks/use-toast';
-import { KBCategory, KBStatus, KBIndexStatus, KB_CATEGORY_LABELS, KB_STATUS_LABELS, KB_INDEX_STATUS_LABELS } from '@/types/kb';
+import { KBCategory, KBStatus, KBIndexStatus, KBAccessLevel, KB_CATEGORY_LABELS, KB_STATUS_LABELS, KB_INDEX_STATUS_LABELS, KB_ACCESS_LEVEL_LABELS } from '@/types/kb';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 export default function KnowledgeBase() {
@@ -155,6 +155,7 @@ export default function KnowledgeBase() {
                 <TableHead>Категорія</TableHead>
                 <TableHead>Версія</TableHead>
                 <TableHead>Статус</TableHead>
+                <TableHead>Доступ</TableHead>
                 <TableHead>Індексація</TableHead>
                 <TableHead>Оновлено</TableHead>
                 <TableHead className="text-right">Дії</TableHead>
@@ -162,7 +163,7 @@ export default function KnowledgeBase() {
             </TableHeader>
             <TableBody>
               {filteredDocuments?.length === 0 ? <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                     Документів не знайдено
                   </TableCell>
                 </TableRow> : filteredDocuments?.map(doc => <TableRow key={doc.id}>
@@ -172,6 +173,11 @@ export default function KnowledgeBase() {
                     <TableCell>
                       <Badge variant={doc.status === 'active' ? 'default' : 'secondary'}>
                         {KB_STATUS_LABELS[doc.status as KBStatus]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={doc.access_level === 'open' ? 'outline' : 'secondary'}>
+                        {KB_ACCESS_LEVEL_LABELS[doc.access_level as KBAccessLevel] || doc.access_level}
                       </Badge>
                     </TableCell>
                     <TableCell>{getIndexStatusBadge(doc.index_status as KBIndexStatus)}</TableCell>

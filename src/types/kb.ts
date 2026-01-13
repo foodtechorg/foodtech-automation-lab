@@ -10,13 +10,15 @@ export type KBStatus = 'active' | 'archived';
 
 export type KBIndexStatus = 'not_indexed' | 'pending' | 'indexed' | 'error';
 
+export type KBAccessLevel = 'open' | 'restricted';
+
 export interface KBDocument {
   id: string;
   title: string;
   category: KBCategory;
   version: string | null;
   status: KBStatus;
-  access_level: string;
+  access_level: KBAccessLevel;
   storage_bucket: string | null;
   storage_path: string | null;
   mime_type: string | null;
@@ -34,6 +36,7 @@ export interface KBDocumentInsert {
   category: KBCategory;
   version?: string | null;
   status?: KBStatus;
+  access_level?: KBAccessLevel;
   storage_bucket?: string | null;
   storage_path?: string | null;
   mime_type?: string | null;
@@ -46,6 +49,7 @@ export interface KBDocumentUpdate {
   category?: KBCategory;
   version?: string | null;
   status?: KBStatus;
+  access_level?: KBAccessLevel;
   storage_bucket?: string | null;
   storage_path?: string | null;
   mime_type?: string | null;
@@ -74,4 +78,9 @@ export const KB_INDEX_STATUS_LABELS: Record<KBIndexStatus, string> = {
   pending: 'В обробці',
   indexed: 'Проіндексовано',
   error: 'Помилка',
+};
+
+export const KB_ACCESS_LEVEL_LABELS: Record<KBAccessLevel, string> = {
+  open: 'Відкритий доступ',
+  restricted: 'Обмежений доступ',
 };
