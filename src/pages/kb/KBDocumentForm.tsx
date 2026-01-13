@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Upload, X, Loader2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowLeft, X, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import {
   fetchKBDocument,
   createKBDocument,
@@ -43,6 +44,7 @@ export default function KBDocumentForm() {
   const [file, setFile] = useState<File | null>(null);
   const [existingFilePath, setExistingFilePath] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const userRole = profile?.role;
   const hasAccess = userRole === 'coo' || userRole === 'admin';
@@ -74,6 +76,63 @@ export default function KBDocumentForm() {
 
   const handleRemoveFile = () => {
     setFile(null);
+  };
+
+  const handleGenerateFromFile = async () => {
+    if (!id) {
+      toast({ 
+        title: 'Помилка', 
+        description: 'Спочатку збережіть документ', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    if (!existingFilePath && !rawText) {
+      toast({ 
+        title: 'Помилка', 
+        description: 'Завантажте файл або введіть текст для генерації', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('kb-generate-index-text', {
+        body: { document_id: id }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setRawText(data.generatedText);
+      
+      let description = 'Перевірте та відредагуйте за потреби.';
+      if (data.sourceInfo) {
+        description = `${data.sourceInfo}. ${description}`;
+      }
+      if (data.truncated) {
+        description += ' (Текст було скорочено через великий розмір)';
+      }
+      
+      toast({ 
+        title: 'Текст згенеровано', 
+        description 
+      });
+    } catch (error: any) {
+      console.error('Generate error:', error);
+      toast({ 
+        title: 'Помилка генерації', 
+        description: error.message || 'Не вдалося згенерувати текст', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -305,12 +364,35 @@ export default function KBDocumentForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="rawText">
-                Текст для індексації *
-                <span className="font-normal text-muted-foreground ml-2">
-                  (скопіюйте текст з документа)
-                </span>
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="rawText">
+                  Текст для індексації *
+                  <span className="font-normal text-muted-foreground ml-2">
+                    (або згенеруйте AI)
+                  </span>
+                </Label>
+                {isEdit && (existingFilePath || rawText) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleGenerateFromFile}
+                    disabled={isGenerating}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Генерую...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Згенерувати (AI) з файлу
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
               <Textarea
                 id="rawText"
                 value={rawText}
@@ -320,8 +402,8 @@ export default function KBDocumentForm() {
                 required
               />
               <p className="text-xs text-muted-foreground">
-                На MVP етапі текст потрібно заповнювати вручну. Цей текст буде розбито на чанки
-                та проіндексовано для пошуку через Telegram-бота.
+                Цей текст буде розбито на чанки та проіндексовано для пошуку через Telegram-бота.
+                {isEdit && ' Натисніть кнопку "Згенерувати (AI) з файлу" для автоматичного створення структурованого тексту.'}
               </p>
             </div>
           </CardContent>

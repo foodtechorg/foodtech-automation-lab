@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.kb-trigger-ingest]
 verify_jwt = false
+
+[functions.kb-generate-index-text]
+verify_jwt = false
