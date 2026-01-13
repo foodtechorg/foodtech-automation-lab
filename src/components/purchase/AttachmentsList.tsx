@@ -52,13 +52,7 @@ export function AttachmentsList({
         throw new Error(`Файл не знайдено (HTTP ${response.status})`);
       }
       
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = attachment.file_name;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      window.open(url, '_blank');
     } catch (error: any) {
       console.error('Download error:', error);
       const message = error?.message || 'Невідома помилка';

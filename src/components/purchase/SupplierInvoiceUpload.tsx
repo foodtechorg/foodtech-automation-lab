@@ -127,12 +127,7 @@ export function SupplierInvoiceUpload({
     setIsDownloading(true);
     try {
       const url = await getSignedUrl(supplierInvoiceFile.file_path);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = supplierInvoiceFile.file_name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      window.open(url, '_blank');
     } catch (error) {
       console.error('Download error:', error);
       toast.error('Помилка завантаження файлу');
