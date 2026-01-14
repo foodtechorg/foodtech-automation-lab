@@ -161,12 +161,12 @@ export default function PurchaseRequestDetail() {
     if (!id) return;
     setIsSubmitting(true);
     try {
-      await updatePurchaseRequestStatus(id, 'PENDING_APPROVAL');
-      setRequest(prev => prev ? { ...prev, status: 'PENDING_APPROVAL' } : null);
-      toast.success('Заявку відправлено на погодження');
+      await updatePurchaseRequestStatus(id, 'IN_PROGRESS');
+      setRequest(prev => prev ? { ...prev, status: 'IN_PROGRESS' } : null);
+      toast.success('Заявку відправлено в роботу');
     } catch (err) {
       console.error(err);
-      toast.error('Помилка при відправці на погодження');
+      toast.error('Помилка при відправці в роботу');
     } finally {
       setIsSubmitting(false);
     }
@@ -318,7 +318,7 @@ export default function PurchaseRequestDetail() {
               ) : (
                 <Send className="mr-2 h-4 w-4" />
               )}
-              Відправити на погодження
+              Відправити в роботу
             </Button>
             
             <AlertDialog>
@@ -350,56 +350,7 @@ export default function PurchaseRequestDetail() {
           </div>
         )}
 
-        {/* COO Approval actions */}
-        {isCOO && isPendingApproval && (
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={handleApprove}
-              disabled={isApproving}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isApproving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Check className="mr-2 h-4 w-4" />
-              )}
-              Погодити
-            </Button>
-            
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="destructive" disabled={isRejecting}>
-                  {isRejecting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <X className="mr-2 h-4 w-4" />
-                  )}
-                  Відхилити
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Відхилити заявку?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Ви впевнені, що хочете відхилити заявку {request.number}?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <Textarea
-                  placeholder="Коментар (необов'язково)"
-                  value={rejectComment}
-                  onChange={(e) => setRejectComment(e.target.value)}
-                  className="my-2"
-                />
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Скасувати</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleReject}>
-                    Відхилити
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
-        )}
+        {/* COO Approval actions removed - requests are auto-approved */}
 
         {/* Procurement Manager actions for IN_PROGRESS requests */}
         {isProcurementManager && isInProgress && hasRemainingQuantities && (

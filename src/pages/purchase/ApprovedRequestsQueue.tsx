@@ -117,14 +117,8 @@ export default function ApprovedRequestsQueue() {
   }
 
   async function loadCOOQueue() {
-    // Load PENDING_APPROVAL requests
-    const { data: requestsData, error: reqError } = await supabase
-      .from('purchase_requests')
-      .select('*')
-      .eq('status', 'PENDING_APPROVAL')
-      .order('created_at', { ascending: false });
-
-    if (reqError) throw reqError;
+    // Requests are now auto-approved, COO only approves invoices
+    setPendingApprovalRequests([]);
 
     // Load PENDING_COO invoices where COO hasn't decided yet
     const { data: invoicesData, error: invError } = await supabase
@@ -136,27 +130,17 @@ export default function ApprovedRequestsQueue() {
 
     if (invError) throw invError;
 
-    // Get creator profiles for requests
-    const reqCreatorIds = [...new Set((requestsData || []).map(r => r.created_by))];
+    // Get creator profiles for invoices
     const invCreatorIds = [...new Set((invoicesData || []).map(i => i.created_by))];
-    const allCreatorIds = [...new Set([...reqCreatorIds, ...invCreatorIds])];
 
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, name, email')
-      .in('id', allCreatorIds);
+    const { data: profiles } = invCreatorIds.length > 0
+      ? await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', invCreatorIds)
+      : { data: [] as { id: string; name: string | null; email: string }[] };
 
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-    // Enrich requests
-    const enrichedRequests: RequestWithCreator[] = (requestsData || []).map(req => {
-      const profile = profileMap.get(req.created_by);
-      return {
-        ...req,
-        creator_name: profile?.name || profile?.email || 'Невідомий',
-        creator_email: profile?.email || '',
-      };
-    });
+    const profileMap = new Map(profiles?.map(p => [p.id, p] as const) || []);
 
     // For invoices, get requester info from linked purchase_requests
     const invoiceRequestIds = [...new Set((invoicesData || []).filter(i => i.request_id).map(i => i.request_id!))];
@@ -200,7 +184,6 @@ export default function ApprovedRequestsQueue() {
       };
     });
 
-    setPendingApprovalRequests(enrichedRequests);
     setPendingCOOInvoices(enrichedInvoices);
   }
 
