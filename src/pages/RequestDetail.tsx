@@ -175,9 +175,19 @@ export default function RequestDetail() {
 
   const canEditRequest = 
     (request?.status === 'PENDING' || request?.status === 'IN_PROGRESS') && 
-    (profile?.role === 'rd_manager' || profile?.role === 'admin' || 
-     profile?.role === 'ceo' || profile?.role === 'coo' || 
-     profile?.role === 'quality_manager' || profile?.role === 'admin_director');
+    (
+      // Management roles can always edit PENDING/IN_PROGRESS requests
+      profile?.role === 'rd_manager' || 
+      profile?.role === 'admin' || 
+      profile?.role === 'ceo' || 
+      profile?.role === 'coo' || 
+      profile?.role === 'quality_manager' || 
+      profile?.role === 'admin_director' ||
+      // Developers can edit their own assigned IN_PROGRESS requests
+      (profile?.role === 'rd_dev' && 
+       request?.status === 'IN_PROGRESS' && 
+       request?.responsible_email === profile?.email)
+    );
 
   const canProvideFeedback = 
     request?.status === 'SENT_FOR_TEST' && 
