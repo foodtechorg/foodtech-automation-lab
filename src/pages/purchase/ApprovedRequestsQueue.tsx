@@ -442,9 +442,11 @@ export default function ApprovedRequestsQueue() {
     setToPayInvoices(enrichedInvoices);
   }
 
-  const formatDate = (dateStr: string | null) => {
+  const formatDate = (dateStr: string | null | undefined) => {
     if (!dateStr) return '—';
-    return format(new Date(dateStr), 'dd.MM.yyyy', { locale: uk });
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '—';
+    return format(date, 'dd.MM.yyyy', { locale: uk });
   };
 
   const formatCurrency = (amount: number, currency: string) => {
