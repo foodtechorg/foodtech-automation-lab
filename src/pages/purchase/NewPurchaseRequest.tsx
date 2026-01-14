@@ -140,8 +140,8 @@ export default function NewPurchaseRequest() {
 
       // 4. Update status if submitting for approval
       if (submitForApproval) {
-        await updatePurchaseRequestStatus(newRequest.id, 'PENDING_APPROVAL');
-        toast.success('Заявку відправлено на погодження');
+        await updatePurchaseRequestStatus(newRequest.id, 'IN_PROGRESS');
+        toast.success('Заявку відправлено в роботу');
       } else {
         toast.success('Чернетку збережено');
       }
@@ -347,7 +347,7 @@ export default function NewPurchaseRequest() {
               disabled={submitting}
             >
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Відправити на погодження
+              Відправити в роботу
             </Button>
             <Button
               type="button"
