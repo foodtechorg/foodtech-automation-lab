@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import type { KBDocument } from '@/types/kb';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, FileText, Eye, Edit, Archive, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,6 +30,8 @@ export default function KnowledgeBase() {
   const [indexStatusFilter, setIndexStatusFilter] = useState<KBIndexStatus | 'all'>('all');
   const userRole = profile?.role;
   const hasAccess = userRole === 'coo' || userRole === 'admin';
+  const queryClient = useQueryClient();
+
   const {
     data: documents,
     isLoading,
@@ -37,6 +41,39 @@ export default function KnowledgeBase() {
     queryFn: fetchKBDocuments,
     enabled: hasAccess
   });
+
+  // Realtime підписка на зміни kb_documents для миттєвого оновлення статусу індексації
+  useEffect(() => {
+    if (!hasAccess) return;
+
+    const channel = supabase
+      .channel('kb-documents-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'kb_documents',
+        },
+        (payload) => {
+          console.log('KB document updated via realtime:', payload.new);
+          const updatedDoc = payload.new as KBDocument;
+          
+          // Оновлюємо кеш React Query напряму без повного refetch
+          queryClient.setQueryData(['kb-documents'], (old: KBDocument[] | undefined) => {
+            if (!old) return old;
+            return old.map(doc => 
+              doc.id === updatedDoc.id ? { ...doc, ...updatedDoc } : doc
+            );
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [hasAccess, queryClient]);
   if (!hasAccess) {
     return <div className="flex items-center justify-center h-[60vh]">
         <div className="text-center">
