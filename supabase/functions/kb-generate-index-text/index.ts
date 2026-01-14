@@ -381,8 +381,22 @@ serve(async (req) => {
     let extractedText = '';
     let fileSize = 0;
     let textSource = 'none';
+    let fileExtractedText = '';
 
-    if (doc.storage_bucket && doc.storage_path) {
+    // ============ ПРІОРИТЕТ 1: raw_text поле (якщо заповнене та якісне) ============
+    if (doc.raw_text && doc.raw_text.trim().length > 500) {
+      const rawTextQuality = checkTextQuality(doc.raw_text);
+      if (!rawTextQuality.isLowQuality) {
+        extractedText = doc.raw_text;
+        textSource = 'raw_text_field';
+        console.log(`Using raw_text field (${doc.raw_text.length} chars) - good quality`);
+      } else {
+        console.log(`raw_text field has low quality: ${rawTextQuality.reason}`);
+      }
+    }
+
+    // ============ ПРІОРИТЕТ 2: Витягування з файлу (якщо raw_text недоступний/неякісний) ============
+    if (!extractedText && doc.storage_bucket && doc.storage_path) {
       try {
         const { data: fileData, error: downloadError } = await supabaseAdmin.storage
           .from(doc.storage_bucket)
@@ -398,24 +412,58 @@ serve(async (req) => {
           const uint8Array = new Uint8Array(arrayBuffer);
           const mimeType = doc.mime_type || '';
 
+          // Текстові та XML файли - добре витягуються
           if (mimeType.includes('text/plain') || mimeType.includes('text/xml') || mimeType.includes('application/xml')) {
-            extractedText = new TextDecoder('utf-8').decode(uint8Array);
+            fileExtractedText = new TextDecoder('utf-8').decode(uint8Array);
             textSource = 'text/xml';
-          } else if (mimeType.includes('application/pdf')) {
-            extractedText = extractTextFromPDF(uint8Array);
+          } 
+          // PDF - примітивне витягування (часто неякісне)
+          else if (mimeType.includes('application/pdf')) {
+            fileExtractedText = extractTextFromPDF(uint8Array);
             textSource = 'pdf';
-          } else if (mimeType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml')) {
-            extractedText = extractTextFromDOCX(uint8Array);
+            console.log(`PDF extraction result: ${fileExtractedText.length} chars`);
+            // Перевірка якості PDF витягування
+            if (fileExtractedText.length < 200) {
+              console.log('PDF extraction produced minimal text - likely compressed/scanned');
+            }
+          } 
+          // DOCX - може не працювати без розпакування ZIP
+          else if (mimeType.includes('application/vnd.openxmlformats-officedocument.wordprocessingml')) {
+            fileExtractedText = extractTextFromDOCX(uint8Array);
             textSource = 'docx';
-          } else if (mimeType.includes('image/')) {
+            console.log(`DOCX extraction result: ${fileExtractedText.length} chars`);
+          } 
+          // Зображення - потребують OCR
+          else if (mimeType.includes('image/')) {
             textSource = 'image';
-            console.log('Image file detected - OCR not available');
-          } else if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
+            console.log('Image file detected - OCR not available, will use template');
+          } 
+          // Excel - складна структура
+          else if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
             textSource = 'xlsx';
-            console.log('Excel file detected - extraction limited');
-          } else {
-            extractedText = new TextDecoder('utf-8', { fatal: false }).decode(uint8Array);
+            console.log('Excel file detected - extraction not supported, will use template');
+          } 
+          // Інші файли
+          else {
+            fileExtractedText = new TextDecoder('utf-8', { fatal: false }).decode(uint8Array);
             textSource = 'generic';
+          }
+
+          // Використовуємо витягнутий текст якщо він якісний
+          if (fileExtractedText) {
+            const fileQuality = checkTextQuality(fileExtractedText);
+            if (!fileQuality.isLowQuality) {
+              extractedText = fileExtractedText;
+              console.log(`File extraction successful: ${extractedText.length} chars`);
+            } else {
+              console.log(`File extraction low quality: ${fileQuality.reason}`);
+              // Спробуємо raw_text як fallback навіть якщо він коротший
+              if (doc.raw_text && doc.raw_text.trim().length > 100) {
+                extractedText = doc.raw_text;
+                textSource = 'raw_text_fallback';
+                console.log(`Falling back to raw_text: ${extractedText.length} chars`);
+              }
+            }
           }
         }
       } catch (e) {
@@ -423,9 +471,11 @@ serve(async (req) => {
       }
     }
 
+    // ============ ПРІОРИТЕТ 3: Будь-який raw_text як останній варіант ============
     if (!extractedText && doc.raw_text) {
       extractedText = doc.raw_text;
-      textSource = 'raw_text_field';
+      textSource = 'raw_text_last_resort';
+      console.log(`Using raw_text as last resort: ${extractedText.length} chars`);
     }
 
     extractedText = cleanText(extractedText);
