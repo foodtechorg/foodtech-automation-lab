@@ -474,27 +474,31 @@ export default function PurchaseInvoiceDetail() {
     if (!id || !user?.id) return;
     setIsRejecting(true);
     try {
-      const updates: Partial<PurchaseInvoice> =
-        role === "COO"
-          ? {
-              coo_decision: "REJECTED",
-              coo_decided_by: user.id,
-              coo_decided_at: new Date().toISOString(),
-              coo_comment: rejectComment || null,
-              status: "REJECTED",
-            }
-          : {
-              ceo_decision: "REJECTED",
-              ceo_decided_by: user.id,
-              ceo_decided_at: new Date().toISOString(),
-              ceo_comment: rejectComment || null,
-              status: "REJECTED",
-            };
+      // Return to DRAFT and reset all decisions for resubmission
+      const updates: Partial<PurchaseInvoice> = {
+        status: "DRAFT",
+        // Reset both COO and CEO decisions
+        coo_decision: "PENDING",
+        coo_decided_by: null,
+        coo_decided_at: null,
+        ceo_decision: "PENDING",
+        ceo_decided_by: null,
+        ceo_decided_at: null,
+      };
+      
+      // Keep the rejection comment for the person who rejected
+      if (role === "COO") {
+        updates.coo_comment = rejectComment || null;
+        updates.ceo_comment = null; // Clear CEO comment on new rejection
+      } else {
+        updates.ceo_comment = rejectComment || null;
+        updates.coo_comment = null; // Clear COO comment on new rejection
+      }
 
       await updatePurchaseInvoice(id, updates);
       await logPurchaseEvent("INVOICE", id, `${role}_REJECTED`, rejectComment || undefined);
       setInvoice((prev) => (prev ? { ...prev, ...updates } : null));
-      toast.success("Рахунок відхилено");
+      toast.success("Рахунок відхилено та повернуто на доопрацювання");
       setRejectComment("");
     } catch (err) {
       console.error(err);
@@ -905,8 +909,31 @@ export default function PurchaseInvoiceDetail() {
         </CardContent>
       </Card>
 
+      {/* Rejection Comment for DRAFT - show when invoice was returned for revision */}
+      {isDraft && (invoice.coo_comment || invoice.ceo_comment) && (
+        <Card className="border-amber-500">
+          <CardHeader>
+            <CardTitle className="text-amber-600">Коментар до відхилення</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {invoice.coo_comment && (
+              <div className="mb-2">
+                <p className="text-sm font-medium text-muted-foreground">COO:</p>
+                <p className="whitespace-pre-wrap">{invoice.coo_comment}</p>
+              </div>
+            )}
+            {invoice.ceo_comment && (
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">CEO:</p>
+                <p className="whitespace-pre-wrap">{invoice.ceo_comment}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Approval Status */}
-      {(invoice.coo_decision !== "PENDING" || invoice.ceo_decision !== "PENDING") && (
+      {!isDraft && (invoice.coo_decision !== "PENDING" || invoice.ceo_decision !== "PENDING") && (
         <Card>
           <CardHeader>
             <CardTitle>Статус погодження</CardTitle>

@@ -608,25 +608,30 @@ export default function ApprovedRequestsQueue() {
     }
   };
 
-  // COO - reject invoice
+  // COO - reject invoice (return to DRAFT for revision)
   const handleRejectInvoiceCOO = async (invoiceId: string) => {
     setProcessingId(invoiceId);
     try {
       const { error } = await supabase
         .from('purchase_invoices')
         .update({
-          status: 'REJECTED',
-          coo_decision: 'REJECTED',
-          coo_decided_by: user?.id,
-          coo_decided_at: new Date().toISOString(),
+          status: 'DRAFT',
+          // Reset both decisions for resubmission
+          coo_decision: 'PENDING',
+          coo_decided_by: null,
+          coo_decided_at: null,
           coo_comment: rejectComment || null,
+          ceo_decision: 'PENDING',
+          ceo_decided_by: null,
+          ceo_decided_at: null,
+          ceo_comment: null,
         })
         .eq('id', invoiceId);
 
       if (error) throw error;
 
       await logPurchaseEvent('INVOICE', invoiceId, 'REJECTED_BY_COO', rejectComment || undefined);
-      toast.success('Рахунок відхилено');
+      toast.success('Рахунок відхилено та повернуто на доопрацювання');
       setRejectComment('');
       await loadQueueData();
     } catch (err) {
@@ -676,17 +681,22 @@ export default function ApprovedRequestsQueue() {
     }
   };
 
-  // CEO - reject invoice
+  // CEO - reject invoice (return to DRAFT for revision)
   const handleRejectInvoiceCEO = async (invoiceId: string) => {
     setProcessingId(invoiceId);
     try {
       const { error } = await supabase
         .from('purchase_invoices')
         .update({
-          status: 'REJECTED',
-          ceo_decision: 'REJECTED',
-          ceo_decided_by: user?.id,
-          ceo_decided_at: new Date().toISOString(),
+          status: 'DRAFT',
+          // Reset both decisions for resubmission
+          coo_decision: 'PENDING',
+          coo_decided_by: null,
+          coo_decided_at: null,
+          coo_comment: null,
+          ceo_decision: 'PENDING',
+          ceo_decided_by: null,
+          ceo_decided_at: null,
           ceo_comment: rejectComment || null,
         })
         .eq('id', invoiceId);
@@ -694,7 +704,7 @@ export default function ApprovedRequestsQueue() {
       if (error) throw error;
 
       await logPurchaseEvent('INVOICE', invoiceId, 'REJECTED_BY_CEO', rejectComment || undefined);
-      toast.success('Рахунок відхилено');
+      toast.success('Рахунок відхилено та повернуто на доопрацювання');
       setRejectComment('');
       await loadQueueData();
     } catch (err) {
