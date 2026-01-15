@@ -31,7 +31,7 @@ import { uk } from 'date-fns/locale';
 import { PurchaseNavTabs } from '@/components/purchase/PurchaseNavTabs';
 import { PurchasePageHeader } from '@/components/purchase/PurchasePageHeader';
 import { createPurchaseInvoice, createPurchaseInvoiceItems, logPurchaseEvent, updatePurchaseInvoice } from '@/services/invoiceApi';
-import { getPurchaseRequestItems, updatePurchaseRequestStatus } from '@/services/purchaseApi';
+import { getPurchaseRequestItems, updatePurchaseRequestStatus, syncRequestStatusFromInvoice } from '@/services/purchaseApi';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -576,7 +576,7 @@ export default function ApprovedRequestsQueue() {
       // Fetch current invoice to check CEO decision
       const { data: invoice, error: fetchError } = await supabase
         .from('purchase_invoices')
-        .select('ceo_decision')
+        .select('ceo_decision, request_id')
         .eq('id', invoiceId)
         .single();
 
@@ -598,6 +598,12 @@ export default function ApprovedRequestsQueue() {
       if (error) throw error;
 
       await logPurchaseEvent('INVOICE', invoiceId, 'APPROVED_BY_COO');
+      
+      // Sync request status if fully approved
+      if (newStatus === 'TO_PAY' && invoice?.request_id) {
+        await syncRequestStatusFromInvoice(invoice.request_id, 'TO_PAY');
+      }
+      
       toast.success(newStatus === 'TO_PAY' ? 'Рахунок повністю погоджено' : 'Рахунок погоджено COO');
       await loadQueueData();
     } catch (err) {
@@ -649,7 +655,7 @@ export default function ApprovedRequestsQueue() {
       // Fetch current invoice to check COO decision
       const { data: invoice, error: fetchError } = await supabase
         .from('purchase_invoices')
-        .select('coo_decision')
+        .select('coo_decision, request_id')
         .eq('id', invoiceId)
         .single();
 
@@ -671,6 +677,12 @@ export default function ApprovedRequestsQueue() {
       if (error) throw error;
 
       await logPurchaseEvent('INVOICE', invoiceId, 'APPROVED_BY_CEO');
+      
+      // Sync request status if fully approved
+      if (newStatus === 'TO_PAY' && invoice?.request_id) {
+        await syncRequestStatusFromInvoice(invoice.request_id, 'TO_PAY');
+      }
+      
       toast.success(newStatus === 'TO_PAY' ? 'Рахунок повністю погоджено' : 'Рахунок погоджено CEO');
       await loadQueueData();
     } catch (err) {
@@ -719,6 +731,13 @@ export default function ApprovedRequestsQueue() {
   const handleMarkPaid = async (invoiceId: string) => {
     setProcessingId(invoiceId);
     try {
+      // First get the invoice to get request_id
+      const { data: invoice } = await supabase
+        .from('purchase_invoices')
+        .select('request_id')
+        .eq('id', invoiceId)
+        .single();
+      
       const { error } = await supabase
         .from('purchase_invoices')
         .update({
@@ -730,6 +749,12 @@ export default function ApprovedRequestsQueue() {
       if (error) throw error;
 
       await logPurchaseEvent('INVOICE', invoiceId, 'MARKED_PAID');
+      
+      // Sync request status to COMPLETED
+      if (invoice?.request_id) {
+        await syncRequestStatusFromInvoice(invoice.request_id, 'PAID');
+      }
+      
       toast.success('Рахунок позначено як оплачений');
       await loadQueueData();
     } catch (err) {

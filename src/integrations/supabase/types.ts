@@ -998,6 +998,9 @@ export type Database = {
         | "DRAFT"
         | "PENDING_APPROVAL"
         | "IN_PROGRESS"
+        | "INVOICE_PENDING"
+        | "DELIVERING"
+        | "COMPLETED"
         | "REJECTED"
       purchase_type: "TMC" | "SERVICE"
       status:
@@ -1205,6 +1208,9 @@ export const Constants = {
         "DRAFT",
         "PENDING_APPROVAL",
         "IN_PROGRESS",
+        "INVOICE_PENDING",
+        "DELIVERING",
+        "COMPLETED",
         "REJECTED",
       ],
       purchase_type: ["TMC", "SERVICE"],
