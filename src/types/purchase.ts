@@ -3,7 +3,7 @@
 
 export type PurchaseType = 'TMC' | 'SERVICE';
 
-export type PurchaseRequestStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'IN_PROGRESS' | 'REJECTED';
+export type PurchaseRequestStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'IN_PROGRESS' | 'INVOICE_PENDING' | 'DELIVERING' | 'COMPLETED' | 'REJECTED';
 
 export type PurchaseInvoiceStatus = 'DRAFT' | 'PENDING_COO' | 'PENDING_CEO' | 'TO_PAY' | 'PAID' | 'DELIVERED' | 'REJECTED';
 

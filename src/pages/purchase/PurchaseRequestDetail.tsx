@@ -40,6 +40,9 @@ const statusLabels: Record<PurchaseRequestStatus, string> = {
   DRAFT: 'Чернетка',
   PENDING_APPROVAL: 'На погодженні',
   IN_PROGRESS: 'В роботі',
+  INVOICE_PENDING: 'Рахунок на погодженні',
+  DELIVERING: 'Доставляється',
+  COMPLETED: 'Виконана',
   REJECTED: 'Відхилено',
 };
 
@@ -47,6 +50,9 @@ const statusVariants: Record<PurchaseRequestStatus, 'default' | 'secondary' | 'd
   DRAFT: 'secondary',
   PENDING_APPROVAL: 'outline',
   IN_PROGRESS: 'default',
+  INVOICE_PENDING: 'outline',
+  DELIVERING: 'default',
+  COMPLETED: 'default',
   REJECTED: 'destructive',
 };
 

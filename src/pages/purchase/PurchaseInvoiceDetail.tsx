@@ -49,7 +49,7 @@ import {
   recalculateInvoiceTotal,
   getInvoicedQuantitiesByRequestId,
 } from "@/services/invoiceApi";
-import { getPurchaseRequestItems } from "@/services/purchaseApi";
+import { getPurchaseRequestItems, syncRequestStatusFromInvoice } from "@/services/purchaseApi";
 import { getAttachments, type Attachment } from "@/services/attachmentService";
 import { AttachmentsList } from "@/components/purchase/AttachmentsList";
 import { FileUploadZone } from "@/components/purchase/FileUploadZone";
@@ -378,6 +378,12 @@ export default function PurchaseInvoiceDetail() {
         status: "PENDING_COO",
       });
       await logPurchaseEvent("INVOICE", id, "SUBMITTED_FOR_APPROVAL");
+      
+      // Sync request status to INVOICE_PENDING
+      if (invoice?.request_id) {
+        await syncRequestStatusFromInvoice(invoice.request_id, "PENDING_COO");
+      }
+      
       setInvoice((prev) => (prev ? { ...prev, status: "PENDING_COO" } : null));
       toast.success("Рахунок відправлено на погодження");
     } catch (err) {
@@ -416,6 +422,12 @@ export default function PurchaseInvoiceDetail() {
         status: newStatus,
       });
       await logPurchaseEvent("INVOICE", id, "COO_APPROVED");
+      
+      // Sync request status if fully approved
+      if (newStatus === "TO_PAY" && invoice?.request_id) {
+        await syncRequestStatusFromInvoice(invoice.request_id, "TO_PAY");
+      }
+      
       setInvoice((prev) =>
         prev
           ? {
@@ -450,6 +462,12 @@ export default function PurchaseInvoiceDetail() {
         status: newStatus,
       });
       await logPurchaseEvent("INVOICE", id, "CEO_APPROVED");
+      
+      // Sync request status if fully approved
+      if (newStatus === "TO_PAY" && invoice?.request_id) {
+        await syncRequestStatusFromInvoice(invoice.request_id, "TO_PAY");
+      }
+      
       setInvoice((prev) =>
         prev
           ? {
@@ -517,6 +535,12 @@ export default function PurchaseInvoiceDetail() {
         paid_date: new Date().toISOString(),
       });
       await logPurchaseEvent("INVOICE", id, "MARKED_PAID");
+      
+      // Sync request status to COMPLETED
+      if (invoice?.request_id) {
+        await syncRequestStatusFromInvoice(invoice.request_id, "PAID");
+      }
+      
       setInvoice((prev) => (prev ? { ...prev, status: "PAID", paid_date: new Date().toISOString() } : null));
       toast.success("Рахунок позначено як оплачений");
     } catch (err) {

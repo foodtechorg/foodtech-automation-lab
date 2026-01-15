@@ -133,3 +133,70 @@ export async function deletePurchaseRequest(id: string): Promise<void> {
     throw error;
   }
 }
+
+// Sync request status based on invoice status changes
+// This function updates the purchase request status to reflect the overall progress
+export async function syncRequestStatusFromInvoice(
+  requestId: string,
+  newInvoiceStatus: string
+): Promise<void> {
+  // Determine the new request status based on invoice status
+  let newRequestStatus: string | null = null;
+
+  switch (newInvoiceStatus) {
+    case 'PENDING_COO':
+    case 'PENDING_CEO':
+      newRequestStatus = 'INVOICE_PENDING';
+      break;
+    case 'TO_PAY':
+    case 'DELIVERED':
+      newRequestStatus = 'DELIVERING';
+      break;
+    case 'PAID':
+      newRequestStatus = 'COMPLETED';
+      break;
+    default:
+      // For DRAFT or REJECTED, don't change request status
+      return;
+  }
+
+  if (newRequestStatus) {
+    // Check current request status - only update if it makes sense
+    const { data: request, error: fetchError } = await (supabase as any)
+      .from('purchase_requests')
+      .select('status')
+      .eq('id', requestId)
+      .single();
+
+    if (fetchError || !request) {
+      console.error('Error fetching request for status sync:', fetchError);
+      return;
+    }
+
+    // Define status priority (higher = more progress)
+    const statusPriority: Record<string, number> = {
+      'DRAFT': 0,
+      'PENDING_APPROVAL': 1,
+      'IN_PROGRESS': 2,
+      'INVOICE_PENDING': 3,
+      'DELIVERING': 4,
+      'COMPLETED': 5,
+      'REJECTED': -1,
+    };
+
+    const currentPriority = statusPriority[request.status] ?? 0;
+    const newPriority = statusPriority[newRequestStatus] ?? 0;
+
+    // Only update if the new status represents more progress
+    if (newPriority > currentPriority) {
+      const { error } = await (supabase as any)
+        .from('purchase_requests')
+        .update({ status: newRequestStatus })
+        .eq('id', requestId);
+
+      if (error) {
+        console.error('Error syncing request status:', error);
+      }
+    }
+  }
+}
