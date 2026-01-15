@@ -84,7 +84,7 @@ export default function ApprovedRequestsQueue() {
   const isCOO = profile?.role === 'coo' || profile?.role === 'admin';
   const isCEO = profile?.role === 'ceo' || profile?.role === 'admin';
   const isProcurementManager = profile?.role === 'procurement_manager' || profile?.role === 'admin';
-  const isTreasurer = profile?.role === 'treasurer' || profile?.role === 'chief_accountant' || profile?.role === 'admin';
+  const isTreasurer = profile?.role === 'treasurer' || profile?.role === 'chief_accountant' || profile?.role === 'accountant' || profile?.role === 'admin';
 
   useEffect(() => {
     loadQueueData();
