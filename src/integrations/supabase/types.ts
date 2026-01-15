@@ -930,6 +930,10 @@ export type Database = {
         }
         Returns: string
       }
+      reject_purchase_invoice: {
+        Args: { p_comment: string; p_invoice_id: string; p_role: string }
+        Returns: Json
+      }
     }
     Enums: {
       app_role:
