@@ -490,37 +490,47 @@ export default function PurchaseInvoiceDetail() {
 
   const handleReject = async (role: "COO" | "CEO") => {
     if (!id || !user?.id) return;
+    
+    // Validate comment is not empty
+    if (!rejectComment.trim()) {
+      toast.error("Коментар обов'язковий для відхилення");
+      return;
+    }
+    
     setIsRejecting(true);
     try {
-      // Return to DRAFT and reset all decisions for resubmission
+      // Use RPC function for rejection (bypasses RLS issues)
+      const { data, error } = await supabase.rpc('reject_purchase_invoice', {
+        p_invoice_id: id,
+        p_role: role,
+        p_comment: rejectComment.trim(),
+      });
+
+      if (error) {
+        console.error('Rejection RPC error:', error);
+        toast.error(`Помилка: ${error.message} (${error.code || 'unknown'})`);
+        return;
+      }
+
+      // Update local state from RPC response
       const updates: Partial<PurchaseInvoice> = {
         status: "DRAFT",
-        // Reset both COO and CEO decisions
         coo_decision: "PENDING",
         coo_decided_by: null,
         coo_decided_at: null,
         ceo_decision: "PENDING",
         ceo_decided_by: null,
         ceo_decided_at: null,
+        coo_comment: role === "COO" ? rejectComment.trim() : null,
+        ceo_comment: role === "CEO" ? rejectComment.trim() : null,
       };
-      
-      // Keep the rejection comment for the person who rejected
-      if (role === "COO") {
-        updates.coo_comment = rejectComment || null;
-        updates.ceo_comment = null; // Clear CEO comment on new rejection
-      } else {
-        updates.ceo_comment = rejectComment || null;
-        updates.coo_comment = null; // Clear COO comment on new rejection
-      }
 
-      await updatePurchaseInvoice(id, updates);
-      await logPurchaseEvent("INVOICE", id, `${role}_REJECTED`, rejectComment || undefined);
       setInvoice((prev) => (prev ? { ...prev, ...updates } : null));
       toast.success("Рахунок відхилено та повернуто на доопрацювання");
       setRejectComment("");
-    } catch (err) {
-      console.error(err);
-      toast.error("Помилка при відхиленні");
+    } catch (err: any) {
+      console.error('Rejection error:', err);
+      toast.error(`Помилка при відхиленні: ${err?.message || 'невідома помилка'}`);
     } finally {
       setIsRejecting(false);
     }
