@@ -19,17 +19,28 @@ Deno.serve(async (req) => {
 
     // Verify the requesting user is an admin
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
       throw new Error('Missing authorization header');
     }
 
-    const { data: { user: requestingUser }, error: authError } = await supabaseAdmin.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
+    const token = authHeader.replace('Bearer ', '');
+    console.log('Token length:', token.length);
 
-    if (authError || !requestingUser) {
-      throw new Error('Unauthorized');
+    const { data: { user: requestingUser }, error: authError } = await supabaseAdmin.auth.getUser(token);
+
+    if (authError) {
+      console.error('Auth error:', authError.message, authError.code);
+      throw new Error(`Unauthorized: ${authError.message}`);
     }
+
+    if (!requestingUser) {
+      console.error('No user returned from getUser');
+      throw new Error('Unauthorized: No user found');
+    }
+
+    console.log('Requesting user:', requestingUser.id, requestingUser.email);
 
     // Check if requesting user is admin
     const { data: adminRole } = await supabaseAdmin

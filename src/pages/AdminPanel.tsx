@@ -81,10 +81,22 @@ export default function AdminPanel() {
     }
   };
 
+  // Helper to invoke edge functions with fresh auth token
+  const invokeWithAuth = async (functionName: string, body: object) => {
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError || !session) {
+      throw new Error('Сесія недійсна. Будь ласка, увійдіть знову.');
+    }
+    return supabase.functions.invoke(functionName, {
+      body,
+      headers: { Authorization: `Bearer ${session.access_token}` }
+    });
+  };
+
   const handleDeleteUser = async () => {
     if (!deleteDialog.userId) return;
     try {
-      const { error } = await supabase.functions.invoke('delete-user', { body: { userId: deleteDialog.userId } });
+      const { error } = await invokeWithAuth('delete-user', { userId: deleteDialog.userId });
       if (error) throw error;
       toast({ title: 'Успіх', description: `Користувача видалено` });
       fetchUsers();
@@ -97,7 +109,7 @@ export default function AdminPanel() {
 
   const handleResetPassword = async (userId: string) => {
     try {
-      const { error } = await supabase.functions.invoke('reset-user-password', { body: { userId } });
+      const { error } = await invokeWithAuth('reset-user-password', { userId });
       if (error) throw error;
       toast({ title: 'Успіх', description: 'Посилання для скидання паролю надіслано' });
     } catch (error: any) {
@@ -108,9 +120,7 @@ export default function AdminPanel() {
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     setUpdatingRole(userId);
     try {
-      const { data, error } = await supabase.functions.invoke('update-user-role', {
-        body: { userId, newRole }
-      });
+      const { data, error } = await invokeWithAuth('update-user-role', { userId, newRole });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       toast({ title: 'Успіх', description: 'Роль користувача змінено' });
