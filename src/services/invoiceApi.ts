@@ -278,7 +278,10 @@ export async function getPurchaseLogs(
 ): Promise<PurchaseLog[]> {
   const { data, error } = await supabase
     .from('purchase_logs')
-    .select('*')
+    .select(`
+      *,
+      profiles:user_id (name)
+    `)
     .eq('entity_type', entityType)
     .eq('entity_id', entityId)
     .order('created_at', { ascending: false });
@@ -288,7 +291,15 @@ export async function getPurchaseLogs(
     throw error;
   }
 
-  return (data || []) as PurchaseLog[];
+  // Transform data to include user_name
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data || []).map((log: any) => {
+    const { profiles, ...rest } = log;
+    return {
+      ...rest,
+      user_name: profiles?.name || null,
+    };
+  }) as PurchaseLog[];
 }
 
 // Recalculate invoice total from items

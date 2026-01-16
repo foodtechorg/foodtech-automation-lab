@@ -99,6 +99,7 @@ export interface PurchaseLog {
   action: string;
   user_id: string;
   user_email: string;
+  user_name?: string | null;
   comment: string | null;
   payload: Record<string, unknown> | null;
   created_at: string;
