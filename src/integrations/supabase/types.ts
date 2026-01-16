@@ -930,6 +930,15 @@ export type Database = {
         }
         Returns: string
       }
+      match_documents: {
+        Args: { filter: Json; match_count: number; query_embedding: string }
+        Returns: {
+          content: string
+          id: string
+          metadata: Json
+          similarity: number
+        }[]
+      }
       reject_purchase_invoice: {
         Args: { p_comment: string; p_invoice_id: string; p_role: string }
         Returns: Json

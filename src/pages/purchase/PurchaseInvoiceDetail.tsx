@@ -918,8 +918,9 @@ export default function PurchaseInvoiceDetail() {
       {/* Activity Log */}
       {logs.length > 0 && <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">Хронологія подій<Clock className="h-5 w-5" />
-              Історія змін
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Хронологія подій
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -928,7 +929,7 @@ export default function PurchaseInvoiceDetail() {
                   <FileText className="h-4 w-4 mt-0.5 text-muted-foreground" />
                   <div>
                     <p>
-                      <span className="font-medium">{t.purchaseAction(log.action)}</span> — {log.user_email}
+                      <span className="font-medium">{t.purchaseAction(log.action)}</span> — {log.user_name || log.user_email}
                     </p>
                     {log.comment && <p className="text-muted-foreground">{log.comment}</p>}
                     <p className="text-xs text-muted-foreground">{formatDate(log.created_at)}</p>
