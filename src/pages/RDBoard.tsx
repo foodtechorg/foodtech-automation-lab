@@ -11,12 +11,39 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useNavigate } from 'react-router-dom';
-import { format } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { Plus } from 'lucide-react';
 import { translations, t } from '@/lib/i18n';
 import { Constants } from '@/integrations/supabase/types';
 import { RDNavTabs } from '@/components/rd/RDNavTabs';
+import { cn } from '@/lib/utils';
+
+// SLA rules based on complexity level (days)
+const SLA_RULES: Record<string, { dev: number; test: number; reworkFunctional: number; reworkFlavor: number }> = {
+  EASY:    { dev: 3,  test: 10, reworkFunctional: 3,  reworkFlavor: 3 },
+  MEDIUM:  { dev: 10, test: 10, reworkFunctional: 5,  reworkFlavor: 5 },
+  COMPLEX: { dev: 20, test: 10, reworkFunctional: 10, reworkFlavor: 7 },
+  EXPERT:  { dev: 90, test: 10, reworkFunctional: 30, reworkFlavor: 20 },
+};
+
+function calculateSlaDate(
+  inProgressDate: Date | null,
+  complexityLevel: string | null,
+  direction: string
+): Date | null {
+  if (!inProgressDate || !complexityLevel) return null;
+  
+  const rules = SLA_RULES[complexityLevel];
+  if (!rules) return null;
+  
+  const isFunctionalType = direction === 'FUNCTIONAL' || direction === 'COMPLEX';
+  const reworkDays = isFunctionalType ? rules.reworkFunctional : rules.reworkFlavor;
+  const totalDays = rules.dev + rules.test + reworkDays;
+  
+  return addDays(inProgressDate, totalDays);
+}
+
 export default function RDBoard() {
   const {
     profile
@@ -29,6 +56,7 @@ export default function RDBoard() {
   const [domainFilter, setDomainFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  
   const {
     data: profiles
   } = useQuery({
@@ -42,6 +70,7 @@ export default function RDBoard() {
       return data;
     }
   });
+  
   const {
     data: requests,
     isLoading
@@ -58,10 +87,38 @@ export default function RDBoard() {
       return data;
     }
   });
+
+  // Fetch IN_PROGRESS events to calculate SLA dates
+  const { data: inProgressEvents } = useQuery({
+    queryKey: ['rd-in-progress-events'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('request_events')
+        .select('request_id, created_at, payload')
+        .eq('event_type', 'STATUS_CHANGED');
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Map request_id to IN_PROGRESS date
+  const inProgressDates = useMemo(() => {
+    if (!inProgressEvents) return {};
+    const result: Record<string, Date> = {};
+    for (const event of inProgressEvents) {
+      const payload = event.payload as { to?: string } | null;
+      if (payload?.to === 'IN_PROGRESS' && !result[event.request_id]) {
+        result[event.request_id] = new Date(event.created_at);
+      }
+    }
+    return result;
+  }, [inProgressEvents]);
+  
   const emailToName = profiles?.reduce((acc, p) => {
     acc[p.email] = p.name || p.email;
     return acc;
   }, {} as Record<string, string>) || {};
+  
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
     return requests.filter(request => {
@@ -73,6 +130,7 @@ export default function RDBoard() {
       return matchesCustomer && matchesDirection && matchesDomain && matchesStatus && matchesPriority;
     });
   }, [requests, customerFilter, directionFilter, domainFilter, statusFilter, priorityFilter]);
+  
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'HIGH':
@@ -84,6 +142,14 @@ export default function RDBoard() {
       default:
         return 'bg-muted text-muted-foreground';
     }
+  };
+
+  const getSlaInfo = (request: typeof requests extends (infer T)[] | undefined ? T : never) => {
+    const inProgressDate = inProgressDates[request.id] || null;
+    const slaDate = calculateSlaDate(inProgressDate, request.complexity_level, request.direction);
+    const isActiveStatus = !['APPROVED_FOR_PRODUCTION', 'REJECTED_BY_CLIENT', 'CANCELLED'].includes(request.status);
+    const isOverdue = slaDate && isActiveStatus && new Date() > slaDate;
+    return { slaDate, isOverdue };
   };
   return <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -166,32 +232,50 @@ export default function RDBoard() {
             </div> : filteredRequests.length === 0 ? <div className="text-center py-8 text-muted-foreground">{translations.requests.noRequests}</div> : <>
               {/* Mobile Cards */}
               <div className="space-y-3 md:hidden">
-                {filteredRequests.map(request => <div key={request.id} className="p-4 border rounded-lg bg-card cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => navigate(`/requests/${request.id}`)}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold text-primary">{request.code}</span>
-                      <StatusBadge status={request.status as any} />
+                {filteredRequests.map(request => {
+                  const { slaDate, isOverdue } = getSlaInfo(request);
+                  return (
+                    <div 
+                      key={request.id} 
+                      className={cn(
+                        "p-4 border rounded-lg bg-card cursor-pointer hover:bg-muted/50 transition-colors",
+                        isOverdue && "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900"
+                      )} 
+                      onClick={() => navigate(`/requests/${request.id}`)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-primary">{request.code}</span>
+                        <StatusBadge status={request.status as any} />
+                      </div>
+                      <p className="text-sm font-medium mb-1">{request.customer_company}</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Автор: {emailToName[request.author_email] || request.author_email}
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Відповідальний: {request.responsible_email ? emailToName[request.responsible_email] : translations.rdBoard.unassigned}
+                      </p>
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                        <span>{t.direction(request.direction)}</span>
+                        <span>•</span>
+                        <span>{t.domain(request.domain)}</span>
+                        <span>•</span>
+                        <Badge variant="outline" className={`${getPriorityColor(request.priority)} text-xs`}>
+                          {t.priority(request.priority)}
+                        </Badge>
+                        <span>•</span>
+                        <span>{format(new Date(request.created_at), 'd MMM yyyy', { locale: uk })}</span>
+                        {slaDate && (
+                          <>
+                            <span>•</span>
+                            <span className={cn(isOverdue && "text-orange-600 dark:text-orange-400 font-medium")}>
+                              SLA: {format(slaDate, 'd MMM yyyy', { locale: uk })}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-sm font-medium mb-1">{request.customer_company}</p>
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Автор: {emailToName[request.author_email] || request.author_email}
-                    </p>
-                    <p className="text-xs text-muted-foreground mb-2">
-                      Відповідальний: {request.responsible_email ? emailToName[request.responsible_email] : translations.rdBoard.unassigned}
-                    </p>
-                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-                      <span>{t.direction(request.direction)}</span>
-                      <span>•</span>
-                      <span>{t.domain(request.domain)}</span>
-                      <span>•</span>
-                      <Badge variant="outline" className={`${getPriorityColor(request.priority)} text-xs`}>
-                        {t.priority(request.priority)}
-                      </Badge>
-                      <span>•</span>
-                      <span>{format(new Date(request.created_at), 'd MMM yyyy', {
-                    locale: uk
-                  })}</span>
-                    </div>
-                  </div>)}
+                  );
+                })}
               </div>
               {/* Desktop Table */}
               <div className="hidden md:block overflow-x-auto">
@@ -207,26 +291,40 @@ export default function RDBoard() {
                       <TableHead>{translations.requests.table.priority}</TableHead>
                       <TableHead>{translations.requests.table.responsible}</TableHead>
                       <TableHead>{translations.requests.table.created}</TableHead>
+                      <TableHead>Планова дата по SLA</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredRequests.map(request => <TableRow key={request.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/requests/${request.id}`)}>
-                        <TableCell className="font-medium">{request.code}</TableCell>
-                        <TableCell>{request.customer_company}</TableCell>
-                        <TableCell>{emailToName[request.author_email] || request.author_email}</TableCell>
-                        <TableCell>{t.direction(request.direction)}</TableCell>
-                        <TableCell>{t.domain(request.domain)}</TableCell>
-                        <TableCell><StatusBadge status={request.status as any} /></TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className={getPriorityColor(request.priority)}>
-                            {t.priority(request.priority)}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{request.responsible_email ? emailToName[request.responsible_email] : translations.rdBoard.unassigned}</TableCell>
-                        <TableCell>{format(new Date(request.created_at), 'd MMM yyyy', {
-                      locale: uk
-                    })}</TableCell>
-                      </TableRow>)}
+                    {filteredRequests.map(request => {
+                      const { slaDate, isOverdue } = getSlaInfo(request);
+                      return (
+                        <TableRow 
+                          key={request.id} 
+                          className={cn(
+                            "cursor-pointer hover:bg-muted/50",
+                            isOverdue && "bg-orange-50 dark:bg-orange-950/30"
+                          )} 
+                          onClick={() => navigate(`/requests/${request.id}`)}
+                        >
+                          <TableCell className="font-medium">{request.code}</TableCell>
+                          <TableCell>{request.customer_company}</TableCell>
+                          <TableCell>{emailToName[request.author_email] || request.author_email}</TableCell>
+                          <TableCell>{t.direction(request.direction)}</TableCell>
+                          <TableCell>{t.domain(request.domain)}</TableCell>
+                          <TableCell><StatusBadge status={request.status as any} /></TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={getPriorityColor(request.priority)}>
+                              {t.priority(request.priority)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{request.responsible_email ? emailToName[request.responsible_email] : translations.rdBoard.unassigned}</TableCell>
+                          <TableCell>{format(new Date(request.created_at), 'd MMM yyyy', { locale: uk })}</TableCell>
+                          <TableCell className={cn(isOverdue && "text-orange-600 dark:text-orange-400 font-medium")}>
+                            {slaDate ? format(slaDate, 'd MMM yyyy', { locale: uk }) : '—'}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
