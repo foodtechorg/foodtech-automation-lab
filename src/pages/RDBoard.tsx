@@ -27,21 +27,61 @@ const SLA_RULES: Record<string, { dev: number; test: number; reworkFunctional: n
   EXPERT:  { dev: 90, test: 10, reworkFunctional: 30, reworkFlavor: 20 },
 };
 
-function calculateSlaDate(
-  inProgressDate: Date | null,
+type StatusEvent = {
+  request_id: string;
+  created_at: string;
+  payload: { from?: string; to?: string } | null;
+};
+
+function calculateDynamicSlaDate(
+  requestId: string,
+  currentStatus: string,
   complexityLevel: string | null,
-  direction: string
+  direction: string,
+  statusEvents: StatusEvent[]
 ): Date | null {
-  if (!inProgressDate || !complexityLevel) return null;
+  if (!complexityLevel) return null;
   
   const rules = SLA_RULES[complexityLevel];
   if (!rules) return null;
   
+  // Filter events for this request and sort chronologically
+  const requestEvents = statusEvents
+    .filter(e => e.request_id === requestId)
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  
+  if (requestEvents.length === 0) return null;
+  
+  // Determine rework days based on direction
   const isFunctionalType = direction === 'FUNCTIONAL' || direction === 'COMPLEX';
   const reworkDays = isFunctionalType ? rules.reworkFunctional : rules.reworkFlavor;
-  const totalDays = rules.dev + rules.test + reworkDays;
   
-  return addDays(inProgressDate, totalDays);
+  // Find the last relevant event for the current status
+  if (currentStatus === 'IN_PROGRESS') {
+    // Find the last transition TO IN_PROGRESS
+    const lastInProgressEvent = [...requestEvents].reverse().find(
+      e => e.payload?.to === 'IN_PROGRESS'
+    );
+    if (!lastInProgressEvent) return null;
+    
+    // Check if this is a return from testing (rework) or initial development
+    const isRework = lastInProgressEvent.payload?.from === 'SENT_FOR_TEST';
+    const days = isRework ? reworkDays : rules.dev;
+    
+    return addDays(new Date(lastInProgressEvent.created_at), days);
+  }
+  
+  if (currentStatus === 'SENT_FOR_TEST') {
+    // Find the last transition TO SENT_FOR_TEST
+    const lastTestEvent = [...requestEvents].reverse().find(
+      e => e.payload?.to === 'SENT_FOR_TEST'
+    );
+    if (!lastTestEvent) return null;
+    return addDays(new Date(lastTestEvent.created_at), rules.test);
+  }
+  
+  // For completed/cancelled/pending statuses, don't show SLA
+  return null;
 }
 
 export default function RDBoard() {
@@ -101,17 +141,14 @@ export default function RDBoard() {
     }
   });
 
-  // Map request_id to IN_PROGRESS date
-  const inProgressDates = useMemo(() => {
-    if (!inProgressEvents) return {};
-    const result: Record<string, Date> = {};
-    for (const event of inProgressEvents) {
-      const payload = event.payload as { to?: string } | null;
-      if (payload?.to === 'IN_PROGRESS' && !result[event.request_id]) {
-        result[event.request_id] = new Date(event.created_at);
-      }
-    }
-    return result;
+  // Cast events to typed array
+  const statusEvents = useMemo<StatusEvent[]>(() => {
+    if (!inProgressEvents) return [];
+    return inProgressEvents.map(e => ({
+      request_id: e.request_id,
+      created_at: e.created_at,
+      payload: e.payload as { from?: string; to?: string } | null,
+    }));
   }, [inProgressEvents]);
   
   const emailToName = profiles?.reduce((acc, p) => {
@@ -145,9 +182,14 @@ export default function RDBoard() {
   };
 
   const getSlaInfo = (request: typeof requests extends (infer T)[] | undefined ? T : never) => {
-    const inProgressDate = inProgressDates[request.id] || null;
-    const slaDate = calculateSlaDate(inProgressDate, request.complexity_level, request.direction);
-    const isActiveStatus = !['APPROVED_FOR_PRODUCTION', 'REJECTED_BY_CLIENT', 'CANCELLED'].includes(request.status);
+    const slaDate = calculateDynamicSlaDate(
+      request.id,
+      request.status,
+      request.complexity_level,
+      request.direction,
+      statusEvents
+    );
+    const isActiveStatus = ['IN_PROGRESS', 'SENT_FOR_TEST'].includes(request.status);
     const isOverdue = slaDate && isActiveStatus && new Date() > slaDate;
     return { slaDate, isOverdue };
   };
