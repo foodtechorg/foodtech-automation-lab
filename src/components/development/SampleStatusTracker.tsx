@@ -4,39 +4,75 @@ import { DevelopmentSampleStatus } from '@/services/samplesApi';
 
 interface SampleStatusTrackerProps {
   status: DevelopmentSampleStatus;
+  compact?: boolean;
 }
 
 const stages = [
   { 
     key: 'prepared', 
-    label: 'Підготовлений', 
+    label: 'Підготовлений',
+    compactLabel: 'Підг.',
     statuses: ['Prepared', 'Lab', 'LabDone', 'Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'] 
   },
   { 
     key: 'lab', 
-    label: 'Лабораторні тестування', 
+    label: 'Лабораторні тестування',
+    compactLabel: 'Лаб.',
     statuses: ['LabDone', 'Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'] 
   },
   { 
     key: 'pilot', 
-    label: 'Пілот/дегустація', 
+    label: 'Пілот/дегустація',
+    compactLabel: 'Пілот',
     statuses: ['PilotDone', 'ReadyForHandoff', 'HandedOff'] 
   },
   { 
     key: 'testing', 
-    label: 'Тестування', 
+    label: 'Тестування',
+    compactLabel: 'Тест.',
     statuses: ['ReadyForHandoff', 'HandedOff'] 
   },
   { 
     key: 'approved', 
-    label: 'Погоджений', 
+    label: 'Погоджений',
+    compactLabel: 'Погодж.',
     statuses: ['HandedOff'] 
   },
 ];
 
-export function SampleStatusTracker({ status }: SampleStatusTrackerProps) {
+export function SampleStatusTracker({ status, compact = false }: SampleStatusTrackerProps) {
   const isDraft = status === 'Draft';
   const isArchived = status === 'Archived';
+
+  if (compact) {
+    return (
+      <div className="flex flex-col gap-0.5">
+        {stages.map(stage => {
+          const isCompleted = stage.statuses.includes(status);
+          return (
+            <div 
+              key={stage.key}
+              className={cn(
+                "flex items-center gap-1 text-[10px] leading-tight",
+                isCompleted 
+                  ? "text-primary" 
+                  : (isDraft || isArchived)
+                    ? "text-muted-foreground/40"
+                    : "text-muted-foreground/60"
+              )}
+            >
+              {isCompleted ? (
+                <CheckCircle2 className="h-3 w-3 flex-shrink-0" />
+              ) : (
+                <Circle className="h-3 w-3 flex-shrink-0" />
+              )}
+              <span>{stage.compactLabel}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   
   return (
     <div className="flex flex-wrap gap-2">
