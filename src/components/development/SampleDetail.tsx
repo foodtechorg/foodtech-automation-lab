@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
@@ -25,7 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Save, Lock, Archive, Beaker, ClipboardList, Send, FlaskConical, Copy } from 'lucide-react';
+import { ArrowLeft, Save, Lock, Archive, ClipboardList, Send, FlaskConical, Copy, Microscope } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchSampleWithIngredients,
@@ -35,12 +34,11 @@ import {
   updateLotNumbers,
   copySample,
   transitionToLab,
-  sampleStatusLabels,
-  sampleStatusColors,
   DevelopmentSampleIngredient,
 } from '@/services/samplesApi';
 import { initializeLabResults } from '@/services/labResultsApi';
 import { LabResultsForm } from './LabResultsForm';
+import { SampleStatusTracker } from './SampleStatusTracker';
 
 interface SampleDetailProps {
   sampleId: string;
@@ -61,7 +59,6 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
   const [hasChanges, setHasChanges] = useState(false);
   const [prepareDialogOpen, setPrepareDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
-  const [labTransitionDialogOpen, setLabTransitionDialogOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['development-sample', sampleId],
@@ -233,7 +230,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
     }
   });
 
-  // Transition to Lab
+  // Transition to Lab (without dialog, directly)
   const labTransitionMutation = useMutation({
     mutationFn: async () => {
       // Initialize empty lab results record
@@ -245,7 +242,6 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
       queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
       queryClient.invalidateQueries({ queryKey: ['development-samples'] });
       queryClient.invalidateQueries({ queryKey: ['recipe-samples'] });
-      setLabTransitionDialogOpen(false);
       toast.success(`Зразок ${updatedSample.sample_code} передано в лабораторію`);
     },
     onError: (error: Error) => {
@@ -287,106 +283,99 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={onBack}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
               <h2 className="text-xl font-bold font-mono">{sample.sample_code}</h2>
-              <Badge variant="outline" className={sampleStatusColors[sample.status]}>
-                {sampleStatusLabels[sample.status]}
-              </Badge>
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <span>{isReadOnly ? 'Перегляд зразка' : 'Редагування зразка'}</span>
+                {onOpenRecipe && (
+                  <>
+                    <span>•</span>
+                    <Button 
+                      variant="link" 
+                      className="text-sm h-auto p-0"
+                      onClick={() => onOpenRecipe(sample.recipe_id)}
+                    >
+                      <FlaskConical className="h-3 w-3 mr-1" />
+                      Рецепт: {recipeCode}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-muted-foreground text-sm">
-              <span>{isReadOnly ? 'Перегляд зразка' : 'Редагування зразка'}</span>
-              {onOpenRecipe && (
-                <>
-                  <span>•</span>
-                  <Button 
-                    variant="link" 
-                    className="text-sm h-auto p-0"
-                    onClick={() => onOpenRecipe(sample.recipe_id)}
-                  >
-                    <FlaskConical className="h-3 w-3 mr-1" />
-                    Рецепт: {recipeCode}
-                  </Button>
-                </>
-              )}
-            </div>
+          </div>
+
+          {/* Action buttons based on status */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {isDraft && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => saveLotsMutation.mutate()}
+                  disabled={saveLotsMutation.isPending || !hasChanges}
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {saveLotsMutation.isPending ? 'Збереження...' : 'Зберегти чернетку'}
+                </Button>
+                <Button
+                  onClick={handlePrepareClick}
+                  disabled={prepareMutation.isPending}
+                >
+                  <Lock className="h-4 w-4 mr-2" />
+                  Зафіксувати зразок
+                </Button>
+              </>
+            )}
+
+            {isPrepared && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => copyMutation.mutate()}
+                  disabled={copyMutation.isPending}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  {copyMutation.isPending ? 'Копіювання...' : 'Копіювати зразок'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setArchiveDialogOpen(true)}
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  Архівувати
+                </Button>
+              </>
+            )}
+
+            {(isLab || isLabDone) && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => copyMutation.mutate()}
+                  disabled={copyMutation.isPending}
+                >
+                  <Copy className="h-4 w-4 mr-2" />
+                  {copyMutation.isPending ? 'Копіювання...' : 'Копіювати зразок'}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setArchiveDialogOpen(true)}
+                >
+                  <Archive className="h-4 w-4 mr-2" />
+                  Архівувати
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Action buttons based on status */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {isDraft && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => saveLotsMutation.mutate()}
-                disabled={saveLotsMutation.isPending || !hasChanges}
-              >
-                <Save className="h-4 w-4 mr-2" />
-                {saveLotsMutation.isPending ? 'Збереження...' : 'Зберегти чернетку'}
-              </Button>
-              <Button
-                onClick={handlePrepareClick}
-                disabled={prepareMutation.isPending}
-              >
-                <Lock className="h-4 w-4 mr-2" />
-                Зафіксувати зразок
-              </Button>
-            </>
-          )}
-
-          {isPrepared && (
-            <>
-              <Button
-                onClick={() => setLabTransitionDialogOpen(true)}
-                disabled={labTransitionMutation.isPending}
-              >
-                <Beaker className="h-4 w-4 mr-2" />
-                {labTransitionMutation.isPending ? 'Передача...' : 'Передати в лабораторію'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => copyMutation.mutate()}
-                disabled={copyMutation.isPending}
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                {copyMutation.isPending ? 'Копіювання...' : 'Копіювати зразок'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setArchiveDialogOpen(true)}
-              >
-                <Archive className="h-4 w-4 mr-2" />
-                Архівувати
-              </Button>
-            </>
-          )}
-
-          {(isLab || isLabDone) && (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => copyMutation.mutate()}
-                disabled={copyMutation.isPending}
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                {copyMutation.isPending ? 'Копіювання...' : 'Копіювати зразок'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setArchiveDialogOpen(true)}
-              >
-                <Archive className="h-4 w-4 mr-2" />
-                Архівувати
-              </Button>
-            </>
-          )}
-        </div>
+        {/* Status Tracker */}
+        <SampleStatusTracker status={sample.status} />
       </div>
 
       {/* Batch weight */}
@@ -497,7 +486,50 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
         />
       )}
 
-      {/* Pilot placeholder - show for LabDone and later */}
+      {/* Next Steps - for Prepared status */}
+      {isPrepared && (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-muted-foreground">
+              <ClipboardList className="h-5 w-5" />
+              Наступні кроки
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Лабораторія - активна кнопка */}
+              <Button
+                variant="outline"
+                className="h-auto p-4 flex flex-col items-center gap-2"
+                onClick={() => labTransitionMutation.mutate()}
+                disabled={labTransitionMutation.isPending}
+              >
+                <Microscope className="h-8 w-8" />
+                <span className="font-medium">Лабораторія</span>
+                <span className="text-xs text-muted-foreground text-center">
+                  {labTransitionMutation.isPending ? 'Передача...' : 'Зафіксувати лабораторні аналізи'}
+                </span>
+              </Button>
+
+              {/* Пілот - заглушка */}
+              <div className="p-4 border rounded-lg text-center opacity-50">
+                <ClipboardList className="h-8 w-8 mx-auto mb-2" />
+                <p className="font-medium">Пілот/Дегустація</p>
+                <p className="text-xs text-muted-foreground">Буде доступно пізніше</p>
+              </div>
+
+              {/* Передача - заглушка */}
+              <div className="p-4 border rounded-lg text-center opacity-50">
+                <Send className="h-8 w-8 mx-auto mb-2" />
+                <p className="font-medium">Передача на тестування</p>
+                <p className="text-xs text-muted-foreground">Буде доступно пізніше</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Next Steps - for LabDone and later */}
       {isLabDone && (
         <Card className="border-dashed">
           <CardHeader>
@@ -508,15 +540,15 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 border rounded-lg text-center">
-                <ClipboardList className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <div className="p-4 border rounded-lg text-center opacity-50">
+                <ClipboardList className="h-8 w-8 mx-auto mb-2" />
                 <p className="font-medium">Пілот/Дегустація</p>
-                <p className="text-sm text-muted-foreground">Буде реалізовано наступним кроком</p>
+                <p className="text-xs text-muted-foreground">Буде реалізовано наступним кроком</p>
               </div>
-              <div className="p-4 border rounded-lg text-center">
-                <Send className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <div className="p-4 border rounded-lg text-center opacity-50">
+                <Send className="h-8 w-8 mx-auto mb-2" />
                 <p className="font-medium">Передача на тестування</p>
-                <p className="text-sm text-muted-foreground">Буде реалізовано наступним кроком</p>
+                <p className="text-xs text-muted-foreground">Буде реалізовано наступним кроком</p>
               </div>
             </div>
           </CardContent>
@@ -528,31 +560,8 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
         <Card className="border-dashed">
           <CardContent className="pt-6">
             <div className="flex items-center gap-3 text-muted-foreground">
-              <Beaker className="h-5 w-5" />
+              <Microscope className="h-5 w-5" />
               <p className="text-sm">Спочатку зафіксуйте зразок, щоб передати його в лабораторію</p>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Prepared hint for lab */}
-      {isPrepared && (
-        <Card className="border-dashed">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3 text-muted-foreground">
-                <Beaker className="h-5 w-5" />
-                <p className="text-sm">Зразок готовий до лабораторного аналізу</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLabTransitionDialogOpen(true)}
-                disabled={labTransitionMutation.isPending}
-              >
-                <Beaker className="h-4 w-4 mr-2" />
-                Передати в лабораторію
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -597,28 +606,6 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
               disabled={archiveMutation.isPending}
             >
               {archiveMutation.isPending ? 'Архівація...' : 'Архівувати'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Lab Transition Confirmation Dialog */}
-      <AlertDialog open={labTransitionDialogOpen} onOpenChange={setLabTransitionDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Передати в лабораторію?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Зразок {sample.sample_code} буде передано на лабораторний аналіз.
-              Ви зможете вносити результати аналізів.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Скасувати</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => labTransitionMutation.mutate()}
-              disabled={labTransitionMutation.isPending}
-            >
-              {labTransitionMutation.isPending ? 'Передача...' : 'Передати'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
