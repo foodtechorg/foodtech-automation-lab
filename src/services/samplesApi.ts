@@ -195,6 +195,16 @@ export async function prepareSample(sampleId: string): Promise<DevelopmentSample
   return updateSampleStatus(sampleId, 'Prepared');
 }
 
+// Transition to Lab status (Prepared -> Lab)
+export async function transitionToLab(sampleId: string): Promise<DevelopmentSample> {
+  return updateSampleStatus(sampleId, 'Lab');
+}
+
+// Complete lab (Lab -> LabDone)
+export async function completeLabAnalysis(sampleId: string): Promise<DevelopmentSample> {
+  return updateSampleStatus(sampleId, 'LabDone');
+}
+
 // Archive sample
 export async function archiveSample(sampleId: string): Promise<DevelopmentSample> {
   return updateSampleStatus(sampleId, 'Archived');

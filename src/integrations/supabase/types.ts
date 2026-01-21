@@ -147,6 +147,77 @@ export type Database = {
           },
         ]
       }
+      development_sample_lab_results: {
+        Row: {
+          additional_info: string | null
+          appearance: string | null
+          bulk_density_g_dm3: number | null
+          chlorides_pct: number | null
+          color: string | null
+          colority: number | null
+          created_at: string
+          gel_strength_g_cm3: number | null
+          hydration: string | null
+          id: string
+          moisture_pct: number | null
+          ph_value: number | null
+          phosphates_pct: number | null
+          sample_id: string
+          smell: string | null
+          taste: string | null
+          updated_at: string
+          viscosity_cps: number | null
+        }
+        Insert: {
+          additional_info?: string | null
+          appearance?: string | null
+          bulk_density_g_dm3?: number | null
+          chlorides_pct?: number | null
+          color?: string | null
+          colority?: number | null
+          created_at?: string
+          gel_strength_g_cm3?: number | null
+          hydration?: string | null
+          id?: string
+          moisture_pct?: number | null
+          ph_value?: number | null
+          phosphates_pct?: number | null
+          sample_id: string
+          smell?: string | null
+          taste?: string | null
+          updated_at?: string
+          viscosity_cps?: number | null
+        }
+        Update: {
+          additional_info?: string | null
+          appearance?: string | null
+          bulk_density_g_dm3?: number | null
+          chlorides_pct?: number | null
+          color?: string | null
+          colority?: number | null
+          created_at?: string
+          gel_strength_g_cm3?: number | null
+          hydration?: string | null
+          id?: string
+          moisture_pct?: number | null
+          ph_value?: number | null
+          phosphates_pct?: number | null
+          sample_id?: string
+          smell?: string | null
+          taste?: string | null
+          updated_at?: string
+          viscosity_cps?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_sample_lab_results_sample_id_fkey"
+            columns: ["sample_id"]
+            isOneToOne: true
+            referencedRelation: "development_samples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       development_samples: {
         Row: {
           batch_weight_g: number

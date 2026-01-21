@@ -34,10 +34,13 @@ import {
   archiveSample,
   updateLotNumbers,
   copySample,
+  transitionToLab,
   sampleStatusLabels,
   sampleStatusColors,
   DevelopmentSampleIngredient,
 } from '@/services/samplesApi';
+import { initializeLabResults } from '@/services/labResultsApi';
+import { LabResultsForm } from './LabResultsForm';
 
 interface SampleDetailProps {
   sampleId: string;
@@ -58,6 +61,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
   const [hasChanges, setHasChanges] = useState(false);
   const [prepareDialogOpen, setPrepareDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [labTransitionDialogOpen, setLabTransitionDialogOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['development-sample', sampleId],
@@ -67,8 +71,11 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
   const sample = data?.sample;
   const isDraft = sample?.status === 'Draft';
   const isPrepared = sample?.status === 'Prepared';
+  const isLab = sample?.status === 'Lab';
+  const isLabDone = sample?.status === 'LabDone';
   const isArchived = sample?.status === 'Archived';
   const isReadOnly = !isDraft;
+  const showLabSection = isLab || isLabDone || (sample?.status && ['Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'].includes(sample.status));
 
   // Extract recipe code from sample code (e.g., RD-0015/01/01 -> RD-0015/01)
   const recipeCode = sample?.sample_code?.split('/').slice(0, 2).join('/') ?? '';
@@ -226,6 +233,26 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
     }
   });
 
+  // Transition to Lab
+  const labTransitionMutation = useMutation({
+    mutationFn: async () => {
+      // Initialize empty lab results record
+      await initializeLabResults(sampleId);
+      // Transition status
+      return transitionToLab(sampleId);
+    },
+    onSuccess: (updatedSample) => {
+      queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
+      queryClient.invalidateQueries({ queryKey: ['development-samples'] });
+      queryClient.invalidateQueries({ queryKey: ['recipe-samples'] });
+      setLabTransitionDialogOpen(false);
+      toast.success(`Зразок ${updatedSample.sample_code} передано в лабораторію`);
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка: ${error.message}`);
+    }
+  });
+
   // Validate before prepare
   const handlePrepareClick = () => {
     const weight = parseFloat(batchWeight);
@@ -314,6 +341,33 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
           )}
 
           {isPrepared && (
+            <>
+              <Button
+                onClick={() => setLabTransitionDialogOpen(true)}
+                disabled={labTransitionMutation.isPending}
+              >
+                <Beaker className="h-4 w-4 mr-2" />
+                {labTransitionMutation.isPending ? 'Передача...' : 'Передати в лабораторію'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => copyMutation.mutate()}
+                disabled={copyMutation.isPending}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                {copyMutation.isPending ? 'Копіювання...' : 'Копіювати зразок'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setArchiveDialogOpen(true)}
+              >
+                <Archive className="h-4 w-4 mr-2" />
+                Архівувати
+              </Button>
+            </>
+          )}
+
+          {(isLab || isLabDone) && (
             <>
               <Button
                 variant="outline"
@@ -432,32 +486,73 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
         </CardContent>
       </Card>
 
-      {/* Future sections placeholder (only show for Prepared status) */}
-      {isPrepared && (
+      {/* Lab Section - show for Lab/LabDone statuses */}
+      {showLabSection && sample && (
+        <LabResultsForm
+          sampleId={sampleId}
+          sampleStatus={sample.status}
+          onLabCompleted={() => {
+            queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
+          }}
+        />
+      )}
+
+      {/* Pilot placeholder - show for LabDone and later */}
+      {isLabDone && (
         <Card className="border-dashed">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-muted-foreground">
-              <Beaker className="h-5 w-5" />
+              <ClipboardList className="h-5 w-5" />
               Наступні кроки
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 border rounded-lg text-center">
-                <Beaker className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                <p className="font-medium">Лабораторія</p>
-                <p className="text-sm text-muted-foreground">Буде доступно пізніше</p>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 border rounded-lg text-center">
                 <ClipboardList className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="font-medium">Пілот/Дегустація</p>
-                <p className="text-sm text-muted-foreground">Буде доступно пізніше</p>
+                <p className="text-sm text-muted-foreground">Буде реалізовано наступним кроком</p>
               </div>
               <div className="p-4 border rounded-lg text-center">
                 <Send className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                 <p className="font-medium">Передача на тестування</p>
-                <p className="text-sm text-muted-foreground">Буде доступно пізніше</p>
+                <p className="text-sm text-muted-foreground">Буде реалізовано наступним кроком</p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Draft hint for lab */}
+      {isDraft && (
+        <Card className="border-dashed">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <Beaker className="h-5 w-5" />
+              <p className="text-sm">Спочатку зафіксуйте зразок, щоб передати його в лабораторію</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Prepared hint for lab */}
+      {isPrepared && (
+        <Card className="border-dashed">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Beaker className="h-5 w-5" />
+                <p className="text-sm">Зразок готовий до лабораторного аналізу</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLabTransitionDialogOpen(true)}
+                disabled={labTransitionMutation.isPending}
+              >
+                <Beaker className="h-4 w-4 mr-2" />
+                Передати в лабораторію
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -502,6 +597,28 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
               disabled={archiveMutation.isPending}
             >
               {archiveMutation.isPending ? 'Архівація...' : 'Архівувати'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Lab Transition Confirmation Dialog */}
+      <AlertDialog open={labTransitionDialogOpen} onOpenChange={setLabTransitionDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Передати в лабораторію?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Зразок {sample.sample_code} буде передано на лабораторний аналіз.
+              Ви зможете вносити результати аналізів.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => labTransitionMutation.mutate()}
+              disabled={labTransitionMutation.isPending}
+            >
+              {labTransitionMutation.isPending ? 'Передача...' : 'Передати'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
