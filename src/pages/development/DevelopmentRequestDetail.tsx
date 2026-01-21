@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,10 +10,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, FlaskConical, TestTubes } from 'lucide-react';
 import { t } from '@/lib/i18n';
+import { RecipesList } from '@/components/development/RecipesList';
+import { RecipeForm } from '@/components/development/RecipeForm';
 
 export default function DevelopmentRequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
 
   const { data: request, isLoading } = useQuery({
     queryKey: ['development-request', id],
@@ -180,15 +184,17 @@ export default function DevelopmentRequestDetail() {
             </TabsList>
 
             <TabsContent value="recipes" className="mt-6">
-              <div className="text-center py-12 border-2 border-dashed rounded-lg">
-                <FlaskConical className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Рецепти</h3>
-                <p className="text-muted-foreground max-w-md mx-auto">
-                  Буде реалізовано наступним кроком (Recipe). 
-                  <br />
-                  Тут будуть відображатися рецепти з інгредієнтами для цієї заявки.
-                </p>
-              </div>
+              {selectedRecipeId ? (
+                <RecipeForm
+                  recipeId={selectedRecipeId}
+                  onBack={() => setSelectedRecipeId(null)}
+                />
+              ) : (
+                <RecipesList
+                  requestId={id!}
+                  onOpenRecipe={(recipeId) => setSelectedRecipeId(recipeId)}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="samples" className="mt-6">

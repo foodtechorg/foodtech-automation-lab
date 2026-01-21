@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      development_recipe_ingredients: {
+        Row: {
+          created_at: string
+          grams: number
+          id: string
+          ingredient_name: string
+          recipe_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          grams: number
+          id?: string
+          ingredient_name: string
+          recipe_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          grams?: number
+          id?: string
+          ingredient_name?: string
+          recipe_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_recipe_ingredients_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "development_recipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      development_recipes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string | null
+          recipe_code: string
+          recipe_seq: number
+          request_id: string
+          status: Database["public"]["Enums"]["development_recipe_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string | null
+          recipe_code: string
+          recipe_seq: number
+          request_id: string
+          status?: Database["public"]["Enums"]["development_recipe_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string | null
+          recipe_code?: string
+          recipe_seq?: number
+          request_id?: string
+          status?: Database["public"]["Enums"]["development_recipe_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_recipes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_recipes_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kb_chunks: {
         Row: {
           chunk_index: number
@@ -884,6 +973,46 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      copy_development_recipe: {
+        Args: { p_recipe_id: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string | null
+          recipe_code: string
+          recipe_seq: number
+          request_id: string
+          status: Database["public"]["Enums"]["development_recipe_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "development_recipes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      create_development_recipe: {
+        Args: { p_request_id: string }
+        Returns: {
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string | null
+          recipe_code: string
+          recipe_seq: number
+          request_id: string
+          status: Database["public"]["Enums"]["development_recipe_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "development_recipes"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       generate_purchase_invoice_number: { Args: never; Returns: string }
       generate_purchase_request_number: { Args: never; Returns: string }
       generate_request_code: { Args: never; Returns: string }
@@ -970,6 +1099,7 @@ export type Database = {
       approval_decision: "PENDING" | "APPROVED" | "REJECTED"
       client_result: "PRODUCTION" | "REWORK" | "DECLINE"
       complexity_level: "EASY" | "MEDIUM" | "COMPLEX" | "EXPERT"
+      development_recipe_status: "Draft" | "Locked" | "Archived"
       direction: "FUNCTIONAL" | "FLAVOR" | "COLORANT" | "COMPLEX"
       domain:
         | "MEAT"
@@ -1176,6 +1306,7 @@ export const Constants = {
       approval_decision: ["PENDING", "APPROVED", "REJECTED"],
       client_result: ["PRODUCTION", "REWORK", "DECLINE"],
       complexity_level: ["EASY", "MEDIUM", "COMPLEX", "EXPERT"],
+      development_recipe_status: ["Draft", "Locked", "Archived"],
       direction: ["FUNCTIONAL", "FLAVOR", "COLORANT", "COMPLEX"],
       domain: [
         "MEAT",
