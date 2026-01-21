@@ -188,6 +188,7 @@ export default function DevelopmentRequestDetail() {
                 <RecipeForm
                   recipeId={selectedRecipeId}
                   onBack={() => setSelectedRecipeId(null)}
+                  onRecipeCopied={(newRecipeId) => setSelectedRecipeId(newRecipeId)}
                 />
               ) : (
                 <RecipesList
