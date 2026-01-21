@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Save, Lock, Archive, Beaker, ClipboardList, Send } from 'lucide-react';
+import { ArrowLeft, Save, Lock, Archive, Beaker, ClipboardList, Send, FlaskConical, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchSampleWithIngredients,
@@ -33,6 +33,7 @@ import {
   prepareSample,
   archiveSample,
   updateLotNumbers,
+  copySample,
   sampleStatusLabels,
   sampleStatusColors,
   DevelopmentSampleIngredient,
@@ -41,6 +42,8 @@ import {
 interface SampleDetailProps {
   sampleId: string;
   onBack: () => void;
+  onOpenRecipe?: (recipeId: string) => void;
+  onSampleCopied?: (sampleId: string) => void;
 }
 
 interface IngredientRow extends DevelopmentSampleIngredient {
@@ -48,7 +51,7 @@ interface IngredientRow extends DevelopmentSampleIngredient {
   hasError?: boolean;
 }
 
-export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
+export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }: SampleDetailProps) {
   const queryClient = useQueryClient();
   const [batchWeight, setBatchWeight] = useState('');
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
@@ -56,7 +59,7 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
   const [prepareDialogOpen, setPrepareDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading } = useQuery({
     queryKey: ['development-sample', sampleId],
     queryFn: () => fetchSampleWithIngredients(sampleId)
   });
@@ -66,6 +69,9 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
   const isPrepared = sample?.status === 'Prepared';
   const isArchived = sample?.status === 'Archived';
   const isReadOnly = !isDraft;
+
+  // Extract recipe code from sample code (e.g., RD-0015/01/01 -> RD-0015/01)
+  const recipeCode = sample?.sample_code?.split('/').slice(0, 2).join('/') ?? '';
 
   // Initialize form data
   useEffect(() => {
@@ -180,6 +186,7 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
     onSuccess: (preparedSample) => {
       queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
       queryClient.invalidateQueries({ queryKey: ['development-samples'] });
+      queryClient.invalidateQueries({ queryKey: ['recipe-samples'] });
       setPrepareDialogOpen(false);
       setHasChanges(false);
       toast.success(`Зразок ${preparedSample.sample_code} підготовлено`);
@@ -195,12 +202,27 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
     onSuccess: (archivedSample) => {
       queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
       queryClient.invalidateQueries({ queryKey: ['development-samples'] });
+      queryClient.invalidateQueries({ queryKey: ['recipe-samples'] });
       setArchiveDialogOpen(false);
       toast.success(`Зразок ${archivedSample.sample_code} архівовано`);
       onBack();
     },
     onError: (error: Error) => {
       toast.error(`Помилка архівації: ${error.message}`);
+    }
+  });
+
+  // Copy sample
+  const copyMutation = useMutation({
+    mutationFn: () => copySample(sampleId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['development-samples'] });
+      queryClient.invalidateQueries({ queryKey: ['recipe-samples'] });
+      toast.success(`Зразок скопійовано як ${result.sample.sample_code}`);
+      onSampleCopied?.(result.sample.id);
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка копіювання: ${error.message}`);
     }
   });
 
@@ -250,9 +272,22 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
                 {sampleStatusLabels[sample.status]}
               </Badge>
             </div>
-            <p className="text-muted-foreground text-sm">
-              {isReadOnly ? 'Перегляд зразка' : 'Редагування зразка'}
-            </p>
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <span>{isReadOnly ? 'Перегляд зразка' : 'Редагування зразка'}</span>
+              {onOpenRecipe && (
+                <>
+                  <span>•</span>
+                  <Button 
+                    variant="link" 
+                    className="text-sm h-auto p-0"
+                    onClick={() => onOpenRecipe(sample.recipe_id)}
+                  >
+                    <FlaskConical className="h-3 w-3 mr-1" />
+                    Рецепт: {recipeCode}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -279,13 +314,23 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
           )}
 
           {isPrepared && (
-            <Button
-              variant="outline"
-              onClick={() => setArchiveDialogOpen(true)}
-            >
-              <Archive className="h-4 w-4 mr-2" />
-              Архівувати
-            </Button>
+            <>
+              <Button
+                variant="outline"
+                onClick={() => copyMutation.mutate()}
+                disabled={copyMutation.isPending}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                {copyMutation.isPending ? 'Копіювання...' : 'Копіювати зразок'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setArchiveDialogOpen(true)}
+              >
+                <Archive className="h-4 w-4 mr-2" />
+                Архівувати
+              </Button>
+            </>
           )}
         </div>
       </div>

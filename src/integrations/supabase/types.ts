@@ -1098,6 +1098,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      copy_development_sample: { Args: { p_sample_id: string }; Returns: Json }
       create_development_recipe: {
         Args: { p_request_id: string }
         Returns: {

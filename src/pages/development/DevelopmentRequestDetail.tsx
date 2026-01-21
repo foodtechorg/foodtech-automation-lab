@@ -202,6 +202,14 @@ export default function DevelopmentRequestDetail() {
                 <RecipesList
                   requestId={id!}
                   onOpenRecipe={(recipeId) => setSelectedRecipeId(recipeId)}
+                  onOpenSample={(sampleId) => {
+                    setSelectedSampleId(sampleId);
+                    setActiveTab('samples');
+                  }}
+                  onSampleCreated={(sampleId) => {
+                    setSelectedSampleId(sampleId);
+                    setActiveTab('samples');
+                  }}
                 />
               )}
             </TabsContent>
@@ -211,6 +219,12 @@ export default function DevelopmentRequestDetail() {
                 <SampleDetail
                   sampleId={selectedSampleId}
                   onBack={() => setSelectedSampleId(null)}
+                  onOpenRecipe={(recipeId) => {
+                    setSelectedRecipeId(recipeId);
+                    setSelectedSampleId(null);
+                    setActiveTab('recipes');
+                  }}
+                  onSampleCopied={(newSampleId) => setSelectedSampleId(newSampleId)}
                 />
               ) : (
                 <SamplesList
