@@ -1,0 +1,479 @@
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableFooter,
+} from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowLeft, Save, Lock, Archive, Beaker, ClipboardList, Send } from 'lucide-react';
+import { toast } from 'sonner';
+import {
+  fetchSampleWithIngredients,
+  recalculateSampleIngredients,
+  prepareSample,
+  archiveSample,
+  updateLotNumbers,
+  canPrepareSample,
+  sampleStatusLabels,
+  sampleStatusColors,
+  DevelopmentSampleIngredient,
+} from '@/services/samplesApi';
+
+interface SampleDetailProps {
+  sampleId: string;
+  onBack: () => void;
+}
+
+interface IngredientRow extends DevelopmentSampleIngredient {
+  localLotNumber: string;
+  hasError?: boolean;
+}
+
+export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
+  const queryClient = useQueryClient();
+  const [batchWeight, setBatchWeight] = useState('');
+  const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [prepareDialogOpen, setPrepareDialogOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['development-sample', sampleId],
+    queryFn: () => fetchSampleWithIngredients(sampleId)
+  });
+
+  const sample = data?.sample;
+  const isDraft = sample?.status === 'Draft';
+  const isPrepared = sample?.status === 'Prepared';
+  const isArchived = sample?.status === 'Archived';
+  const isReadOnly = !isDraft;
+
+  // Initialize form data
+  useEffect(() => {
+    if (data) {
+      setBatchWeight(data.sample.batch_weight_g.toString());
+      setIngredients(
+        data.ingredients.map((ing) => ({
+          ...ing,
+          localLotNumber: ing.lot_number || '',
+          hasError: false
+        }))
+      );
+      setHasChanges(false);
+    }
+  }, [data]);
+
+  // Calculate totals
+  const totals = useMemo(() => {
+    const totalRecipeGrams = ingredients.reduce((sum, ing) => sum + ing.recipe_grams, 0);
+    const totalRequiredGrams = ingredients.reduce((sum, ing) => sum + ing.required_grams, 0);
+    return { totalRecipeGrams, totalRequiredGrams };
+  }, [ingredients]);
+
+  // Handle batch weight change with debounce
+  const recalculateMutation = useMutation({
+    mutationFn: (newWeight: number) => recalculateSampleIngredients(sampleId, newWeight),
+    onSuccess: (result) => {
+      setIngredients(
+        result.ingredients.map((ing) => ({
+          ...ing,
+          localLotNumber: ingredients.find(i => i.id === ing.id)?.localLotNumber || ing.lot_number || '',
+          hasError: false
+        }))
+      );
+      queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка перерахунку: ${error.message}`);
+      // Reset to original weight
+      if (data) {
+        setBatchWeight(data.sample.batch_weight_g.toString());
+      }
+    }
+  });
+
+  const handleBatchWeightChange = (value: string) => {
+    setBatchWeight(value);
+    setHasChanges(true);
+  };
+
+  const handleBatchWeightBlur = () => {
+    const newWeight = parseFloat(batchWeight);
+    if (!isNaN(newWeight) && newWeight > 0 && data && newWeight !== data.sample.batch_weight_g) {
+      recalculateMutation.mutate(newWeight);
+    }
+  };
+
+  // Handle lot number changes
+  const handleLotNumberChange = (index: number, value: string) => {
+    setIngredients((prev) =>
+      prev.map((ing, i) => 
+        i === index 
+          ? { ...ing, localLotNumber: value, hasError: false }
+          : ing
+      )
+    );
+    setHasChanges(true);
+  };
+
+  // Save lot numbers
+  const saveLotsMutation = useMutation({
+    mutationFn: async () => {
+      const updates = ingredients
+        .filter(ing => ing.localLotNumber !== (ing.lot_number || ''))
+        .map(ing => ({
+          id: ing.id,
+          lot_number: ing.localLotNumber.trim()
+        }));
+      
+      if (updates.length > 0) {
+        await updateLotNumbers(updates);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
+      setHasChanges(false);
+      toast.success('Дані збережено');
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка збереження: ${error.message}`);
+    }
+  });
+
+  // Prepare sample (Draft -> Prepared)
+  const prepareMutation = useMutation({
+    mutationFn: async () => {
+      // First save lot numbers
+      const updates = ingredients.map(ing => ({
+        id: ing.id,
+        lot_number: ing.localLotNumber.trim()
+      }));
+      
+      await updateLotNumbers(updates);
+      
+      // Then prepare
+      return prepareSample(sampleId);
+    },
+    onSuccess: (preparedSample) => {
+      queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
+      queryClient.invalidateQueries({ queryKey: ['development-samples'] });
+      setPrepareDialogOpen(false);
+      setHasChanges(false);
+      toast.success(`Зразок ${preparedSample.sample_code} підготовлено`);
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка підготовки: ${error.message}`);
+    }
+  });
+
+  // Archive sample
+  const archiveMutation = useMutation({
+    mutationFn: () => archiveSample(sampleId),
+    onSuccess: (archivedSample) => {
+      queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
+      queryClient.invalidateQueries({ queryKey: ['development-samples'] });
+      setArchiveDialogOpen(false);
+      toast.success(`Зразок ${archivedSample.sample_code} архівовано`);
+      onBack();
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка архівації: ${error.message}`);
+    }
+  });
+
+  // Validate before prepare
+  const handlePrepareClick = () => {
+    const weight = parseFloat(batchWeight);
+    if (isNaN(weight) || weight <= 0) {
+      toast.error('Партія має бути числом більше 0');
+      return;
+    }
+
+    const validation = canPrepareSample(
+      ingredients.map(ing => ({ ...ing, lot_number: ing.localLotNumber }))
+    );
+
+    if (!validation.canPrepare) {
+      // Mark ingredients with missing lot numbers
+      setIngredients((prev) =>
+        prev.map((ing) => ({
+          ...ing,
+          hasError: !ing.localLotNumber.trim()
+        }))
+      );
+      toast.error(`Заповніть lot-номери для: ${validation.missingLotNumbers.join(', ')}`);
+      return;
+    }
+
+    setPrepareDialogOpen(true);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (!sample) {
+    return (
+      <div className="text-center py-12">
+        <h2 className="text-xl font-semibold mb-2">Зразок не знайдено</h2>
+        <Button onClick={onBack}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Назад до списку
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={onBack}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold font-mono">{sample.sample_code}</h2>
+              <Badge variant="outline" className={sampleStatusColors[sample.status]}>
+                {sampleStatusLabels[sample.status]}
+              </Badge>
+            </div>
+            <p className="text-muted-foreground text-sm">
+              {isReadOnly ? 'Перегляд зразка' : 'Редагування зразка'}
+            </p>
+          </div>
+        </div>
+
+        {/* Action buttons based on status */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isDraft && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => saveLotsMutation.mutate()}
+                disabled={saveLotsMutation.isPending || !hasChanges}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {saveLotsMutation.isPending ? 'Збереження...' : 'Зберегти чернетку'}
+              </Button>
+              <Button
+                onClick={handlePrepareClick}
+                disabled={prepareMutation.isPending}
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                Зафіксувати зразок
+              </Button>
+            </>
+          )}
+
+          {isPrepared && (
+            <Button
+              variant="outline"
+              onClick={() => setArchiveDialogOpen(true)}
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              Архівувати
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Batch weight */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Партія зразка</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <div className="space-y-2 max-w-xs">
+              <Label htmlFor="batch-weight">Вага партії, г</Label>
+              {isDraft ? (
+                <Input
+                  id="batch-weight"
+                  type="number"
+                  value={batchWeight}
+                  onChange={(e) => handleBatchWeightChange(e.target.value)}
+                  onBlur={handleBatchWeightBlur}
+                  min="0.001"
+                  step="0.001"
+                  className="font-mono"
+                  disabled={recalculateMutation.isPending}
+                />
+              ) : (
+                <p className="font-mono text-lg">{sample.batch_weight_g.toFixed(3)} г</p>
+              )}
+            </div>
+            {recalculateMutation.isPending && (
+              <p className="text-sm text-muted-foreground">Перерахунок...</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Ingredients */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Інгредієнти зразка</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {ingredients.length > 0 ? (
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Інгредієнт</TableHead>
+                    <TableHead className="w-32 text-right">Рецепт, г</TableHead>
+                    <TableHead className="w-32 text-right">Потрібно, г</TableHead>
+                    <TableHead className="w-48">Lot/партія сировини</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ingredients.map((ing, index) => (
+                    <TableRow key={ing.id}>
+                      <TableCell className="font-medium">{ing.ingredient_name}</TableCell>
+                      <TableCell className="text-right font-mono text-muted-foreground">
+                        {ing.recipe_grams.toFixed(3)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold">
+                        {ing.required_grams.toFixed(3)}
+                      </TableCell>
+                      <TableCell>
+                        {isDraft ? (
+                          <Input
+                            value={ing.localLotNumber}
+                            onChange={(e) => handleLotNumberChange(index, e.target.value)}
+                            placeholder="Введіть lot-номер"
+                            className={ing.hasError ? 'border-destructive' : ''}
+                          />
+                        ) : (
+                          <span className="font-mono">{ing.lot_number || '—'}</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+                <TableFooter>
+                  <TableRow>
+                    <TableCell className="font-semibold">Всього</TableCell>
+                    <TableCell className="text-right font-mono font-semibold">
+                      {totals.totalRecipeGrams.toFixed(3)} г
+                    </TableCell>
+                    <TableCell className="text-right font-mono font-semibold">
+                      {totals.totalRequiredGrams.toFixed(3)} г
+                    </TableCell>
+                    <TableCell></TableCell>
+                  </TableRow>
+                </TableFooter>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-center py-8">
+              Інгредієнтів немає
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Future sections placeholder (only show for Prepared status) */}
+      {isPrepared && (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-muted-foreground">
+              <Beaker className="h-5 w-5" />
+              Наступні кроки
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="p-4 border rounded-lg text-center">
+                <Beaker className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="font-medium">Лабораторія</p>
+                <p className="text-sm text-muted-foreground">Буде доступно пізніше</p>
+              </div>
+              <div className="p-4 border rounded-lg text-center">
+                <ClipboardList className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="font-medium">Пілот/Дегустація</p>
+                <p className="text-sm text-muted-foreground">Буде доступно пізніше</p>
+              </div>
+              <div className="p-4 border rounded-lg text-center">
+                <Send className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                <p className="font-medium">Передача на тестування</p>
+                <p className="text-sm text-muted-foreground">Буде доступно пізніше</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Prepare Confirmation Dialog */}
+      <AlertDialog open={prepareDialogOpen} onOpenChange={setPrepareDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Зафіксувати зразок?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Після фіксації зразок {sample.sample_code} стане доступним для лабораторного аналізу.
+              Ви не зможете змінювати партію та lot-номери.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => prepareMutation.mutate()}
+              disabled={prepareMutation.isPending}
+            >
+              {prepareMutation.isPending ? 'Фіксація...' : 'Зафіксувати'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Архівувати зразок?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Зразок {sample.sample_code} буде переміщено в архів.
+              Ви зможете переглядати його, але не зможете редагувати.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => archiveMutation.mutate()}
+              disabled={archiveMutation.isPending}
+            >
+              {archiveMutation.isPending ? 'Архівація...' : 'Архівувати'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

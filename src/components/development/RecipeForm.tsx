@@ -33,11 +33,13 @@ import {
   copyRecipe,
   archiveRecipe,
 } from '@/services/developmentApi';
+import { CreateSampleModal } from './CreateSampleModal';
 
 interface RecipeFormProps {
   recipeId: string;
   onBack: () => void;
   onRecipeCopied?: (newRecipeId: string) => void;
+  onSampleCreated?: (sampleId: string) => void;
 }
 
 interface IngredientRow {
@@ -60,12 +62,13 @@ const statusColors: Record<string, string> = {
   Archived: 'bg-muted text-muted-foreground'
 };
 
-export function RecipeForm({ recipeId, onBack, onRecipeCopied }: RecipeFormProps) {
+export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated }: RecipeFormProps) {
   const queryClient = useQueryClient();
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [createSampleModalOpen, setCreateSampleModalOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['development-recipe', recipeId],
@@ -236,7 +239,11 @@ export function RecipeForm({ recipeId, onBack, onRecipeCopied }: RecipeFormProps
   };
 
   const handleCreateSample = () => {
-    toast.info('Функціонал зразків буде реалізовано в наступному оновленні');
+    setCreateSampleModalOpen(true);
+  };
+
+  const handleSampleCreated = (sampleId: string) => {
+    onSampleCreated?.(sampleId);
   };
 
   if (isLoading) {
@@ -498,6 +505,16 @@ export function RecipeForm({ recipeId, onBack, onRecipeCopied }: RecipeFormProps
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Create Sample Modal */}
+      <CreateSampleModal
+        open={createSampleModalOpen}
+        onOpenChange={setCreateSampleModalOpen}
+        recipeId={recipeId}
+        recipeCode={recipe.recipe_code}
+        requestId={recipe.request_id}
+        onSampleCreated={handleSampleCreated}
+      />
     </div>
   );
 }
