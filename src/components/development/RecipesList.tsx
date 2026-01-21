@@ -41,11 +41,10 @@ import {
 } from '@/services/developmentApi';
 import {
   fetchSamplesByRecipeId,
-  sampleStatusLabels,
-  sampleStatusColors,
   DevelopmentSample
 } from '@/services/samplesApi';
 import { CreateSampleModal } from '@/components/development/CreateSampleModal';
+import { SampleStatusTracker } from './SampleStatusTracker';
 
 interface RecipesListProps {
   requestId: string;
@@ -144,9 +143,7 @@ function RecipeSamplesRow({
                             {sample.sample_code}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className={`text-xs ${sampleStatusColors[sample.status]}`}>
-                              {sampleStatusLabels[sample.status]}
-                            </Badge>
+                            <SampleStatusTracker status={sample.status} compact />
                           </TableCell>
                           <TableCell className="text-right font-mono text-sm">
                             {sample.batch_weight_g.toFixed(3)}
