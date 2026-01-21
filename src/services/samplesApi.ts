@@ -230,18 +230,15 @@ export async function updateLotNumbers(
   }
 }
 
-// Check if sample can be prepared (all lot numbers filled)
+// Check if sample can be prepared (lot numbers are optional now)
 export function canPrepareSample(ingredients: DevelopmentSampleIngredient[]): {
   canPrepare: boolean;
   missingLotNumbers: string[];
 } {
-  const missingLotNumbers = ingredients
-    .filter(ing => !ing.lot_number || ing.lot_number.trim() === '')
-    .map(ing => ing.ingredient_name);
-  
+  // Lot numbers are optional, so we always allow preparation
   return {
-    canPrepare: missingLotNumbers.length === 0,
-    missingLotNumbers
+    canPrepare: true,
+    missingLotNumbers: []
   };
 }
 
@@ -255,4 +252,20 @@ export async function fetchRecipeCodeForSample(recipeId: string): Promise<string
 
   if (error) return null;
   return data?.recipe_code || null;
+}
+
+// Copy a prepared sample with lot numbers preserved
+export async function copySample(sampleId: string): Promise<CreateSampleResult> {
+  const { data, error } = await supabase.rpc('copy_development_sample', {
+    p_sample_id: sampleId
+  });
+
+  if (error) throw error;
+  
+  const result = data as unknown as {
+    sample: DevelopmentSample;
+    ingredients: DevelopmentSampleIngredient[];
+  };
+  
+  return result;
 }

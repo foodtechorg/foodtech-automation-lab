@@ -23,13 +23,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Archive, TestTubes } from 'lucide-react';
+import { Archive, TestTubes, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import {
   fetchSamplesByRequestId,
   archiveSample,
+  copySample,
   sampleStatusLabels,
   sampleStatusColors,
   DevelopmentSample
@@ -54,11 +55,25 @@ export function SamplesList({ requestId, onOpenSample }: SamplesListProps) {
     mutationFn: (sampleId: string) => archiveSample(sampleId),
     onSuccess: (archivedSample) => {
       queryClient.invalidateQueries({ queryKey: ['development-samples', requestId] });
+      queryClient.invalidateQueries({ queryKey: ['recipe-samples'] });
       toast.success(`Зразок ${archivedSample.sample_code} архівовано`);
       setArchiveDialogSample(null);
     },
     onError: (error: Error) => {
       toast.error(`Помилка архівації: ${error.message}`);
+    }
+  });
+
+  const copyMutation = useMutation({
+    mutationFn: (sampleId: string) => copySample(sampleId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['development-samples', requestId] });
+      queryClient.invalidateQueries({ queryKey: ['recipe-samples'] });
+      toast.success(`Зразок скопійовано як ${result.sample.sample_code}`);
+      onOpenSample(result.sample.id);
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка копіювання: ${error.message}`);
     }
   });
 
@@ -113,12 +128,13 @@ export function SamplesList({ requestId, onOpenSample }: SamplesListProps) {
                 <TableHead>Статус</TableHead>
                 <TableHead className="text-right">Партія, г</TableHead>
                 <TableHead>Створено</TableHead>
-                <TableHead className="w-20 text-right">Дії</TableHead>
+                <TableHead className="w-24 text-right">Дії</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {samples.map((sample) => {
                 const isArchived = sample.status === 'Archived';
+                const isPrepared = sample.status === 'Prepared';
                 // Extract recipe code from sample code (e.g., RD-0015/01/01 -> RD-0015/01)
                 const recipeCode = sample.sample_code.split('/').slice(0, 2).join('/');
                 
@@ -146,19 +162,35 @@ export function SamplesList({ requestId, onOpenSample }: SamplesListProps) {
                       {format(new Date(sample.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}
                     </TableCell>
                     <TableCell className="text-right">
-                      {!isArchived && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setArchiveDialogSample(sample);
-                          }}
-                          title="Архівувати"
-                        >
-                          <Archive className="h-4 w-4" />
-                        </Button>
-                      )}
+                      <div className="flex items-center justify-end gap-1">
+                        {isPrepared && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyMutation.mutate(sample.id);
+                            }}
+                            disabled={copyMutation.isPending}
+                            title="Копіювати зразок"
+                          >
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {!isArchived && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setArchiveDialogSample(sample);
+                            }}
+                            title="Архівувати"
+                          >
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );

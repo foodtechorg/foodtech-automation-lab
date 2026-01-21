@@ -24,8 +24,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Copy, Archive, FlaskConical } from 'lucide-react';
+import { Plus, Copy, Archive, FlaskConical, ChevronDown, ChevronRight, TestTubes } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchRecipesByRequestId,
@@ -34,10 +39,19 @@ import {
   archiveRecipe,
   DevelopmentRecipe
 } from '@/services/developmentApi';
+import {
+  fetchSamplesByRecipeId,
+  sampleStatusLabels,
+  sampleStatusColors,
+  DevelopmentSample
+} from '@/services/samplesApi';
+import { CreateSampleModal } from '@/components/development/CreateSampleModal';
 
 interface RecipesListProps {
   requestId: string;
   onOpenRecipe: (recipeId: string) => void;
+  onOpenSample?: (sampleId: string) => void;
+  onSampleCreated?: (sampleId: string) => void;
 }
 
 const statusLabels: Record<string, string> = {
@@ -52,7 +66,143 @@ const statusColors: Record<string, string> = {
   Archived: 'bg-muted text-muted-foreground'
 };
 
-export function RecipesList({ requestId, onOpenRecipe }: RecipesListProps) {
+// Inner component for expandable samples row
+function RecipeSamplesRow({ 
+  recipe, 
+  onOpenSample, 
+  onSampleCreated,
+  requestId 
+}: { 
+  recipe: DevelopmentRecipe;
+  onOpenSample?: (sampleId: string) => void;
+  onSampleCreated?: (sampleId: string) => void;
+  requestId: string;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+
+  const { data: samples, isLoading } = useQuery({
+    queryKey: ['recipe-samples', recipe.id],
+    queryFn: () => fetchSamplesByRecipeId(recipe.id, false),
+    enabled: isOpen
+  });
+
+  const handleSampleCreated = (sampleId: string) => {
+    onSampleCreated?.(sampleId);
+  };
+
+  // Only show expandable for Locked recipes
+  if (recipe.status !== 'Locked') {
+    return null;
+  }
+
+  return (
+    <TableRow className="bg-muted/30 hover:bg-muted/50">
+      <TableCell colSpan={5} className="p-0">
+        <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start px-4 py-2 h-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {isOpen ? (
+                <ChevronDown className="h-4 w-4 mr-2" />
+              ) : (
+                <ChevronRight className="h-4 w-4 mr-2" />
+              )}
+              <TestTubes className="h-4 w-4 mr-2 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                Зразки рецепту ({samples?.length ?? '...'})
+              </span>
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-8 pb-4">
+              {isLoading ? (
+                <Skeleton className="h-16 w-full" />
+              ) : samples && samples.length > 0 ? (
+                <div className="border rounded-lg overflow-hidden bg-background">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="text-xs">Код зразка</TableHead>
+                        <TableHead className="text-xs">Статус</TableHead>
+                        <TableHead className="text-xs text-right">Партія, г</TableHead>
+                        <TableHead className="text-xs w-20"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {samples.map((sample) => (
+                        <TableRow 
+                          key={sample.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => onOpenSample?.(sample.id)}
+                        >
+                          <TableCell className="font-mono text-sm">
+                            {sample.sample_code}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={`text-xs ${sampleStatusColors[sample.status]}`}>
+                              {sampleStatusLabels[sample.status]}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm">
+                            {sample.batch_weight_g.toFixed(3)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenSample?.(sample.id);
+                              }}
+                            >
+                              Відкрити
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground py-2">
+                  Зразків для цього рецепту ще немає
+                </p>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCreateModalOpen(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Створити новий зразок
+              </Button>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        <CreateSampleModal
+          open={createModalOpen}
+          onOpenChange={setCreateModalOpen}
+          recipeId={recipe.id}
+          recipeCode={recipe.recipe_code}
+          requestId={requestId}
+          onSampleCreated={handleSampleCreated}
+        />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+export function RecipesList({ requestId, onOpenRecipe, onOpenSample, onSampleCreated }: RecipesListProps) {
   const queryClient = useQueryClient();
   const [showArchived, setShowArchived] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
@@ -159,55 +309,65 @@ export function RecipesList({ requestId, onOpenRecipe }: RecipesListProps) {
             </TableHeader>
             <TableBody>
               {recipes.map((recipe) => (
-                <TableRow 
-                  key={recipe.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => onOpenRecipe(recipe.id)}
-                >
-                  <TableCell className="font-mono font-medium">
-                    {recipe.recipe_code}
-                  </TableCell>
-                  <TableCell>{recipe.name || '—'}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={statusColors[recipe.status]}>
-                      {statusLabels[recipe.status]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(recipe.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      {recipe.status !== 'Archived' && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              copyMutation.mutate(recipe.id);
-                            }}
-                            disabled={copyMutation.isPending}
-                            title="Копіювати"
-                          >
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleArchiveClick(recipe);
-                            }}
-                            title="Архівувати"
-                          >
-                            <Archive className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+                <>
+                  <TableRow 
+                    key={recipe.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => onOpenRecipe(recipe.id)}
+                  >
+                    <TableCell className="font-mono font-medium">
+                      {recipe.recipe_code}
+                    </TableCell>
+                    <TableCell>{recipe.name || '—'}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={statusColors[recipe.status]}>
+                        {statusLabels[recipe.status]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {format(new Date(recipe.created_at), 'dd.MM.yyyy HH:mm', { locale: uk })}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {recipe.status !== 'Archived' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyMutation.mutate(recipe.id);
+                              }}
+                              disabled={copyMutation.isPending}
+                              title="Копіювати"
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleArchiveClick(recipe);
+                              }}
+                              title="Архівувати"
+                            >
+                              <Archive className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {/* Expandable samples row for Locked recipes */}
+                  <RecipeSamplesRow 
+                    key={`samples-${recipe.id}`}
+                    recipe={recipe} 
+                    onOpenSample={onOpenSample}
+                    onSampleCreated={onSampleCreated}
+                    requestId={requestId}
+                  />
+                </>
               ))}
             </TableBody>
           </Table>
