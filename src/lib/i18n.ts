@@ -332,6 +332,13 @@ export const translations = {
   }
 };
 
+const complexityLevelMap: Record<string, string> = {
+  EASY: 'Проста',
+  MEDIUM: 'Середня',
+  COMPLEX: 'Складна',
+  EXPERT: 'Експертна'
+};
+
 export const t = {
   status: (key: string) => translations.status[key as keyof typeof translations.status] || key,
   direction: (key: string) => translations.direction[key as keyof typeof translations.direction] || key,
@@ -341,4 +348,5 @@ export const t = {
   role: (key: string) => translations.role[key as keyof typeof translations.role] || key,
   eventType: (key: string) => translations.eventType[key as keyof typeof translations.eventType] || key,
   purchaseAction: (key: string) => translations.purchaseAction[key as keyof typeof translations.purchaseAction] || key,
+  complexityLevel: (key: string) => complexityLevelMap[key] || key,
 };

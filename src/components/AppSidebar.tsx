@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-import { FileText, ShoppingCart, UserCog, BookOpen } from 'lucide-react';
+import { FileText, ShoppingCart, UserCog, BookOpen, FlaskConical } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
 import foodtechLogo from '@/assets/foodtech-logo.png';
@@ -18,6 +18,12 @@ const modules: Module[] = [{
   icon: FileText,
   roles: ['sales_manager', 'rd_dev', 'rd_manager', 'admin', 'quality_manager', 'admin_director', 'ceo', 'coo'],
   getPath: role => role === 'sales_manager' ? '/requests/my' : '/rd/board'
+}, {
+  id: 'development',
+  label: 'Розробка',
+  icon: FlaskConical,
+  roles: ['admin', 'coo'],
+  getPath: () => '/development'
 }, {
   id: 'purchase',
   label: 'Закупівля ТМЦ',
@@ -44,6 +50,8 @@ function isModuleActive(moduleId: string, pathname: string): boolean {
   switch (moduleId) {
     case 'rd':
       return pathname.startsWith('/rd') || pathname.startsWith('/requests') || pathname === '/analytics';
+    case 'development':
+      return pathname.startsWith('/development');
     case 'purchase':
       return pathname.startsWith('/purchase');
     case 'kb':
