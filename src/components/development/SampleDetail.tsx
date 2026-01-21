@@ -33,7 +33,6 @@ import {
   prepareSample,
   archiveSample,
   updateLotNumbers,
-  canPrepareSample,
   sampleStatusLabels,
   sampleStatusColors,
   DevelopmentSampleIngredient,
@@ -94,12 +93,16 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
   const recalculateMutation = useMutation({
     mutationFn: (newWeight: number) => recalculateSampleIngredients(sampleId, newWeight),
     onSuccess: (result) => {
-      setIngredients(
-        result.ingredients.map((ing) => ({
-          ...ing,
-          localLotNumber: ingredients.find(i => i.id === ing.id)?.localLotNumber || ing.lot_number || '',
-          hasError: false
-        }))
+      // Use functional update to preserve local lot numbers
+      setIngredients((prevIngredients) =>
+        result.ingredients.map((ing) => {
+          const prevIng = prevIngredients.find(i => i.id === ing.id);
+          return {
+            ...ing,
+            localLotNumber: prevIng?.localLotNumber ?? ing.lot_number ?? '',
+            hasError: false
+          };
+        })
       );
       queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
     },
@@ -208,23 +211,6 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
       toast.error('Партія має бути числом більше 0');
       return;
     }
-
-    const validation = canPrepareSample(
-      ingredients.map(ing => ({ ...ing, lot_number: ing.localLotNumber }))
-    );
-
-    if (!validation.canPrepare) {
-      // Mark ingredients with missing lot numbers
-      setIngredients((prev) =>
-        prev.map((ing) => ({
-          ...ing,
-          hasError: !ing.localLotNumber.trim()
-        }))
-      );
-      toast.error(`Заповніть lot-номери для: ${validation.missingLotNumbers.join(', ')}`);
-      return;
-    }
-
     setPrepareDialogOpen(true);
   };
 
@@ -348,9 +334,9 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Інгредієнт</TableHead>
-                    <TableHead className="w-32 text-right">Рецепт, г</TableHead>
+                    <TableHead className="w-32 text-right">Рецепт, %</TableHead>
                     <TableHead className="w-32 text-right">Потрібно, г</TableHead>
-                    <TableHead className="w-48">Lot/партія сировини</TableHead>
+                    <TableHead className="w-48">Партія сировини</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -358,7 +344,9 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
                     <TableRow key={ing.id}>
                       <TableCell className="font-medium">{ing.ingredient_name}</TableCell>
                       <TableCell className="text-right font-mono text-muted-foreground">
-                        {ing.recipe_grams.toFixed(3)}
+                        {totals.totalRecipeGrams > 0 
+                          ? ((ing.recipe_grams / totals.totalRecipeGrams) * 100).toFixed(2)
+                          : '0.00'}%
                       </TableCell>
                       <TableCell className="text-right font-mono font-semibold">
                         {ing.required_grams.toFixed(3)}
@@ -368,8 +356,7 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
                           <Input
                             value={ing.localLotNumber}
                             onChange={(e) => handleLotNumberChange(index, e.target.value)}
-                            placeholder="Введіть lot-номер"
-                            className={ing.hasError ? 'border-destructive' : ''}
+                            placeholder="Введіть номер партії"
                           />
                         ) : (
                           <span className="font-mono">{ing.lot_number || '—'}</span>
@@ -382,7 +369,7 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
                   <TableRow>
                     <TableCell className="font-semibold">Всього</TableCell>
                     <TableCell className="text-right font-mono font-semibold">
-                      {totals.totalRecipeGrams.toFixed(3)} г
+                      100.00%
                     </TableCell>
                     <TableCell className="text-right font-mono font-semibold">
                       {totals.totalRequiredGrams.toFixed(3)} г
@@ -438,7 +425,7 @@ export function SampleDetail({ sampleId, onBack }: SampleDetailProps) {
             <AlertDialogTitle>Зафіксувати зразок?</AlertDialogTitle>
             <AlertDialogDescription>
               Після фіксації зразок {sample.sample_code} стане доступним для лабораторного аналізу.
-              Ви не зможете змінювати партію та lot-номери.
+              Ви не зможете змінювати партію та партії сировини.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
