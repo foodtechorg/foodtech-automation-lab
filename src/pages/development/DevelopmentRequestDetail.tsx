@@ -197,6 +197,10 @@ export default function DevelopmentRequestDetail() {
                     setSelectedSampleId(sampleId);
                     setActiveTab('samples');
                   }}
+                  onOpenSample={(sampleId) => {
+                    setSelectedSampleId(sampleId);
+                    setActiveTab('samples');
+                  }}
                 />
               ) : (
                 <RecipesList
