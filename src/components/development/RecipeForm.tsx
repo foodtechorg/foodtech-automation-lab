@@ -51,7 +51,6 @@ const statusColors: Record<string, string> = {
 
 export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
   const queryClient = useQueryClient();
-  const [recipeName, setRecipeName] = useState('');
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
 
@@ -66,7 +65,6 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
   // Initialize form data when loaded
   useEffect(() => {
     if (data) {
-      setRecipeName(data.recipe.name || '');
       setIngredients(
         data.ingredients.map((ing) => ({
           id: ing.id,
@@ -110,11 +108,6 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
         throw new Error('Додайте хоча б один інгредієнт з назвою та вагою > 0');
       }
 
-      // Update recipe name
-      if (recipe) {
-        await updateRecipe(recipeId, { name: recipeName || null });
-      }
-
       // Save ingredients
       await saveIngredients(
         recipeId,
@@ -136,11 +129,6 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
       toast.error(`Помилка збереження: ${error.message}`);
     }
   });
-
-  const handleNameChange = (value: string) => {
-    setRecipeName(value);
-    setHasChanges(true);
-  };
 
   const handleIngredientChange = (index: number, field: 'ingredient_name' | 'grams', value: string) => {
     setIngredients((prev) =>
@@ -220,43 +208,18 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
         )}
       </div>
 
-      {/* Recipe Name */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Основна інформація</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="max-w-md">
-            <label className="text-sm font-medium mb-2 block">
-              Назва рецепту (опціонально)
-            </label>
-            <Input
-              value={recipeName}
-              onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Введіть назву рецепту..."
-              disabled={isReadOnly}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Ingredients */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <CardTitle>Склад рецепту</CardTitle>
-          {!isReadOnly && (
-            <Button variant="outline" size="sm" onClick={handleAddIngredient}>
-              <Plus className="h-4 w-4 mr-2" />
-              Додати інгредієнт
-            </Button>
-          )}
         </CardHeader>
         <CardContent>
           {ingredients.length > 0 ? (
-            <div className="border rounded-lg overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
+            <div className="space-y-4">
+              <div className="border rounded-lg overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
                     {!isReadOnly && <TableHead className="w-10"></TableHead>}
                     <TableHead>Інгредієнт</TableHead>
                     <TableHead className="w-32">Грами</TableHead>
@@ -334,7 +297,15 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
                     {!isReadOnly && <TableCell></TableCell>}
                   </TableRow>
                 </TableFooter>
-              </Table>
+                </Table>
+              </div>
+              
+              {!isReadOnly && (
+                <Button variant="outline" onClick={handleAddIngredient}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Додати інгредієнт
+                </Button>
+              )}
             </div>
           ) : (
             <div className="text-center py-8 border-2 border-dashed rounded-lg">
