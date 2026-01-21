@@ -25,7 +25,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Copy, Archive, Eye, Edit, FlaskConical } from 'lucide-react';
+import { Plus, Copy, Archive, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchRecipesByRequestId,
@@ -42,13 +42,13 @@ interface RecipesListProps {
 
 const statusLabels: Record<string, string> = {
   Draft: 'Чернетка',
-  Locked: 'Заблоковано',
+  Locked: 'В роботі',
   Archived: 'Архів'
 };
 
 const statusColors: Record<string, string> = {
   Draft: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  Locked: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  Locked: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   Archived: 'bg-muted text-muted-foreground'
 };
 
@@ -159,7 +159,11 @@ export function RecipesList({ requestId, onOpenRecipe }: RecipesListProps) {
             </TableHeader>
             <TableBody>
               {recipes.map((recipe) => (
-                <TableRow key={recipe.id}>
+                <TableRow 
+                  key={recipe.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => onOpenRecipe(recipe.id)}
+                >
                   <TableCell className="font-mono font-medium">
                     {recipe.recipe_code}
                   </TableCell>
@@ -174,25 +178,15 @@ export function RecipesList({ requestId, onOpenRecipe }: RecipesListProps) {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onOpenRecipe(recipe.id)}
-                        title={recipe.status === 'Archived' || recipe.status === 'Locked' ? 'Переглянути' : 'Редагувати'}
-                      >
-                        {recipe.status === 'Archived' || recipe.status === 'Locked' ? (
-                          <Eye className="h-4 w-4" />
-                        ) : (
-                          <Edit className="h-4 w-4" />
-                        )}
-                      </Button>
-                      
                       {recipe.status !== 'Archived' && (
                         <>
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => copyMutation.mutate(recipe.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              copyMutation.mutate(recipe.id);
+                            }}
                             disabled={copyMutation.isPending}
                             title="Копіювати"
                           >
@@ -201,7 +195,10 @@ export function RecipesList({ requestId, onOpenRecipe }: RecipesListProps) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleArchiveClick(recipe)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleArchiveClick(recipe);
+                            }}
                             title="Архівувати"
                           >
                             <Archive className="h-4 w-4" />

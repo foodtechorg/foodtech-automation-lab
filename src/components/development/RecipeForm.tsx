@@ -13,46 +13,59 @@ import {
   TableRow,
   TableFooter,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Plus, Trash2, Save, GripVertical } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, GripVertical, Copy, Archive, FlaskConical, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchRecipeWithIngredients,
-  updateRecipe,
   saveIngredients,
-  DevelopmentRecipe,
-  DevelopmentRecipeIngredient
+  lockRecipe,
+  copyRecipe,
+  archiveRecipe,
 } from '@/services/developmentApi';
 
 interface RecipeFormProps {
   recipeId: string;
   onBack: () => void;
+  onRecipeCopied?: (newRecipeId: string) => void;
 }
 
 interface IngredientRow {
   id?: string;
   ingredient_name: string;
-  grams: string; // string for input handling
+  grams: string;
   sort_order: number;
   isNew?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
   Draft: 'Чернетка',
-  Locked: 'Заблоковано',
+  Locked: 'В роботі',
   Archived: 'Архів'
 };
 
 const statusColors: Record<string, string> = {
   Draft: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  Locked: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+  Locked: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
   Archived: 'bg-muted text-muted-foreground'
 };
 
-export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
+export function RecipeForm({ recipeId, onBack, onRecipeCopied }: RecipeFormProps) {
   const queryClient = useQueryClient();
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [lockDialogOpen, setLockDialogOpen] = useState(false);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['development-recipe', recipeId],
@@ -60,7 +73,10 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
   });
 
   const recipe = data?.recipe;
-  const isReadOnly = recipe?.status === 'Locked' || recipe?.status === 'Archived';
+  const isDraft = recipe?.status === 'Draft';
+  const isLocked = recipe?.status === 'Locked';
+  const isArchived = recipe?.status === 'Archived';
+  const isReadOnly = isLocked || isArchived;
 
   // Initialize form data when loaded
   useEffect(() => {
@@ -97,9 +113,9 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
     return { total, rows };
   }, [ingredients]);
 
-  const updateMutation = useMutation({
+  // Save draft mutation
+  const saveDraftMutation = useMutation({
     mutationFn: async () => {
-      // Validate ingredients
       const validIngredients = ingredients.filter(
         (ing) => ing.ingredient_name.trim() && parseFloat(ing.grams) > 0
       );
@@ -108,7 +124,6 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
         throw new Error('Додайте хоча б один інгредієнт з назвою та вагою > 0');
       }
 
-      // Save ingredients
       await saveIngredients(
         recipeId,
         validIngredients.map((ing, index) => ({
@@ -123,10 +138,75 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
       queryClient.invalidateQueries({ queryKey: ['development-recipe', recipeId] });
       queryClient.invalidateQueries({ queryKey: ['development-recipes'] });
       setHasChanges(false);
-      toast.success('Рецепт збережено');
+      toast.success('Чернетку збережено');
     },
     onError: (error: Error) => {
       toast.error(`Помилка збереження: ${error.message}`);
+    }
+  });
+
+  // Lock recipe mutation
+  const lockMutation = useMutation({
+    mutationFn: async () => {
+      const validIngredients = ingredients.filter(
+        (ing) => ing.ingredient_name.trim() && parseFloat(ing.grams) > 0
+      );
+
+      if (validIngredients.length === 0) {
+        throw new Error('Неможливо зафіксувати рецепт без інгредієнтів');
+      }
+
+      // Save ingredients first
+      await saveIngredients(
+        recipeId,
+        validIngredients.map((ing, index) => ({
+          id: ing.id,
+          ingredient_name: ing.ingredient_name.trim(),
+          grams: parseFloat(ing.grams),
+          sort_order: index
+        }))
+      );
+
+      // Then lock the recipe
+      await lockRecipe(recipeId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['development-recipe', recipeId] });
+      queryClient.invalidateQueries({ queryKey: ['development-recipes'] });
+      setHasChanges(false);
+      setLockDialogOpen(false);
+      toast.success('Рецепт зафіксовано');
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка фіксації: ${error.message}`);
+    }
+  });
+
+  // Copy recipe mutation
+  const copyMutation = useMutation({
+    mutationFn: () => copyRecipe(recipeId),
+    onSuccess: (newRecipe) => {
+      queryClient.invalidateQueries({ queryKey: ['development-recipes'] });
+      toast.success(`Рецепт скопійовано як ${newRecipe.recipe_code}`);
+      onRecipeCopied?.(newRecipe.id);
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка копіювання: ${error.message}`);
+    }
+  });
+
+  // Archive recipe mutation
+  const archiveMutation = useMutation({
+    mutationFn: () => archiveRecipe(recipeId),
+    onSuccess: (archivedRecipe) => {
+      queryClient.invalidateQueries({ queryKey: ['development-recipe', recipeId] });
+      queryClient.invalidateQueries({ queryKey: ['development-recipes'] });
+      setArchiveDialogOpen(false);
+      toast.success(`Рецепт ${archivedRecipe.recipe_code} архівовано`);
+      onBack();
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка архівації: ${error.message}`);
     }
   });
 
@@ -153,6 +233,10 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
   const handleRemoveIngredient = (index: number) => {
     setIngredients((prev) => prev.filter((_, i) => i !== index));
     setHasChanges(true);
+  };
+
+  const handleCreateSample = () => {
+    toast.info('Функціонал зразків буде реалізовано в наступному оновленні');
   };
 
   if (isLoading) {
@@ -197,15 +281,63 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
           </div>
         </div>
 
-        {!isReadOnly && (
-          <Button
-            onClick={() => updateMutation.mutate()}
-            disabled={updateMutation.isPending || !hasChanges}
-          >
-            <Save className="h-4 w-4 mr-2" />
-            {updateMutation.isPending ? 'Збереження...' : 'Зберегти'}
-          </Button>
-        )}
+        {/* Action buttons based on status */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {isDraft && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => copyMutation.mutate()}
+                disabled={copyMutation.isPending}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Копіювати
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => saveDraftMutation.mutate()}
+                disabled={saveDraftMutation.isPending || !hasChanges}
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {saveDraftMutation.isPending ? 'Збереження...' : 'Зберегти чернетку'}
+              </Button>
+              <Button
+                onClick={() => setLockDialogOpen(true)}
+                disabled={lockMutation.isPending || ingredients.length === 0}
+              >
+                <Lock className="h-4 w-4 mr-2" />
+                Зафіксувати рецепт
+              </Button>
+            </>
+          )}
+
+          {isLocked && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => copyMutation.mutate()}
+                disabled={copyMutation.isPending}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Копіювати
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleCreateSample}
+              >
+                <FlaskConical className="h-4 w-4 mr-2" />
+                Виготовити зразок
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setArchiveDialogOpen(true)}
+              >
+                <Archive className="h-4 w-4 mr-2" />
+                Архівувати
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Ingredients */}
@@ -220,83 +352,83 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                    {!isReadOnly && <TableHead className="w-10"></TableHead>}
-                    <TableHead>Інгредієнт</TableHead>
-                    <TableHead className="w-32">Грами</TableHead>
-                    <TableHead className="w-24 text-right">%</TableHead>
-                    {!isReadOnly && <TableHead className="w-16"></TableHead>}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {calculations.rows.map((row, index) => (
-                    <TableRow key={row.id || `new-${index}`}>
-                      {!isReadOnly && (
-                        <TableCell className="text-muted-foreground">
-                          <GripVertical className="h-4 w-4" />
-                        </TableCell>
-                      )}
-                      <TableCell>
-                        {isReadOnly ? (
-                          <span>{row.ingredient_name}</span>
-                        ) : (
-                          <Input
-                            value={row.ingredient_name}
-                            onChange={(e) =>
-                              handleIngredientChange(index, 'ingredient_name', e.target.value)
-                            }
-                            placeholder="Назва інгредієнта"
-                            className="border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {isReadOnly ? (
-                          <span className="font-mono">{row.gramsNum.toFixed(3)}</span>
-                        ) : (
-                          <Input
-                            type="number"
-                            value={row.grams}
-                            onChange={(e) =>
-                              handleIngredientChange(index, 'grams', e.target.value)
-                            }
-                            placeholder="0"
-                            min="0"
-                            step="0.001"
-                            className="font-mono border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {row.percent.toFixed(2)}%
-                      </TableCell>
-                      {!isReadOnly && (
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleRemoveIngredient(index)}
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      )}
+                      {!isReadOnly && <TableHead className="w-10"></TableHead>}
+                      <TableHead>Інгредієнт</TableHead>
+                      <TableHead className="w-32">Грами</TableHead>
+                      <TableHead className="w-24 text-right">%</TableHead>
+                      {!isReadOnly && <TableHead className="w-16"></TableHead>}
                     </TableRow>
-                  ))}
-                </TableBody>
-                <TableFooter>
-                  <TableRow>
-                    {!isReadOnly && <TableCell></TableCell>}
-                    <TableCell className="font-semibold">Всього</TableCell>
-                    <TableCell className="font-mono font-semibold">
-                      {calculations.total.toFixed(3)} г
-                    </TableCell>
-                    <TableCell className="text-right font-mono font-semibold">
-                      100.00%
-                    </TableCell>
-                    {!isReadOnly && <TableCell></TableCell>}
-                  </TableRow>
-                </TableFooter>
+                  </TableHeader>
+                  <TableBody>
+                    {calculations.rows.map((row, index) => (
+                      <TableRow key={row.id || `new-${index}`}>
+                        {!isReadOnly && (
+                          <TableCell className="text-muted-foreground">
+                            <GripVertical className="h-4 w-4" />
+                          </TableCell>
+                        )}
+                        <TableCell>
+                          {isReadOnly ? (
+                            <span>{row.ingredient_name}</span>
+                          ) : (
+                            <Input
+                              value={row.ingredient_name}
+                              onChange={(e) =>
+                                handleIngredientChange(index, 'ingredient_name', e.target.value)
+                              }
+                              placeholder="Назва інгредієнта"
+                              className="border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isReadOnly ? (
+                            <span className="font-mono">{row.gramsNum.toFixed(3)}</span>
+                          ) : (
+                            <Input
+                              type="number"
+                              value={row.grams}
+                              onChange={(e) =>
+                                handleIngredientChange(index, 'grams', e.target.value)
+                              }
+                              placeholder="0"
+                              min="0"
+                              step="0.001"
+                              className="font-mono border-0 shadow-none focus-visible:ring-0 p-0 h-auto"
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {row.percent.toFixed(2)}%
+                        </TableCell>
+                        {!isReadOnly && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveIngredient(index)}
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                  <TableFooter>
+                    <TableRow>
+                      {!isReadOnly && <TableCell></TableCell>}
+                      <TableCell className="font-semibold">Всього</TableCell>
+                      <TableCell className="font-mono font-semibold">
+                        {calculations.total.toFixed(3)} г
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-semibold">
+                        100.00%
+                      </TableCell>
+                      {!isReadOnly && <TableCell></TableCell>}
+                    </TableRow>
+                  </TableFooter>
                 </Table>
               </div>
               
@@ -322,6 +454,50 @@ export function RecipeForm({ recipeId, onBack }: RecipeFormProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Lock Confirmation Dialog */}
+      <AlertDialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Зафіксувати рецепт?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Після фіксації рецепт {recipe.recipe_code} не можна буде редагувати.
+              Ви зможете створювати зразки на основі цього рецепту.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => lockMutation.mutate()}
+              disabled={lockMutation.isPending}
+            >
+              {lockMutation.isPending ? 'Фіксація...' : 'Зафіксувати'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Архівувати рецепт?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Рецепт {recipe.recipe_code} буде переміщено в архів.
+              Ви зможете переглянути його, увімкнувши показ архівних рецептів.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Скасувати</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => archiveMutation.mutate()}
+              disabled={archiveMutation.isPending}
+            >
+              {archiveMutation.isPending ? 'Архівація...' : 'Архівувати'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

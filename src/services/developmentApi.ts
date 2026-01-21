@@ -111,6 +111,11 @@ export async function archiveRecipe(recipeId: string): Promise<DevelopmentRecipe
   return updateRecipe(recipeId, { status: 'Archived' });
 }
 
+// Lock recipe (finalize for sample creation)
+export async function lockRecipe(recipeId: string): Promise<DevelopmentRecipe> {
+  return updateRecipe(recipeId, { status: 'Locked' });
+}
+
 // ========== Ingredients ==========
 
 // Add ingredient
