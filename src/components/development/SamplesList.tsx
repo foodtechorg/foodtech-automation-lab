@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,10 +30,9 @@ import {
   fetchSamplesByRequestId,
   archiveSample,
   copySample,
-  sampleStatusLabels,
-  sampleStatusColors,
   DevelopmentSample
 } from '@/services/samplesApi';
+import { SampleStatusTracker } from './SampleStatusTracker';
 
 interface SamplesListProps {
   requestId: string;
@@ -92,7 +90,7 @@ export function SamplesList({ requestId, onOpenSample }: SamplesListProps) {
     <div className="space-y-4">
       {/* Header with toggle */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Зразки заявки</h3>
+        <h3 className="text-lg font-semibold">Лабораторні зразки рецептів</h3>
         <div className="flex items-center gap-2">
           <Switch
             id="show-archived"
@@ -151,9 +149,7 @@ export function SamplesList({ requestId, onOpenSample }: SamplesListProps) {
                       {recipeCode}
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={sampleStatusColors[sample.status]}>
-                        {sampleStatusLabels[sample.status]}
-                      </Badge>
+                      <SampleStatusTracker status={sample.status} compact />
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {sample.batch_weight_g.toFixed(3)}
