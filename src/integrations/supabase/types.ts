@@ -103,6 +103,111 @@ export type Database = {
           },
         ]
       }
+      development_sample_ingredients: {
+        Row: {
+          created_at: string
+          id: string
+          ingredient_name: string
+          lot_number: string | null
+          recipe_grams: number
+          required_grams: number
+          sample_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          ingredient_name: string
+          lot_number?: string | null
+          recipe_grams: number
+          required_grams: number
+          sample_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          ingredient_name?: string
+          lot_number?: string | null
+          recipe_grams?: number
+          required_grams?: number
+          sample_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_sample_ingredients_sample_id_fkey"
+            columns: ["sample_id"]
+            isOneToOne: false
+            referencedRelation: "development_samples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      development_samples: {
+        Row: {
+          batch_weight_g: number
+          created_at: string
+          created_by: string | null
+          id: string
+          recipe_id: string
+          request_id: string
+          sample_code: string
+          sample_seq: number
+          status: Database["public"]["Enums"]["development_sample_status"]
+          updated_at: string
+        }
+        Insert: {
+          batch_weight_g: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          recipe_id: string
+          request_id: string
+          sample_code: string
+          sample_seq: number
+          status?: Database["public"]["Enums"]["development_sample_status"]
+          updated_at?: string
+        }
+        Update: {
+          batch_weight_g?: number
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          recipe_id?: string
+          request_id?: string
+          sample_code?: string
+          sample_seq?: number
+          status?: Database["public"]["Enums"]["development_sample_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_samples_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_samples_recipe_id_fkey"
+            columns: ["recipe_id"]
+            isOneToOne: false
+            referencedRelation: "development_recipes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "development_samples_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kb_chunks: {
         Row: {
           chunk_index: number
@@ -1013,6 +1118,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_development_sample: {
+        Args: { p_batch_weight_g: number; p_recipe_id: string }
+        Returns: Json
+      }
       generate_purchase_invoice_number: { Args: never; Returns: string }
       generate_purchase_request_number: { Args: never; Returns: string }
       generate_request_code: { Args: never; Returns: string }
@@ -1068,6 +1177,10 @@ export type Database = {
           similarity: number
         }[]
       }
+      recalculate_sample_ingredients: {
+        Args: { p_new_batch_weight_g: number; p_sample_id: string }
+        Returns: Json
+      }
       reject_purchase_invoice: {
         Args: { p_comment: string; p_invoice_id: string; p_role: string }
         Returns: Json
@@ -1100,6 +1213,16 @@ export type Database = {
       client_result: "PRODUCTION" | "REWORK" | "DECLINE"
       complexity_level: "EASY" | "MEDIUM" | "COMPLEX" | "EXPERT"
       development_recipe_status: "Draft" | "Locked" | "Archived"
+      development_sample_status:
+        | "Draft"
+        | "Prepared"
+        | "Lab"
+        | "LabDone"
+        | "Pilot"
+        | "PilotDone"
+        | "ReadyForHandoff"
+        | "HandedOff"
+        | "Archived"
       direction: "FUNCTIONAL" | "FLAVOR" | "COLORANT" | "COMPLEX"
       domain:
         | "MEAT"
@@ -1307,6 +1430,17 @@ export const Constants = {
       client_result: ["PRODUCTION", "REWORK", "DECLINE"],
       complexity_level: ["EASY", "MEDIUM", "COMPLEX", "EXPERT"],
       development_recipe_status: ["Draft", "Locked", "Archived"],
+      development_sample_status: [
+        "Draft",
+        "Prepared",
+        "Lab",
+        "LabDone",
+        "Pilot",
+        "PilotDone",
+        "ReadyForHandoff",
+        "HandedOff",
+        "Archived",
+      ],
       direction: ["FUNCTIONAL", "FLAVOR", "COLORANT", "COMPLEX"],
       domain: [
         "MEAT",
