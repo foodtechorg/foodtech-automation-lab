@@ -34,12 +34,14 @@ import {
   archiveRecipe,
 } from '@/services/developmentApi';
 import { CreateSampleModal } from './CreateSampleModal';
+import { fetchSamplesByRecipeId, sampleStatusLabels, sampleStatusColors } from '@/services/samplesApi';
 
 interface RecipeFormProps {
   recipeId: string;
   onBack: () => void;
   onRecipeCopied?: (newRecipeId: string) => void;
   onSampleCreated?: (sampleId: string) => void;
+  onOpenSample?: (sampleId: string) => void;
 }
 
 interface IngredientRow {
@@ -62,7 +64,7 @@ const statusColors: Record<string, string> = {
   Archived: 'bg-muted text-muted-foreground'
 };
 
-export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated }: RecipeFormProps) {
+export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated, onOpenSample }: RecipeFormProps) {
   const queryClient = useQueryClient();
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
@@ -73,6 +75,12 @@ export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated }
   const { data, isLoading } = useQuery({
     queryKey: ['development-recipe', recipeId],
     queryFn: () => fetchRecipeWithIngredients(recipeId)
+  });
+
+  // Fetch samples for this recipe
+  const { data: samples } = useQuery({
+    queryKey: ['recipe-samples', recipeId],
+    queryFn: () => fetchSamplesByRecipeId(recipeId, false)
   });
 
   const recipe = data?.recipe;
@@ -461,6 +469,52 @@ export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated }
           )}
         </CardContent>
       </Card>
+
+      {/* Samples list for this recipe */}
+      {isLocked && samples && samples.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FlaskConical className="h-5 w-5" />
+              Зразки цього рецепту
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-lg overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Код зразка</TableHead>
+                    <TableHead>Статус</TableHead>
+                    <TableHead className="text-right">Партія, г</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {samples.map((sample) => (
+                    <TableRow 
+                      key={sample.id}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => onOpenSample?.(sample.id)}
+                    >
+                      <TableCell className="font-mono font-medium">
+                        {sample.sample_code}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={sampleStatusColors[sample.status]}>
+                          {sampleStatusLabels[sample.status]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {sample.batch_weight_g.toFixed(3)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Lock Confirmation Dialog */}
       <AlertDialog open={lockDialogOpen} onOpenChange={setLockDialogOpen}>
