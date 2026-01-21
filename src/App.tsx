@@ -24,6 +24,10 @@ import PurchaseRequestDetail from "./pages/purchase/PurchaseRequestDetail";
 import PurchaseInvoices from "./pages/purchase/PurchaseInvoices";
 import PurchaseInvoiceDetail from "./pages/purchase/PurchaseInvoiceDetail";
 import ApprovedRequestsQueue from "./pages/purchase/ApprovedRequestsQueue";
+// Development module pages
+import DevelopmentBoard from "./pages/development/DevelopmentBoard";
+import DevelopmentRequestDetail from "./pages/development/DevelopmentRequestDetail";
+import NoAccess from "./pages/development/NoAccess";
 // Knowledge Base pages
 import KnowledgeBase from "./pages/kb/KnowledgeBase";
 import KBDocumentForm from "./pages/kb/KBDocumentForm";
@@ -178,6 +182,27 @@ const App = () => (
                 <ProtectedRoute allowedRoles={['procurement_manager', 'coo', 'ceo', 'treasurer', 'chief_accountant', 'accountant', 'admin']}>
                   <Layout>
                     <ApprovedRequestsQueue />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            {/* Development module routes */}
+            <Route
+              path="/development"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'coo']} fallback={<Layout><NoAccess /></Layout>}>
+                  <Layout>
+                    <DevelopmentBoard />
+                  </Layout>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/development/requests/:id"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'coo']} fallback={<Layout><NoAccess /></Layout>}>
+                  <Layout>
+                    <DevelopmentRequestDetail />
                   </Layout>
                 </ProtectedRoute>
               }
