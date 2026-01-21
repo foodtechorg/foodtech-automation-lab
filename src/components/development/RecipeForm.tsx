@@ -34,7 +34,8 @@ import {
   archiveRecipe,
 } from '@/services/developmentApi';
 import { CreateSampleModal } from './CreateSampleModal';
-import { fetchSamplesByRecipeId, sampleStatusLabels, sampleStatusColors } from '@/services/samplesApi';
+import { fetchSamplesByRecipeId } from '@/services/samplesApi';
+import { SampleStatusTracker } from './SampleStatusTracker';
 
 interface RecipeFormProps {
   recipeId: string;
@@ -500,9 +501,7 @@ export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated, 
                         {sample.sample_code}
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className={sampleStatusColors[sample.status]}>
-                          {sampleStatusLabels[sample.status]}
-                        </Badge>
+                        <SampleStatusTracker status={sample.status} compact />
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         {sample.batch_weight_g.toFixed(3)}
