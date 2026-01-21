@@ -30,7 +30,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Copy, Archive, FlaskConical, ChevronDown, ChevronRight, TestTubes } from 'lucide-react';
+import { Plus, Copy, Archive, ClipboardList, ChevronDown, ChevronRight, FlaskConical } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchRecipesByRequestId,
@@ -112,7 +112,7 @@ function RecipeSamplesRow({
               ) : (
                 <ChevronRight className="h-4 w-4 mr-2" />
               )}
-              <TestTubes className="h-4 w-4 mr-2 text-muted-foreground" />
+              <FlaskConical className="h-4 w-4 mr-2 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">
                 Зразки рецепту ({samples?.length ?? '...'})
               </span>
@@ -374,7 +374,7 @@ export function RecipesList({ requestId, onOpenRecipe, onOpenSample, onSampleCre
         </div>
       ) : (
         <div className="text-center py-12 border-2 border-dashed rounded-lg">
-          <FlaskConical className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+          <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">Рецептів ще немає</h3>
           <p className="text-muted-foreground max-w-md mx-auto mb-4">
             Створіть перший рецепт для цієї заявки, щоб почати розробку.

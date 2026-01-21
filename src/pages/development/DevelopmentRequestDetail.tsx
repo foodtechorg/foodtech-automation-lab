@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, FlaskConical, TestTubes } from 'lucide-react';
+import { ArrowLeft, ClipboardList, FlaskConical } from 'lucide-react';
 import { t } from '@/lib/i18n';
 import { RecipesList } from '@/components/development/RecipesList';
 import { RecipeForm } from '@/components/development/RecipeForm';
@@ -178,11 +178,11 @@ export default function DevelopmentRequestDetail() {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2 max-w-md">
               <TabsTrigger value="recipes" className="flex items-center gap-2">
-                <FlaskConical className="h-4 w-4" />
+                <ClipboardList className="h-4 w-4" />
                 Рецепти
               </TabsTrigger>
               <TabsTrigger value="samples" className="flex items-center gap-2">
-                <TestTubes className="h-4 w-4" />
+                <FlaskConical className="h-4 w-4" />
                 Зразки
               </TabsTrigger>
             </TabsList>
