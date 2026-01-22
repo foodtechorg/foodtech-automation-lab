@@ -7,11 +7,15 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+
+// Statuses available in Development module
+const DEV_MODULE_STATUSES = ['IN_PROGRESS', 'SENT_FOR_TEST', 'REJECTED_BY_CLIENT', 'APPROVED_FOR_PRODUCTION'];
 import { useAuth } from '@/hooks/useAuth';
 
 // SLA rules based on complexity level (days)
@@ -61,6 +65,15 @@ function calculateDynamicSlaDate(
     return addDays(new Date(lastInProgressEvent.created_at), days);
   }
   
+  if (currentStatus === 'SENT_FOR_TEST') {
+    const lastTestEvent = [...requestEvents].reverse().find(
+      e => e.payload?.to === 'SENT_FOR_TEST'
+    );
+    if (!lastTestEvent) return null;
+    
+    return addDays(new Date(lastTestEvent.created_at), rules.test);
+  }
+  
   return null;
 }
 
@@ -68,6 +81,7 @@ export default function DevelopmentBoard() {
   const navigate = useNavigate();
   const { profile } = useAuth();
   const [customerFilter, setCustomerFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   
   const { data: profiles } = useQuery({
     queryKey: ['profiles'],
@@ -78,14 +92,14 @@ export default function DevelopmentBoard() {
     }
   });
   
-  // Fetch only IN_PROGRESS requests for Development module
+  // Fetch requests with allowed statuses for Development module
   const { data: requests, isLoading } = useQuery({
     queryKey: ['development-requests'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('requests')
         .select('*')
-        .eq('status', 'IN_PROGRESS')
+        .in('status', ['IN_PROGRESS', 'SENT_FOR_TEST', 'REJECTED_BY_CLIENT', 'APPROVED_FOR_PRODUCTION'])
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
@@ -129,9 +143,10 @@ export default function DevelopmentBoard() {
       }
       const matchesCustomer = customerFilter === '' || 
         request.customer_company.toLowerCase().includes(customerFilter.toLowerCase());
-      return matchesCustomer;
+      const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
+      return matchesCustomer && matchesStatus;
     });
-  }, [requests, customerFilter, profile]);
+  }, [requests, customerFilter, statusFilter, profile]);
   
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -161,7 +176,7 @@ export default function DevelopmentBoard() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="font-bold tracking-tight text-2xl">Заявки в роботі</h2>
+        <h2 className="font-bold tracking-tight text-2xl">Розробка R&D</h2>
         <p className="text-muted-foreground">
           Модуль "Розробка" — управління рецептами та зразками для R&D заявок
         </p>
@@ -169,11 +184,11 @@ export default function DevelopmentBoard() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Заявки зі статусом "В роботі"</CardTitle>
-          <CardDescription>{filteredRequests.length} заявок в розробці</CardDescription>
+          <CardTitle>Заявки в модулі Розробка</CardTitle>
+          <CardDescription>{filteredRequests.length} заявок</CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Filter */}
+          {/* Filters */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <div className="space-y-1">
               <label className="text-sm font-medium">Замовник</label>
@@ -183,6 +198,21 @@ export default function DevelopmentBoard() {
                 onChange={e => setCustomerFilter(e.target.value)} 
               />
             </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Статус</label>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Всі статуси" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Всі статуси</SelectItem>
+                  <SelectItem value="IN_PROGRESS">{t.status('IN_PROGRESS')}</SelectItem>
+                  <SelectItem value="SENT_FOR_TEST">{t.status('SENT_FOR_TEST')}</SelectItem>
+                  <SelectItem value="REJECTED_BY_CLIENT">{t.status('REJECTED_BY_CLIENT')}</SelectItem>
+                  <SelectItem value="APPROVED_FOR_PRODUCTION">{t.status('APPROVED_FOR_PRODUCTION')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {isLoading ? (
@@ -191,7 +221,7 @@ export default function DevelopmentBoard() {
             </div>
           ) : filteredRequests.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              Немає заявок зі статусом "В роботі"
+              Немає заявок за обраними фільтрами
             </div>
           ) : (
             <>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,7 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, ClipboardList, FlaskConical } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, ClipboardList, FlaskConical, Info } from 'lucide-react';
 import { t } from '@/lib/i18n';
 import { RecipesList } from '@/components/development/RecipesList';
 import { RecipeForm } from '@/components/development/RecipeForm';
@@ -17,6 +18,11 @@ import { SampleDetail } from '@/components/development/SampleDetail';
 import { useAuth } from '@/hooks/useAuth';
 import NoAccess from './NoAccess';
 
+// Statuses allowed in Development module
+const DEV_MODULE_STATUSES = ['IN_PROGRESS', 'SENT_FOR_TEST', 'REJECTED_BY_CLIENT', 'APPROVED_FOR_PRODUCTION'];
+// Statuses that allow editing
+const EDITABLE_STATUSES = ['IN_PROGRESS', 'SENT_FOR_TEST'];
+
 export default function DevelopmentRequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -24,10 +30,6 @@ export default function DevelopmentRequestDetail() {
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('recipes');
-
-  // Determine access rights
-  const canEdit = profile?.role === 'admin' || profile?.role === 'rd_dev';
-  const viewOnlyRoles = ['coo', 'ceo', 'quality_manager', 'admin_director'];
 
   const { data: request, isLoading } = useQuery({
     queryKey: ['development-request', id],
@@ -79,6 +81,16 @@ export default function DevelopmentRequestDetail() {
     );
   }
 
+  // Determine access rights based on status
+  const isEditableStatus = EDITABLE_STATUSES.includes(request?.status ?? '');
+  const hasEditRole = profile?.role === 'admin' || profile?.role === 'rd_dev';
+  const canEdit = hasEditRole && isEditableStatus;
+  const isReadOnlyStatus = ['REJECTED_BY_CLIENT', 'APPROVED_FOR_PRODUCTION'].includes(request?.status ?? '');
+
+  // Check if rd_dev can access this request (only their own assigned requests)
+  const isRdDev = profile?.role === 'rd_dev';
+  const isAssignedToUser = request?.responsible_email === profile?.email;
+
   if (!request) {
     return (
       <div className="text-center py-12">
@@ -95,14 +107,12 @@ export default function DevelopmentRequestDetail() {
   }
 
   // Check if request is in valid status for Development module
-  if (request.status !== 'IN_PROGRESS') {
+  if (!DEV_MODULE_STATUSES.includes(request.status)) {
     return (
       <div className="text-center py-12">
         <h2 className="text-xl font-semibold mb-2">Заявка недоступна</h2>
         <p className="text-muted-foreground mb-4">
           Заявка {request.code} має статус "{t.status(request.status)}" і не доступна в модулі "Розробка".
-          <br />
-          Модуль "Розробка" працює лише з заявками зі статусом "В роботі".
         </p>
         <Button onClick={() => navigate('/development')}>
           <ArrowLeft className="h-4 w-4 mr-2" />
@@ -112,16 +122,22 @@ export default function DevelopmentRequestDetail() {
     );
   }
 
-  // Check if rd_dev can access this request (only their own assigned requests)
-  const isRdDev = profile?.role === 'rd_dev';
-  const isAssignedToUser = request.responsible_email === profile?.email;
-  
   if (isRdDev && !isAssignedToUser) {
     return <NoAccess />;
   }
 
   return (
     <div className="space-y-6">
+      {/* Read-only banner for finished requests */}
+      {isReadOnlyStatus && (
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/30">
+          <Info className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
+            Розробка завершена. Заявка доступна лише для перегляду.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
