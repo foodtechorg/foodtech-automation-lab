@@ -854,6 +854,20 @@ export default function RequestDetail() {
         </Card>
       </div>
 
+      {/* Testing Samples Section */}
+      {(request.status === 'SENT_FOR_TEST' || request.status === 'APPROVED_FOR_PRODUCTION') && (
+        <TestingSamplesSection
+          requestId={id!}
+          requestStatus={request.status}
+          isAuthor={isAuthor}
+          successfulSampleDisplay={request.successful_sample_display}
+          onStatusChange={() => {
+            queryClient.invalidateQueries({ queryKey: ['request', id] });
+            queryClient.invalidateQueries({ queryKey: ['request-events', id] });
+          }}
+        />
+      )}
+
       {/* Attachments Section */}
       {attachments && attachments.length > 0 && (
         <Card>
