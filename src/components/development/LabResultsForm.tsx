@@ -37,10 +37,13 @@ export function LabResultsForm({ sampleId, sampleStatus, onLabCompleted }: LabRe
   const isReadOnly = !isLabStatus;
 
   // Fetch existing lab results
+  // Load lab results for all stages where they should be visible (Lab through HandedOff)
+  const shouldLoadLabResults = ['Lab', 'LabDone', 'Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'].includes(sampleStatus);
+  
   const { data: labResults, isLoading } = useQuery({
     queryKey: ['lab-results', sampleId],
     queryFn: () => fetchLabResults(sampleId),
-    enabled: isLabStatus || isLabDone
+    enabled: shouldLoadLabResults
   });
 
   // Initialize form data when results are loaded
