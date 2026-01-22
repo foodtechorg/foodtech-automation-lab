@@ -1283,6 +1283,7 @@ export type Database = {
       generate_purchase_invoice_number: { Args: never; Returns: string }
       generate_purchase_request_number: { Args: never; Returns: string }
       generate_request_code: { Args: never; Returns: string }
+      generate_tasting_sheet_number: { Args: never; Returns: string }
       has_role:
         | {
             Args: {

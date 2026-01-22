@@ -16,6 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+// Direction select removed - inherited from R&D request
 import { ClipboardList, Save, CheckCircle2, CalendarIcon, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, parseISO } from 'date-fns';
@@ -27,7 +28,6 @@ import {
   initializePilotResults,
   validatePilotResults,
   pilotScoreFieldsConfig,
-  pilotDirectionOptions,
   PilotFormData,
   PilotResults,
 } from '@/services/pilotResultsApi';
@@ -65,10 +65,9 @@ export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted }: P
     if (pilotResults) {
       const data: PilotFormData = {};
       
-      // Header fields
+      // Header fields (direction removed - inherited from R&D request)
       if (pilotResults.tasting_sheet_no) data.tasting_sheet_no = pilotResults.tasting_sheet_no;
       if (pilotResults.tasting_date) data.tasting_date = pilotResults.tasting_date;
-      if (pilotResults.direction) data.direction = pilotResults.direction;
       if (pilotResults.tasting_goal) data.tasting_goal = pilotResults.tasting_goal;
       
       // Score fields
@@ -223,8 +222,8 @@ export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted }: P
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Header fields */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Header fields: Number and Date in one row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <Label htmlFor="tasting_sheet_no" className="text-sm">
               № дегустаційного листа
@@ -232,10 +231,9 @@ export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted }: P
             <Input
               id="tasting_sheet_no"
               value={formData.tasting_sheet_no || ''}
-              onChange={(e) => handleFieldChange('tasting_sheet_no', e.target.value)}
-              disabled={isReadOnly}
-              placeholder={isReadOnly ? '—' : 'Введіть номер'}
-              className="mt-1.5"
+              readOnly
+              disabled
+              className="mt-1.5 bg-muted"
             />
           </div>
 
@@ -266,40 +264,22 @@ export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted }: P
               </PopoverContent>
             </Popover>
           </div>
+        </div>
 
-          <div>
-            <Label className="text-sm">Напрямок</Label>
-            <Select
-              value={formData.direction || ''}
-              onValueChange={(value) => handleFieldChange('direction', value)}
-              disabled={isReadOnly}
-            >
-              <SelectTrigger className="mt-1.5">
-                <SelectValue placeholder="Оберіть напрямок" />
-              </SelectTrigger>
-              <SelectContent>
-                {pilotDirectionOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div>
-            <Label htmlFor="tasting_goal" className="text-sm">
-              Мета дегустації
-            </Label>
-            <Input
-              id="tasting_goal"
-              value={formData.tasting_goal || ''}
-              onChange={(e) => handleFieldChange('tasting_goal', e.target.value)}
-              disabled={isReadOnly}
-              placeholder={isReadOnly ? '—' : 'Введіть мету'}
-              className="mt-1.5"
-            />
-          </div>
+        {/* Tasting Goal - full width textarea below */}
+        <div>
+          <Label htmlFor="tasting_goal" className="text-sm">
+            Мета дегустації
+          </Label>
+          <Textarea
+            id="tasting_goal"
+            value={formData.tasting_goal || ''}
+            onChange={(e) => handleFieldChange('tasting_goal', e.target.value)}
+            disabled={isReadOnly}
+            placeholder={isReadOnly ? '—' : 'Введіть мету дегустації...'}
+            className="mt-1.5"
+            rows={3}
+          />
         </div>
 
         {/* Score fields */}
