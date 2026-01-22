@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Microscope, ClipboardList, Send, CheckCircle2 } from 'lucide-react';
+import { Microscope, ClipboardList, Send, CheckCircle2, XCircle } from 'lucide-react';
 import { DevelopmentSampleStatus } from '@/services/samplesApi';
 import { cn } from '@/lib/utils';
 
@@ -9,11 +9,12 @@ interface NextStepsBlockProps {
   sampleStatus: DevelopmentSampleStatus;
   onTransitionToLab: () => void;
   onTransitionToPilot: () => void;
+  onTransitionToHandoff: () => void;
   isLabTransitioning?: boolean;
   isPilotTransitioning?: boolean;
 }
 
-type StageState = 'completed' | 'active' | 'pending';
+type StageState = 'completed' | 'active' | 'pending' | 'rejected';
 
 interface StageConfig {
   key: string;
@@ -23,6 +24,7 @@ interface StageConfig {
   activeText: string;
   completedText: string;
   pendingText: string;
+  rejectedText?: string;
 }
 
 const stages: StageConfig[] = [
@@ -31,7 +33,7 @@ const stages: StageConfig[] = [
     icon: Microscope,
     title: 'Лабораторія',
     getState: (status) => {
-      if (['Lab', 'LabDone', 'Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'].includes(status)) {
+      if (['Lab', 'LabDone', 'Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(status)) {
         return 'completed';
       }
       if (status === 'Prepared') return 'active';
@@ -46,7 +48,7 @@ const stages: StageConfig[] = [
     icon: ClipboardList,
     title: 'Пілот/Дегустація',
     getState: (status) => {
-      if (['Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'].includes(status)) {
+      if (['Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(status)) {
         return 'completed';
       }
       if (status === 'LabDone') return 'active';
@@ -61,13 +63,16 @@ const stages: StageConfig[] = [
     icon: Send,
     title: 'Передача на тестування',
     getState: (status) => {
-      if (['ReadyForHandoff', 'HandedOff'].includes(status)) return 'completed';
+      if (status === 'Approved') return 'completed';
+      if (status === 'Rejected') return 'rejected';
+      if (status === 'Testing') return 'completed';
       if (status === 'PilotDone') return 'active';
       return 'pending';
     },
-    activeText: 'Буде реалізовано наступним кроком',
+    activeText: 'Передати на тестування',
     completedText: 'Передано на тестування',
     pendingText: 'Буде доступно пізніше',
+    rejectedText: 'Відхилено',
   },
 ];
 
@@ -75,6 +80,7 @@ export function NextStepsBlock({
   sampleStatus,
   onTransitionToLab,
   onTransitionToPilot,
+  onTransitionToHandoff,
   isLabTransitioning,
   isPilotTransitioning,
 }: NextStepsBlockProps) {
@@ -90,8 +96,9 @@ export function NextStepsBlock({
       onTransitionToLab();
     } else if (stageKey === 'pilot') {
       onTransitionToPilot();
+    } else if (stageKey === 'handoff') {
+      onTransitionToHandoff();
     }
-    // Handoff is a placeholder for now
   };
 
   const isTransitioning = (stageKey: string): boolean => {
@@ -119,11 +126,14 @@ export function NextStepsBlock({
                   'flex flex-col items-center text-center p-4 rounded-lg border-2 transition-all',
                   state === 'completed' && 'bg-muted/30 border-muted',
                   state === 'active' && 'border-primary bg-primary/5',
-                  state === 'pending' && 'opacity-50 border-dashed border-muted'
+                  state === 'pending' && 'opacity-50 border-dashed border-muted',
+                  state === 'rejected' && 'bg-destructive/10 border-destructive/30'
                 )}
               >
                 {state === 'completed' ? (
                   <CheckCircle2 className="h-8 w-8 text-primary mb-2" />
+                ) : state === 'rejected' ? (
+                  <XCircle className="h-8 w-8 text-destructive mb-2" />
                 ) : (
                   <Icon className={cn(
                     'h-8 w-8 mb-2',
@@ -133,7 +143,8 @@ export function NextStepsBlock({
                 
                 <span className={cn(
                   'font-medium mb-1',
-                  state === 'pending' && 'text-muted-foreground'
+                  state === 'pending' && 'text-muted-foreground',
+                  state === 'rejected' && 'text-destructive'
                 )}>
                   {stage.title}
                 </span>
@@ -144,22 +155,22 @@ export function NextStepsBlock({
                   </span>
                 )}
 
+                {state === 'rejected' && (
+                  <span className="text-xs text-destructive">
+                    {stage.rejectedText}
+                  </span>
+                )}
+
                 {state === 'active' && (
-                  stage.key === 'handoff' ? (
-                    <span className="text-xs text-muted-foreground mt-2">
-                      {stage.activeText}
-                    </span>
-                  ) : (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => handleStageClick(stage.key, state)}
-                      disabled={transitioning}
-                    >
-                      {transitioning ? 'Обробка...' : stage.activeText}
-                    </Button>
-                  )
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => handleStageClick(stage.key, state)}
+                    disabled={transitioning}
+                  >
+                    {transitioning ? 'Обробка...' : stage.activeText}
+                  </Button>
                 )}
 
                 {state === 'pending' && (

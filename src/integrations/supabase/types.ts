@@ -1358,10 +1358,18 @@ export type Database = {
         Args: { p_batch_weight_g: number; p_recipe_id: string }
         Returns: Json
       }
+      decline_request_from_testing: {
+        Args: { p_comment?: string; p_request_id: string }
+        Returns: Json
+      }
       generate_purchase_invoice_number: { Args: never; Returns: string }
       generate_purchase_request_number: { Args: never; Returns: string }
       generate_request_code: { Args: never; Returns: string }
       generate_tasting_sheet_number: { Args: never; Returns: string }
+      handoff_sample_to_testing: {
+        Args: { p_sample_id: string; p_working_title: string }
+        Returns: Json
+      }
       has_role:
         | {
             Args: {
@@ -1420,6 +1428,14 @@ export type Database = {
       }
       reject_purchase_invoice: {
         Args: { p_comment: string; p_invoice_id: string; p_role: string }
+        Returns: Json
+      }
+      set_sample_testing_result: {
+        Args: {
+          p_comment?: string
+          p_result: string
+          p_testing_sample_id: string
+        }
         Returns: Json
       }
     }

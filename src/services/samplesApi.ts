@@ -10,6 +10,9 @@ export type DevelopmentSampleStatus =
   | 'PilotDone' 
   | 'ReadyForHandoff' 
   | 'HandedOff' 
+  | 'Testing'
+  | 'Approved'
+  | 'Rejected'
   | 'Archived';
 
 export interface DevelopmentSample {
@@ -20,6 +23,7 @@ export interface DevelopmentSample {
   sample_code: string;
   batch_weight_g: number;
   status: DevelopmentSampleStatus;
+  working_title: string | null;
   created_at: string;
   updated_at: string;
   created_by: string | null;
@@ -52,6 +56,9 @@ export const sampleStatusLabels: Record<DevelopmentSampleStatus, string> = {
   PilotDone: 'Пілот завершено',
   ReadyForHandoff: 'Готовий до передачі',
   HandedOff: 'Передано',
+  Testing: 'Тестування',
+  Approved: 'Погоджений',
+  Rejected: 'Відхилений',
   Archived: 'Архів'
 };
 
@@ -64,6 +71,9 @@ export const sampleStatusColors: Record<DevelopmentSampleStatus, string> = {
   PilotDone: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400',
   ReadyForHandoff: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400',
   HandedOff: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  Testing: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  Approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+  Rejected: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
   Archived: 'bg-muted text-muted-foreground'
 };
 
@@ -278,4 +288,48 @@ export async function copySample(sampleId: string): Promise<CreateSampleResult> 
   };
   
   return result;
+}
+
+// Handoff sample to testing
+export interface HandoffResult {
+  testing_sample: {
+    id: string;
+    request_id: string;
+    sample_id: string;
+    sample_code: string;
+    recipe_code: string;
+    working_title: string;
+    display_name: string;
+    status: string;
+    sent_at: string;
+    sent_by: string | null;
+  };
+  sample_code: string;
+  display_name: string;
+}
+
+export async function handoffSampleToTesting(
+  sampleId: string,
+  workingTitle: string
+): Promise<HandoffResult> {
+  // Use raw SQL call since RPC isn't in the generated types yet
+  const { data, error } = await supabase
+    .rpc('handoff_sample_to_testing' as never, {
+      p_sample_id: sampleId,
+      p_working_title: workingTitle
+    } as never);
+
+  if (error) throw error;
+  
+  return data as unknown as HandoffResult;
+}
+
+// Check if sample can be handed off to testing
+export function canHandoffSample(status: DevelopmentSampleStatus): boolean {
+  return status === 'PilotDone';
+}
+
+// Check if sample is in a read-only state (post-handoff)
+export function isPostHandoffStatus(status: DevelopmentSampleStatus): boolean {
+  return ['Testing', 'Approved', 'Rejected'].includes(status);
 }
