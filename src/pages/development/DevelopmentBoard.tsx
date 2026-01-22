@@ -12,6 +12,7 @@ import { format, addDays } from 'date-fns';
 import { uk } from 'date-fns/locale';
 import { t } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
 
 // SLA rules based on complexity level (days)
 const SLA_RULES: Record<string, { dev: number; test: number; reworkFunctional: number; reworkFlavor: number }> = {
@@ -65,6 +66,7 @@ function calculateDynamicSlaDate(
 
 export default function DevelopmentBoard() {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [customerFilter, setCustomerFilter] = useState('');
   
   const { data: profiles } = useQuery({
@@ -119,11 +121,17 @@ export default function DevelopmentBoard() {
   const filteredRequests = useMemo(() => {
     if (!requests) return [];
     return requests.filter(request => {
+      // rd_dev only sees their own assigned requests
+      if (profile?.role === 'rd_dev') {
+        if (request.responsible_email !== profile.email) {
+          return false;
+        }
+      }
       const matchesCustomer = customerFilter === '' || 
         request.customer_company.toLowerCase().includes(customerFilter.toLowerCase());
       return matchesCustomer;
     });
-  }, [requests, customerFilter]);
+  }, [requests, customerFilter, profile]);
   
   const getPriorityColor = (priority: string) => {
     switch (priority) {

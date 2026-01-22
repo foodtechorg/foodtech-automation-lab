@@ -52,6 +52,7 @@ interface SampleDetailProps {
   onBack: () => void;
   onOpenRecipe?: (recipeId: string) => void;
   onSampleCopied?: (sampleId: string) => void;
+  canEdit?: boolean;
 }
 
 interface IngredientRow extends DevelopmentSampleIngredient {
@@ -59,7 +60,7 @@ interface IngredientRow extends DevelopmentSampleIngredient {
   hasError?: boolean;
 }
 
-export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }: SampleDetailProps) {
+export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied, canEdit = true }: SampleDetailProps) {
   const queryClient = useQueryClient();
   const [batchWeight, setBatchWeight] = useState('');
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
@@ -67,6 +68,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
   const [prepareDialogOpen, setPrepareDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [handoffDialogOpen, setHandoffDialogOpen] = useState(false);
+
 
   const { data, isLoading } = useQuery({
     queryKey: ['development-sample', sampleId],
@@ -373,7 +375,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
 
           {/* Action buttons based on status */}
           <div className="flex items-center gap-2 flex-wrap">
-            {isDraft && (
+            {canEdit && isDraft && (
               <>
                 <Button
                   variant="outline"
@@ -393,7 +395,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
               </>
             )}
 
-            {isPrepared && (
+            {canEdit && isPrepared && (
               <>
                 <Button
                   variant="outline"
@@ -413,7 +415,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
               </>
             )}
 
-            {(isLab || isLabDone || isPilot || isPilotDone) && !isPostHandoff && (
+            {canEdit && (isLab || isLabDone || isPilot || isPilotDone) && !isPostHandoff && (
               <>
                 <Button
                   variant="outline"

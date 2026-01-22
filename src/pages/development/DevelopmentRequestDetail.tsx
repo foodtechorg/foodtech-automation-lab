@@ -14,13 +14,20 @@ import { RecipesList } from '@/components/development/RecipesList';
 import { RecipeForm } from '@/components/development/RecipeForm';
 import { SamplesList } from '@/components/development/SamplesList';
 import { SampleDetail } from '@/components/development/SampleDetail';
+import { useAuth } from '@/hooks/useAuth';
+import NoAccess from './NoAccess';
 
 export default function DevelopmentRequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('recipes');
+
+  // Determine access rights
+  const canEdit = profile?.role === 'admin' || profile?.role === 'rd_dev';
+  const viewOnlyRoles = ['coo', 'ceo', 'quality_manager', 'admin_director'];
 
   const { data: request, isLoading } = useQuery({
     queryKey: ['development-request', id],
@@ -103,6 +110,14 @@ export default function DevelopmentRequestDetail() {
         </Button>
       </div>
     );
+  }
+
+  // Check if rd_dev can access this request (only their own assigned requests)
+  const isRdDev = profile?.role === 'rd_dev';
+  const isAssignedToUser = request.responsible_email === profile?.email;
+  
+  if (isRdDev && !isAssignedToUser) {
+    return <NoAccess />;
   }
 
   return (
@@ -201,6 +216,7 @@ export default function DevelopmentRequestDetail() {
                     setSelectedSampleId(sampleId);
                     setActiveTab('samples');
                   }}
+                  canEdit={canEdit}
                 />
               ) : (
                 <RecipesList
@@ -214,6 +230,7 @@ export default function DevelopmentRequestDetail() {
                     setSelectedSampleId(sampleId);
                     setActiveTab('samples');
                   }}
+                  canEdit={canEdit}
                 />
               )}
             </TabsContent>
@@ -229,11 +246,13 @@ export default function DevelopmentRequestDetail() {
                     setActiveTab('recipes');
                   }}
                   onSampleCopied={(newSampleId) => setSelectedSampleId(newSampleId)}
+                  canEdit={canEdit}
                 />
               ) : (
                 <SamplesList
                   requestId={id!}
                   onOpenSample={(sampleId) => setSelectedSampleId(sampleId)}
+                  canEdit={canEdit}
                 />
               )}
             </TabsContent>

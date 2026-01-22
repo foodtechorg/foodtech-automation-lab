@@ -22,7 +22,7 @@ const modules: Module[] = [{
   id: 'development',
   label: 'Розробка',
   icon: FlaskConical,
-  roles: ['admin', 'coo'],
+  roles: ['admin', 'rd_dev', 'coo', 'ceo', 'quality_manager', 'admin_director'],
   getPath: () => '/development'
 }, {
   id: 'purchase',
