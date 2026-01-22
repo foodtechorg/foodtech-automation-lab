@@ -92,7 +92,6 @@ export function HandoffDialog({
                 id="working-title"
                 value={workingTitle}
                 onChange={(e) => setWorkingTitle(e.target.value)}
-                placeholder="Наприклад: Запах копчення - 26"
                 disabled={handoffMutation.isPending}
                 autoFocus
               />
