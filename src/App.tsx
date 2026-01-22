@@ -68,7 +68,7 @@ const App = () => (
             <Route
               path="/requests/my"
               element={
-                <ProtectedRoute allowedRoles={['sales_manager', 'admin']}>
+                <ProtectedRoute allowedRoles={['sales_manager', 'admin', 'quality_manager']}>
                   <Layout>
                     <MyRequests />
                   </Layout>
@@ -78,7 +78,7 @@ const App = () => (
             <Route
               path="/requests/new"
               element={
-                <ProtectedRoute allowedRoles={['sales_manager', 'admin']}>
+                <ProtectedRoute allowedRoles={['sales_manager', 'admin', 'quality_manager']}>
                   <Layout>
                     <NewRequest />
                   </Layout>
@@ -190,7 +190,7 @@ const App = () => (
             <Route
               path="/development"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'coo']} fallback={<Layout><NoAccess /></Layout>}>
+                <ProtectedRoute allowedRoles={['admin', 'rd_dev', 'coo', 'ceo', 'quality_manager', 'admin_director']} fallback={<Layout><NoAccess /></Layout>}>
                   <Layout>
                     <DevelopmentBoard />
                   </Layout>
@@ -200,7 +200,7 @@ const App = () => (
             <Route
               path="/development/requests/:id"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'coo']} fallback={<Layout><NoAccess /></Layout>}>
+                <ProtectedRoute allowedRoles={['admin', 'rd_dev', 'coo', 'ceo', 'quality_manager', 'admin_director']} fallback={<Layout><NoAccess /></Layout>}>
                   <Layout>
                     <DevelopmentRequestDetail />
                   </Layout>
