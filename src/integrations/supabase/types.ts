@@ -316,6 +316,7 @@ export type Database = {
           sample_seq: number
           status: Database["public"]["Enums"]["development_sample_status"]
           updated_at: string
+          working_title: string | null
         }
         Insert: {
           batch_weight_g: number
@@ -328,6 +329,7 @@ export type Database = {
           sample_seq: number
           status?: Database["public"]["Enums"]["development_sample_status"]
           updated_at?: string
+          working_title?: string | null
         }
         Update: {
           batch_weight_g?: number
@@ -340,6 +342,7 @@ export type Database = {
           sample_seq?: number
           status?: Database["public"]["Enums"]["development_sample_status"]
           updated_at?: string
+          working_title?: string | null
         }
         Relationships: [
           {
@@ -1014,6 +1017,75 @@ export type Database = {
           },
         ]
       }
+      rd_request_testing_samples: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          manager_comment: string | null
+          recipe_code: string
+          request_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sample_code: string
+          sample_id: string
+          sent_at: string
+          sent_by: string | null
+          status: string
+          updated_at: string
+          working_title: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          manager_comment?: string | null
+          recipe_code: string
+          request_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sample_code: string
+          sample_id: string
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+          working_title: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          manager_comment?: string | null
+          recipe_code?: string
+          request_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sample_code?: string
+          sample_id?: string
+          sent_at?: string
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+          working_title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rd_request_testing_samples_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rd_request_testing_samples_sample_id_fkey"
+            columns: ["sample_id"]
+            isOneToOne: true
+            referencedRelation: "development_samples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       request_events: {
         Row: {
           actor_email: string
@@ -1075,6 +1147,8 @@ export type Database = {
           rd_comment: string | null
           responsible_email: string | null
           status: Database["public"]["Enums"]["status"]
+          successful_sample_display: string | null
+          successful_sample_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1102,6 +1176,8 @@ export type Database = {
           rd_comment?: string | null
           responsible_email?: string | null
           status?: Database["public"]["Enums"]["status"]
+          successful_sample_display?: string | null
+          successful_sample_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1129,6 +1205,8 @@ export type Database = {
           rd_comment?: string | null
           responsible_email?: string | null
           status?: Database["public"]["Enums"]["status"]
+          successful_sample_display?: string | null
+          successful_sample_id?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1381,6 +1459,9 @@ export type Database = {
         | "PilotDone"
         | "ReadyForHandoff"
         | "HandedOff"
+        | "Testing"
+        | "Approved"
+        | "Rejected"
         | "Archived"
       direction: "FUNCTIONAL" | "FLAVOR" | "COLORANT" | "COMPLEX"
       domain:
@@ -1598,6 +1679,9 @@ export const Constants = {
         "PilotDone",
         "ReadyForHandoff",
         "HandedOff",
+        "Testing",
+        "Approved",
+        "Rejected",
         "Archived",
       ],
       direction: ["FUNCTIONAL", "FLAVOR", "COLORANT", "COMPLEX"],
