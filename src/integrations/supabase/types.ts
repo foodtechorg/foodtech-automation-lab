@@ -218,6 +218,92 @@ export type Database = {
           },
         ]
       }
+      development_sample_pilot: {
+        Row: {
+          comment: string | null
+          created_at: string
+          direction: string | null
+          id: string
+          sample_id: string
+          score_air_inclusions: number | null
+          score_appearance: number | null
+          score_aroma: number | null
+          score_break_moisture: number | null
+          score_color: number | null
+          score_consistency: number | null
+          score_curl_formation: number | null
+          score_cut_pattern: number | null
+          score_fibers: number | null
+          score_juiciness: number | null
+          score_overall: number | null
+          score_structure_density: number | null
+          score_syneresis: number | null
+          score_taste: number | null
+          tasting_date: string | null
+          tasting_goal: string | null
+          tasting_sheet_no: string | null
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          direction?: string | null
+          id?: string
+          sample_id: string
+          score_air_inclusions?: number | null
+          score_appearance?: number | null
+          score_aroma?: number | null
+          score_break_moisture?: number | null
+          score_color?: number | null
+          score_consistency?: number | null
+          score_curl_formation?: number | null
+          score_cut_pattern?: number | null
+          score_fibers?: number | null
+          score_juiciness?: number | null
+          score_overall?: number | null
+          score_structure_density?: number | null
+          score_syneresis?: number | null
+          score_taste?: number | null
+          tasting_date?: string | null
+          tasting_goal?: string | null
+          tasting_sheet_no?: string | null
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          direction?: string | null
+          id?: string
+          sample_id?: string
+          score_air_inclusions?: number | null
+          score_appearance?: number | null
+          score_aroma?: number | null
+          score_break_moisture?: number | null
+          score_color?: number | null
+          score_consistency?: number | null
+          score_curl_formation?: number | null
+          score_cut_pattern?: number | null
+          score_fibers?: number | null
+          score_juiciness?: number | null
+          score_overall?: number | null
+          score_structure_density?: number | null
+          score_syneresis?: number | null
+          score_taste?: number | null
+          tasting_date?: string | null
+          tasting_goal?: string | null
+          tasting_sheet_no?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "development_sample_pilot_sample_id_fkey"
+            columns: ["sample_id"]
+            isOneToOne: true
+            referencedRelation: "development_samples"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       development_samples: {
         Row: {
           batch_weight_g: number
