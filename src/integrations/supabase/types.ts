@@ -1465,7 +1465,12 @@ export type Database = {
       approval_decision: "PENDING" | "APPROVED" | "REJECTED"
       client_result: "PRODUCTION" | "REWORK" | "DECLINE"
       complexity_level: "EASY" | "MEDIUM" | "COMPLEX" | "EXPERT"
-      development_recipe_status: "Draft" | "Locked" | "Archived"
+      development_recipe_status:
+        | "Draft"
+        | "Locked"
+        | "Testing"
+        | "Approved"
+        | "Archived"
       development_sample_status:
         | "Draft"
         | "Prepared"
@@ -1685,7 +1690,13 @@ export const Constants = {
       approval_decision: ["PENDING", "APPROVED", "REJECTED"],
       client_result: ["PRODUCTION", "REWORK", "DECLINE"],
       complexity_level: ["EASY", "MEDIUM", "COMPLEX", "EXPERT"],
-      development_recipe_status: ["Draft", "Locked", "Archived"],
+      development_recipe_status: [
+        "Draft",
+        "Locked",
+        "Testing",
+        "Approved",
+        "Archived",
+      ],
       development_sample_status: [
         "Draft",
         "Prepared",

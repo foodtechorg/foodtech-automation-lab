@@ -7,7 +7,7 @@ export interface DevelopmentRecipe {
   recipe_seq: number;
   recipe_code: string;
   name: string | null;
-  status: 'Draft' | 'Locked' | 'Archived';
+  status: 'Draft' | 'Locked' | 'Testing' | 'Approved' | 'Archived';
   created_at: string;
   updated_at: string;
   created_by: string | null;
