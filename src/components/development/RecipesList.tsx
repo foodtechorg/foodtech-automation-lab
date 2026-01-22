@@ -51,6 +51,7 @@ interface RecipesListProps {
   onOpenRecipe: (recipeId: string) => void;
   onOpenSample?: (sampleId: string) => void;
   onSampleCreated?: (sampleId: string) => void;
+  canEdit?: boolean;
 }
 
 const statusLabels: Record<string, string> = {
@@ -199,7 +200,7 @@ function RecipeSamplesRow({
   );
 }
 
-export function RecipesList({ requestId, onOpenRecipe, onOpenSample, onSampleCreated }: RecipesListProps) {
+export function RecipesList({ requestId, onOpenRecipe, onOpenSample, onSampleCreated, canEdit = true }: RecipesListProps) {
   const queryClient = useQueryClient();
   const [showArchived, setShowArchived] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
@@ -271,13 +272,16 @@ export function RecipesList({ requestId, onOpenRecipe, onOpenSample, onSampleCre
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <Button
-          onClick={() => createMutation.mutate()}
-          disabled={createMutation.isPending}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          {createMutation.isPending ? 'Створення...' : 'Створити рецепт'}
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {createMutation.isPending ? 'Створення...' : 'Створити рецепт'}
+          </Button>
+        )}
+        {!canEdit && <div />}
 
         <div className="flex items-center space-x-2">
           <Switch
@@ -326,7 +330,7 @@ export function RecipesList({ requestId, onOpenRecipe, onOpenSample, onSampleCre
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {recipe.status !== 'Archived' && (
+                        {canEdit && recipe.status !== 'Archived' && (
                           <>
                             <Button
                               variant="ghost"
@@ -374,12 +378,16 @@ export function RecipesList({ requestId, onOpenRecipe, onOpenSample, onSampleCre
           <ClipboardList className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">Рецептів ще немає</h3>
           <p className="text-muted-foreground max-w-md mx-auto mb-4">
-            Створіть перший рецепт для цієї заявки, щоб почати розробку.
+            {canEdit 
+              ? 'Створіть перший рецепт для цієї заявки, щоб почати розробку.'
+              : 'Рецептів для цієї заявки ще не створено.'}
           </p>
-          <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-            <Plus className="h-4 w-4 mr-2" />
-            Створити рецепт
-          </Button>
+          {canEdit && (
+            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+              <Plus className="h-4 w-4 mr-2" />
+              Створити рецепт
+            </Button>
+          )}
         </div>
       )}
 

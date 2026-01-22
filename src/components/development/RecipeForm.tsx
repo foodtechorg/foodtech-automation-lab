@@ -43,6 +43,7 @@ interface RecipeFormProps {
   onRecipeCopied?: (newRecipeId: string) => void;
   onSampleCreated?: (sampleId: string) => void;
   onOpenSample?: (sampleId: string) => void;
+  canEdit?: boolean;
 }
 
 interface IngredientRow {
@@ -65,13 +66,14 @@ const statusColors: Record<string, string> = {
   Archived: 'bg-muted text-muted-foreground'
 };
 
-export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated, onOpenSample }: RecipeFormProps) {
+export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated, onOpenSample, canEdit = true }: RecipeFormProps) {
   const queryClient = useQueryClient();
   const [ingredients, setIngredients] = useState<IngredientRow[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
   const [lockDialogOpen, setLockDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [createSampleModalOpen, setCreateSampleModalOpen] = useState(false);
+
 
   const { data, isLoading } = useQuery({
     queryKey: ['development-recipe', recipeId],
@@ -299,7 +301,7 @@ export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated, 
 
         {/* Action buttons based on status */}
         <div className="flex items-center gap-2 flex-wrap">
-          {isDraft && (
+          {canEdit && isDraft && (
             <>
               <Button
                 variant="outline"
@@ -327,7 +329,7 @@ export function RecipeForm({ recipeId, onBack, onRecipeCopied, onSampleCreated, 
             </>
           )}
 
-          {isLocked && (
+          {canEdit && isLocked && (
             <>
               <Button
                 variant="outline"

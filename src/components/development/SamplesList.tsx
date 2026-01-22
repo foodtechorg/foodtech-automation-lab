@@ -37,12 +37,14 @@ import { SampleStatusTracker } from './SampleStatusTracker';
 interface SamplesListProps {
   requestId: string;
   onOpenSample: (sampleId: string) => void;
+  canEdit?: boolean;
 }
 
-export function SamplesList({ requestId, onOpenSample }: SamplesListProps) {
+export function SamplesList({ requestId, onOpenSample, canEdit = true }: SamplesListProps) {
   const queryClient = useQueryClient();
   const [showArchived, setShowArchived] = useState(false);
   const [archiveDialogSample, setArchiveDialogSample] = useState<DevelopmentSample | null>(null);
+
 
   const { data: samples, isLoading } = useQuery({
     queryKey: ['development-samples', requestId, showArchived],
@@ -159,7 +161,7 @@ export function SamplesList({ requestId, onOpenSample }: SamplesListProps) {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {isPrepared && (
+                        {canEdit && isPrepared && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -173,7 +175,7 @@ export function SamplesList({ requestId, onOpenSample }: SamplesListProps) {
                             <Copy className="h-4 w-4" />
                           </Button>
                         )}
-                        {!isArchived && (
+                        {canEdit && !isArchived && (
                           <Button
                             variant="ghost"
                             size="icon"
