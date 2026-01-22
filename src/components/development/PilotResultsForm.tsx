@@ -37,12 +37,13 @@ interface PilotResultsFormProps {
   sampleId: string;
   sampleStatus: DevelopmentSampleStatus;
   onPilotCompleted?: () => void;
+  canEdit?: boolean;
 }
 
 // Score options 1-10
 const scoreOptions = Array.from({ length: 10 }, (_, i) => i + 1);
 
-export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted }: PilotResultsFormProps) {
+export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted, canEdit = true }: PilotResultsFormProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<PilotFormData>({});
   const [hasChanges, setHasChanges] = useState(false);
@@ -51,7 +52,7 @@ export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted }: P
   const isPilot = sampleStatus === 'Pilot';
   const isPilotDone = sampleStatus === 'PilotDone';
   const showForm = isPilot || isPilotDone;
-  const isReadOnly = isPilotDone;
+  const isReadOnly = isPilotDone || !canEdit;
 
   // Fetch existing pilot results
   const { data: pilotResults, isLoading } = useQuery({
@@ -198,7 +199,7 @@ export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted }: P
               </Badge>
             )}
           </CardTitle>
-          {isPilot && (
+          {isPilot && canEdit && (
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"

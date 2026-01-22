@@ -553,6 +553,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied, c
           onLabCompleted={() => {
             queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
           }}
+          canEdit={canEdit}
         />
       )}
 
@@ -564,6 +565,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied, c
           onPilotCompleted={() => {
             queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
           }}
+          canEdit={canEdit}
         />
       )}
 
@@ -577,6 +579,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied, c
           onTransitionToHandoff={() => setHandoffDialogOpen(true)}
           isLabTransitioning={labTransitionMutation.isPending}
           isPilotTransitioning={pilotTransitionMutation.isPending}
+          canEdit={canEdit}
         />
       )}
 
