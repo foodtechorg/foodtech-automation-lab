@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Save, Lock, Archive, ClipboardList, Send, FlaskConical, Copy, Microscope } from 'lucide-react';
+import { ArrowLeft, Save, Lock, Archive, FlaskConical, Copy, Microscope } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchSampleWithIngredients,
@@ -38,6 +38,7 @@ import {
 } from '@/services/samplesApi';
 import { initializeLabResults } from '@/services/labResultsApi';
 import { LabResultsForm } from './LabResultsForm';
+import { PilotResultsForm, HandoffPlaceholder } from './PilotResultsForm';
 import { SampleStatusTracker } from './SampleStatusTracker';
 
 interface SampleDetailProps {
@@ -70,9 +71,12 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
   const isPrepared = sample?.status === 'Prepared';
   const isLab = sample?.status === 'Lab';
   const isLabDone = sample?.status === 'LabDone';
+  const isPilot = sample?.status === 'Pilot';
+  const isPilotDone = sample?.status === 'PilotDone';
   const isArchived = sample?.status === 'Archived';
   const isReadOnly = !isDraft;
   const showLabSection = isLab || isLabDone || (sample?.status && ['Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'].includes(sample.status));
+  const showPilotSection = isLabDone || isPilot || isPilotDone || (sample?.status && ['ReadyForHandoff', 'HandedOff'].includes(sample.status));
 
   // Extract recipe code from sample code (e.g., RD-0015/01/01 -> RD-0015/01)
   const recipeCode = sample?.sample_code?.split('/').slice(0, 2).join('/') ?? '';
@@ -352,7 +356,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
               </>
             )}
 
-            {(isLab || isLabDone) && (
+            {(isLab || isLabDone || isPilot || isPilotDone) && (
               <>
                 <Button
                   variant="outline"
@@ -486,71 +490,42 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
         />
       )}
 
+      {/* Pilot Section - show for LabDone/Pilot/PilotDone and later */}
+      {showPilotSection && sample && (
+        <PilotResultsForm
+          sampleId={sampleId}
+          sampleStatus={sample.status}
+          onPilotCompleted={() => {
+            queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
+          }}
+        />
+      )}
+
+      {/* Handoff placeholder - show after PilotDone */}
+      {isPilotDone && <HandoffPlaceholder />}
+
       {/* Next Steps - for Prepared status */}
       {isPrepared && (
         <Card className="border-dashed">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-muted-foreground">
-              <ClipboardList className="h-5 w-5" />
+              <Microscope className="h-5 w-5" />
               Наступні кроки
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Лабораторія - активна кнопка */}
-              <Button
-                variant="outline"
-                className="h-auto p-4 flex flex-col items-center gap-2"
-                onClick={() => labTransitionMutation.mutate()}
-                disabled={labTransitionMutation.isPending}
-              >
-                <Microscope className="h-8 w-8" />
-                <span className="font-medium">Лабораторія</span>
-                <span className="text-xs text-muted-foreground text-center">
-                  {labTransitionMutation.isPending ? 'Передача...' : 'Зафіксувати лабораторні аналізи'}
-                </span>
-              </Button>
-
-              {/* Пілот - заглушка */}
-              <div className="p-4 border rounded-lg text-center opacity-50">
-                <ClipboardList className="h-8 w-8 mx-auto mb-2" />
-                <p className="font-medium">Пілот/Дегустація</p>
-                <p className="text-xs text-muted-foreground">Буде доступно пізніше</p>
-              </div>
-
-              {/* Передача - заглушка */}
-              <div className="p-4 border rounded-lg text-center opacity-50">
-                <Send className="h-8 w-8 mx-auto mb-2" />
-                <p className="font-medium">Передача на тестування</p>
-                <p className="text-xs text-muted-foreground">Буде доступно пізніше</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Next Steps - for LabDone and later */}
-      {isLabDone && (
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-muted-foreground">
-              <ClipboardList className="h-5 w-5" />
-              Наступні кроки
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 border rounded-lg text-center opacity-50">
-                <ClipboardList className="h-8 w-8 mx-auto mb-2" />
-                <p className="font-medium">Пілот/Дегустація</p>
-                <p className="text-xs text-muted-foreground">Буде реалізовано наступним кроком</p>
-              </div>
-              <div className="p-4 border rounded-lg text-center opacity-50">
-                <Send className="h-8 w-8 mx-auto mb-2" />
-                <p className="font-medium">Передача на тестування</p>
-                <p className="text-xs text-muted-foreground">Буде реалізовано наступним кроком</p>
-              </div>
-            </div>
+            <Button
+              variant="outline"
+              className="h-auto p-4 flex flex-col items-center gap-2"
+              onClick={() => labTransitionMutation.mutate()}
+              disabled={labTransitionMutation.isPending}
+            >
+              <Microscope className="h-8 w-8" />
+              <span className="font-medium">Лабораторія</span>
+              <span className="text-xs text-muted-foreground text-center">
+                {labTransitionMutation.isPending ? 'Передача...' : 'Зафіксувати лабораторні аналізи'}
+              </span>
+            </Button>
           </CardContent>
         </Card>
       )}
