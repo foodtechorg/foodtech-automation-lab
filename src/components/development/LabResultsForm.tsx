@@ -23,18 +23,19 @@ interface LabResultsFormProps {
   sampleId: string;
   sampleStatus: DevelopmentSampleStatus;
   onLabCompleted?: () => void;
+  canEdit?: boolean;
 }
 
 type LabFormData = Partial<Omit<LabResults, 'id' | 'sample_id' | 'created_at' | 'updated_at'>>;
 
-export function LabResultsForm({ sampleId, sampleStatus, onLabCompleted }: LabResultsFormProps) {
+export function LabResultsForm({ sampleId, sampleStatus, onLabCompleted, canEdit = true }: LabResultsFormProps) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState<LabFormData>({});
   const [hasChanges, setHasChanges] = useState(false);
 
   const isLabStatus = sampleStatus === 'Lab';
   const isLabDone = sampleStatus === 'LabDone';
-  const isReadOnly = !isLabStatus;
+  const isReadOnly = !isLabStatus || !canEdit;
 
   // Fetch existing lab results
   // Load lab results for all stages where they should be visible (Lab through HandedOff)
@@ -141,7 +142,7 @@ export function LabResultsForm({ sampleId, sampleStatus, onLabCompleted }: LabRe
               </Badge>
             )}
           </CardTitle>
-          {isLabStatus && (
+          {isLabStatus && canEdit && (
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"

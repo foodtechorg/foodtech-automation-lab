@@ -71,12 +71,14 @@ function RecipeSamplesRow({
   recipe, 
   onOpenSample, 
   onSampleCreated,
-  requestId 
+  requestId,
+  canEdit = true
 }: { 
   recipe: DevelopmentRecipe;
   onOpenSample?: (sampleId: string) => void;
   onSampleCreated?: (sampleId: string) => void;
   requestId: string;
+  canEdit?: boolean;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -171,18 +173,20 @@ function RecipeSamplesRow({
                   Зразків для цього рецепту ще немає
                 </p>
               )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCreateModalOpen(true);
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Створити новий зразок
-              </Button>
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCreateModalOpen(true);
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Створити новий зразок
+                </Button>
+              )}
             </div>
           </CollapsibleContent>
         </Collapsible>
@@ -367,6 +371,7 @@ export function RecipesList({ requestId, onOpenRecipe, onOpenSample, onSampleCre
                     onOpenSample={onOpenSample}
                     onSampleCreated={onSampleCreated}
                     requestId={requestId}
+                    canEdit={canEdit}
                   />
                 </>
               ))}

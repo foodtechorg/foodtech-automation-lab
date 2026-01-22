@@ -12,6 +12,7 @@ interface NextStepsBlockProps {
   onTransitionToHandoff: () => void;
   isLabTransitioning?: boolean;
   isPilotTransitioning?: boolean;
+  canEdit?: boolean;
 }
 
 type StageState = 'completed' | 'active' | 'pending' | 'rejected';
@@ -83,6 +84,7 @@ export function NextStepsBlock({
   onTransitionToHandoff,
   isLabTransitioning,
   isPilotTransitioning,
+  canEdit = true,
 }: NextStepsBlockProps) {
   // Don't show for Draft or Archived
   if (sampleStatus === 'Draft' || sampleStatus === 'Archived') {
@@ -161,7 +163,7 @@ export function NextStepsBlock({
                   </span>
                 )}
 
-                {state === 'active' && (
+                {state === 'active' && canEdit && (
                   <Button
                     variant="default"
                     size="sm"
@@ -171,6 +173,12 @@ export function NextStepsBlock({
                   >
                     {transitioning ? 'Обробка...' : stage.activeText}
                   </Button>
+                )}
+
+                {state === 'active' && !canEdit && (
+                  <span className="text-xs text-muted-foreground mt-2">
+                    Очікує дії розробника
+                  </span>
                 )}
 
                 {state === 'pending' && (
