@@ -31,12 +31,7 @@ export interface PilotResults {
   updated_at: string;
 }
 
-// Direction options for the select dropdown
-export const pilotDirectionOptions = [
-  { value: 'flavor_aromatic', label: 'Смако-ароматична суміш' },
-  { value: 'functional', label: 'Функціональна суміш' },
-  { value: 'colorant', label: 'Барвник' },
-];
+// Direction options removed - direction is inherited from the R&D request
 
 // Score fields configuration for UI
 export interface PilotScoreFieldConfig {
@@ -109,14 +104,25 @@ export async function upsertPilotResults(
   }
 }
 
-// Initialize empty pilot results when transitioning to Pilot status
+// Initialize pilot results when transitioning to Pilot status
+// Generates tasting_sheet_no automatically using RPC function
 export async function initializePilotResults(sampleId: string): Promise<PilotResults> {
   const existing = await fetchPilotResults(sampleId);
   if (existing) return existing;
 
+  // Generate tasting sheet number via RPC
+  const { data: sheetNo, error: rpcError } = await supabase
+    .rpc('generate_tasting_sheet_number');
+  
+  if (rpcError) throw rpcError;
+
   const { data, error } = await supabase
     .from('development_sample_pilot')
-    .insert({ sample_id: sampleId })
+    .insert({ 
+      sample_id: sampleId,
+      tasting_sheet_no: sheetNo,
+      tasting_date: new Date().toISOString().split('T')[0]
+    })
     .select()
     .single();
 
