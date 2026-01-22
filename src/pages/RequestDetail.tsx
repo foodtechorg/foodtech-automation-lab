@@ -34,6 +34,7 @@ import {
   validateRdFile,
   isImageType 
 } from '@/services/rdAttachmentService';
+import { TestingSamplesSection } from '@/components/rd/TestingSamplesSection';
 
 export default function RequestDetail() {
   const { id } = useParams();
@@ -54,7 +55,7 @@ export default function RequestDetail() {
   const [originalRdComment, setOriginalRdComment] = useState('');
   const [editPriority, setEditPriority] = useState<string>('');
   const [editComplexityLevel, setEditComplexityLevel] = useState<string>('');
-  const [selectedAction, setSelectedAction] = useState<'update' | 'send_for_test' | 'cancel'>('update');
+  const [selectedAction, setSelectedAction] = useState<'update' | 'cancel'>('update');
 
   // Feedback dialog state
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
@@ -371,34 +372,6 @@ export default function RequestDetail() {
         }
 
         toast.success('Інформацію оновлено');
-      } else if (selectedAction === 'send_for_test') {
-        const { error } = await supabase
-          .from('requests')
-          .update({
-            status: 'SENT_FOR_TEST',
-            eta_first_stage: editEtaDate ? format(editEtaDate, 'yyyy-MM-dd') : null,
-            rd_comment: editRdComment || null,
-            date_sent_for_test: format(new Date(), 'yyyy-MM-dd'),
-          })
-          .eq('id', id);
-
-        if (error) throw error;
-
-        await supabase.rpc('log_request_event', {
-          p_request_id: id,
-          p_actor_email: profile.email,
-          p_event_type: 'SENT_FOR_TEST',
-          p_payload: { date: format(new Date(), 'yyyy-MM-dd') },
-        });
-
-        await supabase.rpc('log_request_event', {
-          p_request_id: id,
-          p_actor_email: profile.email,
-          p_event_type: 'STATUS_CHANGED',
-          p_payload: { from: 'IN_PROGRESS', to: 'SENT_FOR_TEST' },
-        });
-
-        toast.success('Заявку відправлено на тестування');
       } else if (selectedAction === 'cancel') {
         const { error } = await supabase
           .from('requests')
@@ -1241,15 +1214,7 @@ export default function RequestDetail() {
                     Просто оновити інформацію
                   </Label>
                 </div>
-                <div className="flex items-start space-x-2">
-                  <RadioGroupItem value="send_for_test" id="action-test" className="mt-1" />
-                  <div>
-                    <Label htmlFor="action-test" className="font-normal cursor-pointer">
-                      Готово до відправки на тест замовнику
-                    </Label>
-                    <p className="text-xs text-muted-foreground">Розробка завершена, зразок готовий для тестування</p>
-                  </div>
-                </div>
+                {/* send_for_test option removed - samples are sent from Development module */}
                 <div className="flex items-start space-x-2">
                   <RadioGroupItem value="cancel" id="action-cancel" className="mt-1" />
                   <div>

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -24,7 +25,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Save, Lock, Archive, FlaskConical, Copy } from 'lucide-react';
+import { ArrowLeft, Save, Lock, Archive, FlaskConical, Copy, Send, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchSampleWithIngredients,
@@ -35,12 +36,14 @@ import {
   copySample,
   transitionToLab,
   DevelopmentSampleIngredient,
+  isPostHandoffStatus,
 } from '@/services/samplesApi';
 import { initializeLabResults } from '@/services/labResultsApi';
 import { LabResultsForm } from './LabResultsForm';
 import { PilotResultsForm } from './PilotResultsForm';
 import { SampleStatusTracker } from './SampleStatusTracker';
 import { NextStepsBlock } from './NextStepsBlock';
+import { HandoffDialog } from './HandoffDialog';
 import { initializePilotResults } from '@/services/pilotResultsApi';
 import { updateSampleStatus } from '@/services/samplesApi';
 
@@ -63,6 +66,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
   const [hasChanges, setHasChanges] = useState(false);
   const [prepareDialogOpen, setPrepareDialogOpen] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [handoffDialogOpen, setHandoffDialogOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['development-sample', sampleId],
@@ -77,9 +81,13 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
   const isPilot = sample?.status === 'Pilot';
   const isPilotDone = sample?.status === 'PilotDone';
   const isArchived = sample?.status === 'Archived';
+  const isTesting = sample?.status === 'Testing';
+  const isApproved = sample?.status === 'Approved';
+  const isRejected = sample?.status === 'Rejected';
+  const isPostHandoff = sample?.status && isPostHandoffStatus(sample.status);
   const isReadOnly = !isDraft;
-  const showLabSection = isLab || isLabDone || (sample?.status && ['Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'].includes(sample.status));
-  const showPilotSection = isLabDone || isPilot || isPilotDone || (sample?.status && ['ReadyForHandoff', 'HandedOff'].includes(sample.status));
+  const showLabSection = isLab || isLabDone || (sample?.status && ['Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(sample.status));
+  const showPilotSection = isLabDone || isPilot || isPilotDone || (sample?.status && ['Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(sample.status));
 
   // Extract recipe code from sample code (e.g., RD-0015/01/01 -> RD-0015/01)
   const recipeCode = sample?.sample_code?.split('/').slice(0, 2).join('/') ?? '';
@@ -316,7 +324,34 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
-              <h2 className="text-xl font-bold font-mono">{sample.sample_code}</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-bold font-mono">{sample.sample_code}</h2>
+                {/* Status badges for Testing/Approved/Rejected */}
+                {isTesting && (
+                  <Badge variant="outline" className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                    <Send className="h-3 w-3 mr-1" />
+                    Тестування
+                  </Badge>
+                )}
+                {isApproved && (
+                  <Badge variant="outline" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Погоджений
+                  </Badge>
+                )}
+                {isRejected && (
+                  <Badge variant="outline" className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Відхилений
+                  </Badge>
+                )}
+              </div>
+              {/* Working title display for post-handoff statuses */}
+              {isPostHandoff && sample.working_title && (
+                <p className="font-medium text-primary">
+                  {sample.working_title} ({sample.sample_code})
+                </p>
+              )}
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <span>{isReadOnly ? 'Перегляд зразка' : 'Редагування зразка'}</span>
                 {onOpenRecipe && (
@@ -378,7 +413,7 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
               </>
             )}
 
-            {(isLab || isLabDone || isPilot || isPilotDone) && (
+            {(isLab || isLabDone || isPilot || isPilotDone) && !isPostHandoff && (
               <>
                 <Button
                   variant="outline"
@@ -396,6 +431,13 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
                   Архівувати
                 </Button>
               </>
+            )}
+
+            {/* Post-handoff: only view mode, no actions */}
+            {isPostHandoff && (
+              <span className="text-sm text-muted-foreground">
+                Зразок передано на тестування
+              </span>
             )}
           </div>
         </div>
@@ -530,8 +572,22 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
           sampleStatus={sample.status}
           onTransitionToLab={() => labTransitionMutation.mutate()}
           onTransitionToPilot={() => pilotTransitionMutation.mutate()}
+          onTransitionToHandoff={() => setHandoffDialogOpen(true)}
           isLabTransitioning={labTransitionMutation.isPending}
           isPilotTransitioning={pilotTransitionMutation.isPending}
+        />
+      )}
+
+      {/* Handoff Dialog */}
+      {sample && (
+        <HandoffDialog
+          open={handoffDialogOpen}
+          onOpenChange={setHandoffDialogOpen}
+          sampleId={sampleId}
+          sampleCode={sample.sample_code}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
+          }}
         />
       )}
 

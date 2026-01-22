@@ -12,31 +12,31 @@ const stages = [
     key: 'prepared', 
     label: 'Підготовлений',
     compactLabel: 'Підг.',
-    statuses: ['Prepared', 'Lab', 'LabDone', 'Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'] 
+    statuses: ['Prepared', 'Lab', 'LabDone', 'Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'] 
   },
   { 
     key: 'lab', 
     label: 'Лабораторні тестування',
     compactLabel: 'Лаб.',
-    statuses: ['LabDone', 'Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'] 
+    statuses: ['LabDone', 'Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'] 
   },
   { 
     key: 'pilot', 
     label: 'Пілот/дегустація',
     compactLabel: 'Пілот',
-    statuses: ['PilotDone', 'ReadyForHandoff', 'HandedOff'] 
+    statuses: ['PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'] 
   },
   { 
     key: 'testing', 
     label: 'Тестування',
     compactLabel: 'Тест.',
-    statuses: ['ReadyForHandoff', 'HandedOff'] 
+    statuses: ['Testing', 'Approved', 'Rejected'] 
   },
   { 
     key: 'approved', 
     label: 'Погоджений',
     compactLabel: 'Погодж.',
-    statuses: ['HandedOff'] 
+    statuses: ['Approved'] 
   },
 ];
 
