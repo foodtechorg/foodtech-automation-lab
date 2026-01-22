@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Save, Lock, Archive, FlaskConical, Copy, Microscope } from 'lucide-react';
+import { ArrowLeft, Save, Lock, Archive, FlaskConical, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   fetchSampleWithIngredients,
@@ -38,8 +38,11 @@ import {
 } from '@/services/samplesApi';
 import { initializeLabResults } from '@/services/labResultsApi';
 import { LabResultsForm } from './LabResultsForm';
-import { PilotResultsForm, HandoffPlaceholder } from './PilotResultsForm';
+import { PilotResultsForm } from './PilotResultsForm';
 import { SampleStatusTracker } from './SampleStatusTracker';
+import { NextStepsBlock } from './NextStepsBlock';
+import { initializePilotResults } from '@/services/pilotResultsApi';
+import { updateSampleStatus } from '@/services/samplesApi';
 
 interface SampleDetailProps {
   sampleId: string;
@@ -253,7 +256,26 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
     }
   });
 
-  // Validate before prepare
+  // Transition to Pilot (without dialog, directly)
+  const pilotTransitionMutation = useMutation({
+    mutationFn: async () => {
+      // Initialize empty pilot results record
+      await initializePilotResults(sampleId);
+      // Transition status
+      return updateSampleStatus(sampleId, 'Pilot');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pilot-results', sampleId] });
+      queryClient.invalidateQueries({ queryKey: ['development-sample', sampleId] });
+      queryClient.invalidateQueries({ queryKey: ['development-samples'] });
+      queryClient.invalidateQueries({ queryKey: ['recipe-samples'] });
+      toast.success('Зразок передано на дегустацію');
+    },
+    onError: (error: Error) => {
+      toast.error(`Помилка: ${error.message}`);
+    }
+  });
+
   const handlePrepareClick = () => {
     const weight = parseFloat(batchWeight);
     if (isNaN(weight) || weight <= 0) {
@@ -501,45 +523,16 @@ export function SampleDetail({ sampleId, onBack, onOpenRecipe, onSampleCopied }:
         />
       )}
 
-      {/* Handoff placeholder - show after PilotDone */}
-      {isPilotDone && <HandoffPlaceholder />}
-
-      {/* Next Steps - for Prepared status */}
-      {isPrepared && (
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-muted-foreground">
-              <Microscope className="h-5 w-5" />
-              Наступні кроки
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              className="h-auto p-4 flex flex-col items-center gap-2"
-              onClick={() => labTransitionMutation.mutate()}
-              disabled={labTransitionMutation.isPending}
-            >
-              <Microscope className="h-8 w-8" />
-              <span className="font-medium">Лабораторія</span>
-              <span className="text-xs text-muted-foreground text-center">
-                {labTransitionMutation.isPending ? 'Передача...' : 'Зафіксувати лабораторні аналізи'}
-              </span>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Draft hint for lab */}
-      {isDraft && (
-        <Card className="border-dashed">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 text-muted-foreground">
-              <Microscope className="h-5 w-5" />
-              <p className="text-sm">Спочатку зафіксуйте зразок, щоб передати його в лабораторію</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Next Steps Block - visible for Prepared and later (except Archived) */}
+      {sample && (
+        <NextStepsBlock
+          sampleId={sampleId}
+          sampleStatus={sample.status}
+          onTransitionToLab={() => labTransitionMutation.mutate()}
+          onTransitionToPilot={() => pilotTransitionMutation.mutate()}
+          isLabTransitioning={labTransitionMutation.isPending}
+          isPilotTransitioning={pilotTransitionMutation.isPending}
+        />
       )}
 
       {/* Prepare Confirmation Dialog */}

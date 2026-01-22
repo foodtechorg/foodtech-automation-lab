@@ -165,47 +165,9 @@ export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted }: P
     completeMutation.mutate();
   };
 
-  // Show CTA for LabDone status
-  if (isLabDone) {
-    return (
-      <Card className="border-dashed">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-muted-foreground">
-            <ClipboardList className="h-5 w-5" />
-            Пілот / Дегустація
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button
-            onClick={() => transitionToPilotMutation.mutate()}
-            disabled={transitionToPilotMutation.isPending}
-            className="w-full md:w-auto"
-          >
-            <ClipboardList className="h-4 w-4 mr-2" />
-            {transitionToPilotMutation.isPending ? 'Передача...' : 'Перейти до дегустації'}
-          </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Show placeholder for statuses before LabDone
+  // Don't show anything for statuses before Pilot
   if (!showForm) {
-    return (
-      <Card className="border-dashed opacity-60">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-muted-foreground">
-            <ClipboardList className="h-5 w-5" />
-            Пілот / Дегустація
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            Доступно після завершення лабораторного аналізу
-          </p>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   if (isLoading) {
