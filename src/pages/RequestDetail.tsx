@@ -955,6 +955,12 @@ export default function RequestDetail() {
                     }
                     return comment ? `Коментар: "${comment}"` : 'Додано коментар';
                   }
+                  if (event.event_type === 'SAMPLE_SENT_FOR_TESTING') {
+                    const displayName = (event.payload as any)?.display_name;
+                    return displayName 
+                      ? `Зразок передано на тестування — ${displayName}` 
+                      : 'Зразок передано на тестування';
+                  }
                   return t.eventType(event.event_type);
                 };
 
