@@ -26,6 +26,7 @@ import { uk } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { t } from "@/lib/i18n";
+import { enqueueNotificationEvent } from "@/services/notifications";
 const statusLabels: Record<PurchaseInvoiceStatus, string> = {
   DRAFT: "Чернетка",
   PENDING_COO: "На погодженні",
@@ -307,6 +308,20 @@ export default function PurchaseInvoiceDetail() {
         status: "PENDING_COO"
       });
       await logPurchaseEvent("INVOICE", id, "SUBMITTED_FOR_APPROVAL");
+
+      // Enqueue Telegram notifications for COO and CEO
+      try {
+        const invoiceUrl = `${window.location.origin}/purchase/invoices/${id}`;
+        await enqueueNotificationEvent('INVOICE_SENT_FOR_APPROVAL', {
+          invoice_number: invoice?.number || '',
+          invoice_amount: `${invoice?.amount?.toLocaleString('uk-UA') || '0'} ${invoice?.currency || 'UAH'}`,
+          customer_name: requesterName || requesterEmail || 'Невідомо',
+          invoice_url: invoiceUrl,
+        });
+      } catch (notifError) {
+        // Don't fail the whole operation if notification fails
+        console.error('Failed to enqueue notification:', notifError);
+      }
 
       // Sync request status to INVOICE_PENDING
       if (invoice?.request_id) {

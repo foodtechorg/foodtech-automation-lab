@@ -495,6 +495,110 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_outbox: {
+        Row: {
+          attempts: number
+          channel: Database["public"]["Enums"]["notification_channel"]
+          created_at: string
+          event_id: string
+          event_type: string
+          id: string
+          last_error: string | null
+          message_text: string
+          next_retry_at: string | null
+          parse_mode: string | null
+          payload: Json | null
+          profile_id: string | null
+          rule_id: string | null
+          sent_at: string | null
+          status: Database["public"]["Enums"]["notification_outbox_status"]
+          telegram_user_id: number
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          event_id: string
+          event_type: string
+          id?: string
+          last_error?: string | null
+          message_text: string
+          next_retry_at?: string | null
+          parse_mode?: string | null
+          payload?: Json | null
+          profile_id?: string | null
+          rule_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_outbox_status"]
+          telegram_user_id: number
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          created_at?: string
+          event_id?: string
+          event_type?: string
+          id?: string
+          last_error?: string | null
+          message_text?: string
+          next_retry_at?: string | null
+          parse_mode?: string | null
+          payload?: Json | null
+          profile_id?: string | null
+          rule_id?: string | null
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["notification_outbox_status"]
+          telegram_user_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_outbox_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "notification_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_rules: {
+        Row: {
+          channel: Database["public"]["Enums"]["notification_channel"]
+          code: string
+          created_at: string
+          event_type: string
+          id: string
+          is_enabled: boolean
+          recipient_roles: Database["public"]["Enums"]["app_role"][]
+          template_text: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          code: string
+          created_at?: string
+          event_type: string
+          id?: string
+          is_enabled?: boolean
+          recipient_roles: Database["public"]["Enums"]["app_role"][]
+          template_text: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: Database["public"]["Enums"]["notification_channel"]
+          code?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          is_enabled?: boolean
+          recipient_roles?: Database["public"]["Enums"]["app_role"][]
+          template_text?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -1362,6 +1466,10 @@ export type Database = {
         Args: { p_comment?: string; p_request_id: string }
         Returns: Json
       }
+      enqueue_notification_event: {
+        Args: { p_event_id?: string; p_event_type: string; p_payload?: Json }
+        Returns: Json
+      }
       generate_purchase_invoice_number: { Args: never; Returns: string }
       generate_purchase_request_number: { Args: never; Returns: string }
       generate_request_code: { Args: never; Returns: string }
@@ -1505,6 +1613,13 @@ export type Database = {
         | "PRODUCTION_SET"
         | "FEEDBACK_PROVIDED"
         | "SAMPLE_SENT_FOR_TESTING"
+      notification_channel: "telegram"
+      notification_outbox_status:
+        | "pending"
+        | "processing"
+        | "sent"
+        | "failed"
+        | "canceled"
       payment_terms: "PREPAYMENT" | "POSTPAYMENT"
       priority: "LOW" | "MEDIUM" | "HIGH"
       purchase_invoice_status:
@@ -1734,6 +1849,14 @@ export const Constants = {
         "PRODUCTION_SET",
         "FEEDBACK_PROVIDED",
         "SAMPLE_SENT_FOR_TESTING",
+      ],
+      notification_channel: ["telegram"],
+      notification_outbox_status: [
+        "pending",
+        "processing",
+        "sent",
+        "failed",
+        "canceled",
       ],
       payment_terms: ["PREPAYMENT", "POSTPAYMENT"],
       priority: ["LOW", "MEDIUM", "HIGH"],
