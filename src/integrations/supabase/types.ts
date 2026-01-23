@@ -1504,6 +1504,7 @@ export type Database = {
         | "SENT_FOR_TEST"
         | "PRODUCTION_SET"
         | "FEEDBACK_PROVIDED"
+        | "SAMPLE_SENT_FOR_TESTING"
       payment_terms: "PREPAYMENT" | "POSTPAYMENT"
       priority: "LOW" | "MEDIUM" | "HIGH"
       purchase_invoice_status:
@@ -1732,6 +1733,7 @@ export const Constants = {
         "SENT_FOR_TEST",
         "PRODUCTION_SET",
         "FEEDBACK_PROVIDED",
+        "SAMPLE_SENT_FOR_TESTING",
       ],
       payment_terms: ["PREPAYMENT", "POSTPAYMENT"],
       priority: ["LOW", "MEDIUM", "HIGH"],
