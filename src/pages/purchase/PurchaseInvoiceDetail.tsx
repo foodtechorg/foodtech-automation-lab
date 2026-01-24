@@ -481,6 +481,32 @@ export default function PurchaseInvoiceDetail() {
       // Sync request status to COMPLETED
       if (invoice?.request_id) {
         await syncRequestStatusFromInvoice(invoice.request_id, "PAID");
+        
+        // Notify the request creator about payment
+        try {
+          // Get request creator profile ID
+          const { data: requestData } = await supabase
+            .from('purchase_requests')
+            .select('created_by, number')
+            .eq('id', invoice.request_id)
+            .single();
+          
+          if (requestData?.created_by) {
+            await enqueueNotificationEvent(
+              'INVOICE_PAID',
+              {
+                request_number: requestData.number || '',
+                invoice_amount: `${invoice?.amount?.toLocaleString('uk-UA') || '0'} ${invoice?.currency || 'UAH'}`,
+                supplier_name: invoice?.supplier_name || 'Невідомо',
+              },
+              undefined,
+              [requestData.created_by]
+            );
+          }
+        } catch (notifErr) {
+          console.error('Failed to enqueue INVOICE_PAID notification:', notifErr);
+          // Don't fail the main operation
+        }
       }
       setInvoice(prev => prev ? {
         ...prev,
