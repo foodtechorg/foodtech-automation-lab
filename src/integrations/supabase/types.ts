@@ -1466,10 +1466,24 @@ export type Database = {
         Args: { p_comment?: string; p_request_id: string }
         Returns: Json
       }
-      enqueue_notification_event: {
-        Args: { p_event_id?: string; p_event_type: string; p_payload?: Json }
-        Returns: Json
-      }
+      enqueue_notification_event:
+        | {
+            Args: {
+              p_event_id?: string
+              p_event_type: string
+              p_payload?: Json
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_event_id?: string
+              p_event_type: string
+              p_payload?: Json
+              p_recipient_profile_ids?: string[]
+            }
+            Returns: Json
+          }
       generate_purchase_invoice_number: { Args: never; Returns: string }
       generate_purchase_request_number: { Args: never; Returns: string }
       generate_request_code: { Args: never; Returns: string }

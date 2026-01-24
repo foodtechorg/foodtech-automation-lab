@@ -32,6 +32,7 @@ import { PurchaseNavTabs } from '@/components/purchase/PurchaseNavTabs';
 import { PurchasePageHeader } from '@/components/purchase/PurchasePageHeader';
 import { createPurchaseInvoice, createPurchaseInvoiceItems, logPurchaseEvent, updatePurchaseInvoice } from '@/services/invoiceApi';
 import { getPurchaseRequestItems, updatePurchaseRequestStatus, syncRequestStatusFromInvoice } from '@/services/purchaseApi';
+import { enqueueNotificationEvent } from '@/services/notifications';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -731,10 +732,10 @@ export default function ApprovedRequestsQueue() {
   const handleMarkPaid = async (invoiceId: string) => {
     setProcessingId(invoiceId);
     try {
-      // First get the invoice to get request_id
+      // First get the invoice to get request_id and other details for notification
       const { data: invoice } = await supabase
         .from('purchase_invoices')
-        .select('request_id')
+        .select('request_id, amount, currency, supplier_name')
         .eq('id', invoiceId)
         .single();
       
@@ -750,9 +751,33 @@ export default function ApprovedRequestsQueue() {
 
       await logPurchaseEvent('INVOICE', invoiceId, 'MARKED_PAID');
       
-      // Sync request status to COMPLETED
+      // Sync request status to COMPLETED and notify request creator
       if (invoice?.request_id) {
         await syncRequestStatusFromInvoice(invoice.request_id, 'PAID');
+        
+        // Notify the request creator about payment
+        try {
+          const { data: requestData } = await supabase
+            .from('purchase_requests')
+            .select('created_by, number')
+            .eq('id', invoice.request_id)
+            .single();
+          
+          if (requestData?.created_by) {
+            await enqueueNotificationEvent(
+              'INVOICE_PAID',
+              {
+                request_number: requestData.number || '',
+                invoice_amount: `${invoice?.amount?.toLocaleString('uk-UA') || '0'} ${invoice?.currency || 'UAH'}`,
+                supplier_name: invoice?.supplier_name || 'Невідомо',
+              },
+              undefined,
+              [requestData.created_by]
+            );
+          }
+        } catch (notifErr) {
+          console.error('Failed to enqueue INVOICE_PAID notification:', notifErr);
+        }
       }
       
       toast.success('Рахунок позначено як оплачений');

@@ -15,17 +15,20 @@ export interface EnqueueNotificationResult {
  * @param eventType - The event type identifier (e.g., 'INVOICE_SENT_FOR_APPROVAL')
  * @param payload - Key-value pairs for template placeholder substitution
  * @param eventId - Optional custom event ID for idempotency
+ * @param recipientProfileIds - Optional array of profile IDs to send to specific users
  * @returns Result with counts of rules matched, recipients enqueued, and duplicates skipped
  */
 export async function enqueueNotificationEvent(
   eventType: string,
   payload: Record<string, string | number>,
-  eventId?: string
+  eventId?: string,
+  recipientProfileIds?: string[]
 ): Promise<EnqueueNotificationResult> {
   const { data, error } = await supabase.rpc('enqueue_notification_event', {
     p_event_type: eventType,
     p_payload: payload,
     p_event_id: eventId ?? null,
+    p_recipient_profile_ids: recipientProfileIds ?? null,
   });
 
   if (error) {
