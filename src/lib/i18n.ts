@@ -88,6 +88,11 @@ export const translations = {
     DELETED: "Видалено",
     STATUS_CHANGED: "Статус змінено"
   },
+  notificationEventType: {
+    INVOICE_SENT_FOR_APPROVAL: "Рахунок надіслано на погодження",
+    INVOICE_PAID: "Рахунок оплачено",
+    SAMPLE_READY_FOR_TESTING: "Зразок готовий до тестування"
+  },
   common: {
     loading: "Завантаження...",
     save: "Зберегти",
@@ -349,5 +354,6 @@ export const t = {
   role: (key: string) => translations.role[key as keyof typeof translations.role] || key,
   eventType: (key: string) => translations.eventType[key as keyof typeof translations.eventType] || key,
   purchaseAction: (key: string) => translations.purchaseAction[key as keyof typeof translations.purchaseAction] || key,
+  notificationEventType: (key: string) => translations.notificationEventType[key as keyof typeof translations.notificationEventType] || key,
   complexityLevel: (key: string) => complexityLevelMap[key] || key,
 };
