@@ -333,3 +333,32 @@ export function canHandoffSample(status: DevelopmentSampleStatus): boolean {
 export function isPostHandoffStatus(status: DevelopmentSampleStatus): boolean {
   return ['Testing', 'Approved', 'Rejected'].includes(status);
 }
+
+// Quick handoff for EASY complexity requests
+export interface QuickHandoffResult {
+  success: boolean;
+  sample_id: string;
+  sample_code: string;
+  display_name: string;
+  request_status: string;
+  testing_sample: {
+    sample_id: string;
+    sample_code: string;
+    request_id: string;
+  };
+}
+
+export async function quickHandoffToTesting(
+  requestId: string,
+  productName: string,
+  weightG: number
+): Promise<QuickHandoffResult> {
+  const { data, error } = await supabase.rpc('quick_handoff_to_testing' as never, {
+    p_request_id: requestId,
+    p_product_name: productName,
+    p_weight_g: weightG
+  } as never);
+
+  if (error) throw error;
+  return data as unknown as QuickHandoffResult;
+}

@@ -310,7 +310,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
-          recipe_id: string
+          recipe_id: string | null
           request_id: string
           sample_code: string
           sample_seq: number
@@ -323,7 +323,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
-          recipe_id: string
+          recipe_id?: string | null
           request_id: string
           sample_code: string
           sample_seq: number
@@ -336,7 +336,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
-          recipe_id?: string
+          recipe_id?: string | null
           request_id?: string
           sample_code?: string
           sample_seq?: number
@@ -1543,6 +1543,14 @@ export type Database = {
           metadata: Json
           similarity: number
         }[]
+      }
+      quick_handoff_to_testing: {
+        Args: {
+          p_product_name: string
+          p_request_id: string
+          p_weight_g: number
+        }
+        Returns: Json
       }
       recalculate_sample_ingredients: {
         Args: { p_new_batch_weight_g: number; p_sample_id: string }

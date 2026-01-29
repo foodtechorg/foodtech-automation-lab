@@ -339,10 +339,17 @@ export const translations = {
 };
 
 const complexityLevelMap: Record<string, string> = {
-  EASY: 'Проста',
-  MEDIUM: 'Середня',
-  COMPLEX: 'Складна',
-  EXPERT: 'Експертна'
+  EASY: '1 - Легка',
+  MEDIUM: '2 - Середня',
+  COMPLEX: '3 - Складна',
+  EXPERT: '4 - Експертна'
+};
+
+const complexityLevelColorMap: Record<string, string> = {
+  EASY: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
+  MEDIUM: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
+  COMPLEX: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  EXPERT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
 };
 
 export const t = {
@@ -356,4 +363,5 @@ export const t = {
   purchaseAction: (key: string) => translations.purchaseAction[key as keyof typeof translations.purchaseAction] || key,
   notificationEventType: (key: string) => translations.notificationEventType[key as keyof typeof translations.notificationEventType] || key,
   complexityLevel: (key: string) => complexityLevelMap[key] || key,
+  complexityLevelColor: (key: string) => complexityLevelColorMap[key] || 'bg-muted text-muted-foreground',
 };
