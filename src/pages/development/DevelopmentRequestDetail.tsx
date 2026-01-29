@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,10 @@ import { RecipesList } from '@/components/development/RecipesList';
 import { RecipeForm } from '@/components/development/RecipeForm';
 import { SamplesList } from '@/components/development/SamplesList';
 import { SampleDetail } from '@/components/development/SampleDetail';
+import { QuickHandoffBlock } from '@/components/development/QuickHandoffBlock';
 import { useAuth } from '@/hooks/useAuth';
 import NoAccess from './NoAccess';
+import { format } from 'date-fns';
 
 // Statuses allowed in Development module
 const DEV_MODULE_STATUSES = ['IN_PROGRESS', 'SENT_FOR_TEST', 'REJECTED_BY_CLIENT', 'APPROVED_FOR_PRODUCTION'];
@@ -26,6 +28,7 @@ const EDITABLE_STATUSES = ['IN_PROGRESS', 'SENT_FOR_TEST'];
 export default function DevelopmentRequestDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { profile } = useAuth();
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
@@ -86,6 +89,10 @@ export default function DevelopmentRequestDetail() {
   const hasEditRole = profile?.role === 'admin' || profile?.role === 'rd_dev';
   const canEdit = hasEditRole && isEditableStatus;
   const isReadOnlyStatus = ['REJECTED_BY_CLIENT', 'APPROVED_FOR_PRODUCTION'].includes(request?.status ?? '');
+
+  // Check if this is an EASY complexity request (can use quick handoff)
+  const isEasyComplexity = request?.complexity_level === 'EASY';
+  const canQuickHandoff = canEdit && isEasyComplexity;
 
   // Check if rd_dev can access this request (only their own assigned requests)
   const isRdDev = profile?.role === 'rd_dev';
@@ -154,15 +161,15 @@ export default function DevelopmentRequestDetail() {
         </div>
       </div>
 
-      {/* Request Info Card */}
+      {/* Request Info Card - Extended */}
       <Card>
         <CardHeader>
           <CardTitle>Інформація про заявку</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Замовник</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="text-sm font-medium text-muted-foreground">Компанія замовника</label>
               <p className="font-medium">{request.customer_company}</p>
             </div>
             <div>
@@ -174,6 +181,28 @@ export default function DevelopmentRequestDetail() {
               <p className="font-medium">{t.direction(request.direction)}</p>
             </div>
             <div>
+              <label className="text-sm font-medium text-muted-foreground">Автор заявки</label>
+              <p className="font-medium">
+                {request.author_email ? emailToName[request.author_email] || request.author_email : '—'}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Дата створення</label>
+              <p className="font-medium">
+                {request.created_at ? format(new Date(request.created_at), 'dd.MM.yyyy') : '—'}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Бажана дата завершення</label>
+              <p className="font-medium">
+                {request.desired_due_date ? format(new Date(request.desired_due_date), 'dd.MM.yyyy') : 'Не вказано'}
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Наявність зразка аналогу</label>
+              <p className="font-medium">{request.has_sample_analog ? 'Так' : 'Ні'}</p>
+            </div>
+            <div>
               <label className="text-sm font-medium text-muted-foreground">Пріоритет</label>
               <div className="mt-1">
                 <Badge variant="outline" className={getPriorityColor(request.priority)}>
@@ -182,18 +211,18 @@ export default function DevelopmentRequestDetail() {
               </div>
             </div>
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Складність</label>
-              <p className="font-medium">
-                {request.complexity_level ? t.complexityLevel(request.complexity_level) : 'Не визначено'}
-              </p>
+              <label className="text-sm font-medium text-muted-foreground">Рівень складності</label>
+              <div className="mt-1">
+                {request.complexity_level ? (
+                  <Badge variant="outline" className={t.complexityLevelColor(request.complexity_level)}>
+                    {t.complexityLevel(request.complexity_level)}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">Не визначено</span>
+                )}
+              </div>
             </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">Відповідальний</label>
-              <p className="font-medium">
-                {request.responsible_email ? emailToName[request.responsible_email] : 'Не призначено'}
-              </p>
-            </div>
-            <div className="md:col-span-2 lg:col-span-3">
+            <div className="md:col-span-2">
               <label className="text-sm font-medium text-muted-foreground">Опис</label>
               <p className="font-medium whitespace-pre-wrap">
                 {request.description || 'Опис відсутній'}
@@ -202,6 +231,18 @@ export default function DevelopmentRequestDetail() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Quick Handoff Block for EASY complexity requests */}
+      {canQuickHandoff && (
+        <QuickHandoffBlock
+          requestId={id!}
+          requestCode={request.code}
+          canEdit={canEdit}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['development-request', id] });
+          }}
+        />
+      )}
 
       {/* Tabs for Recipes and Samples */}
       <Card>
