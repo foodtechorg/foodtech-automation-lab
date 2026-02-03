@@ -16,7 +16,7 @@ const modules: Module[] = [{
   id: 'rd',
   label: 'Заявки R&D',
   icon: FileText,
-  roles: ['sales_manager', 'rd_dev', 'rd_manager', 'admin', 'quality_manager', 'admin_director', 'ceo', 'coo'],
+  roles: ['sales_manager', 'rd_dev', 'rd_manager', 'admin', 'quality_manager', 'admin_director', 'ceo', 'coo', 'financial_analyst'],
   getPath: role => (role === 'sales_manager' || role === 'quality_manager') ? '/requests/my' : '/rd/board'
 }, {
   id: 'development',

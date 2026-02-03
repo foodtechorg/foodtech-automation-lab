@@ -98,7 +98,7 @@ const App = () => (
             <Route
               path="/rd/board"
               element={
-                <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director']}>
+                <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'financial_analyst']}>
                   <Layout>
                     <RDBoard />
                   </Layout>
@@ -108,7 +108,7 @@ const App = () => (
             <Route
               path="/rd/analytics"
               element={
-                <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'sales_manager']}>
+                <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'sales_manager', 'financial_analyst']}>
                   <Layout>
                     <RDAnalytics />
                   </Layout>
