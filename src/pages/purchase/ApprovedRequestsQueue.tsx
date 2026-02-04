@@ -619,25 +619,14 @@ export default function ApprovedRequestsQueue() {
   const handleRejectInvoiceCOO = async (invoiceId: string) => {
     setProcessingId(invoiceId);
     try {
-      const { error } = await supabase
-        .from('purchase_invoices')
-        .update({
-          status: 'DRAFT',
-          // Reset both decisions for resubmission
-          coo_decision: 'PENDING',
-          coo_decided_by: null,
-          coo_decided_at: null,
-          coo_comment: rejectComment || null,
-          ceo_decision: 'PENDING',
-          ceo_decided_by: null,
-          ceo_decided_at: null,
-          ceo_comment: null,
-        })
-        .eq('id', invoiceId);
+      const { error } = await supabase.rpc('reject_purchase_invoice', {
+        p_invoice_id: invoiceId,
+        p_role: 'COO',
+        p_comment: rejectComment.trim() || null
+      });
 
       if (error) throw error;
 
-      await logPurchaseEvent('INVOICE', invoiceId, 'REJECTED_BY_COO', rejectComment || undefined);
       toast.success('Рахунок відхилено та повернуто на доопрацювання');
       setRejectComment('');
       await loadQueueData();
@@ -698,25 +687,14 @@ export default function ApprovedRequestsQueue() {
   const handleRejectInvoiceCEO = async (invoiceId: string) => {
     setProcessingId(invoiceId);
     try {
-      const { error } = await supabase
-        .from('purchase_invoices')
-        .update({
-          status: 'DRAFT',
-          // Reset both decisions for resubmission
-          coo_decision: 'PENDING',
-          coo_decided_by: null,
-          coo_decided_at: null,
-          coo_comment: null,
-          ceo_decision: 'PENDING',
-          ceo_decided_by: null,
-          ceo_decided_at: null,
-          ceo_comment: rejectComment || null,
-        })
-        .eq('id', invoiceId);
+      const { error } = await supabase.rpc('reject_purchase_invoice', {
+        p_invoice_id: invoiceId,
+        p_role: 'CEO',
+        p_comment: rejectComment.trim() || null
+      });
 
       if (error) throw error;
 
-      await logPurchaseEvent('INVOICE', invoiceId, 'REJECTED_BY_CEO', rejectComment || undefined);
       toast.success('Рахунок відхилено та повернуто на доопрацювання');
       setRejectComment('');
       await loadQueueData();
