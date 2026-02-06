@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { subDays } from 'date-fns';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { RDNavTabs } from '@/components/rd/RDNavTabs';
+import { RDMonthlyReports } from '@/components/rd/RDMonthlyReports';
 import { translations } from '@/lib/i18n';
 const statusColors = {
   pending: 'hsl(var(--muted-foreground))',
@@ -243,5 +244,8 @@ export default function RDAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Monthly Reports Section */}
+      <RDMonthlyReports />
     </div>;
 }
