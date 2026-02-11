@@ -1,244 +1,39 @@
 
 
-## План: Система звітності R&D по розробниках
+## Виправлення OG-зображення при шерінгу посилання
 
-### Огляд
+### Проблема
 
-Створення системи щомісячних звітів для розробників R&D у розділі "Аналітика" модуля "Заявки R&D". Система включатиме:
+У файлі `index.html` в мета-тегах `og:image` та `twitter:image` вказано зображення Lovable за замовчуванням (`https://lovable.dev/opengraph-image-p98pqg.png`). Саме тому при відправці посилання в месенджерах відображається заставка Lovable.
 
-1. **Звіт активності** — підрахунок ключових подій за обраний місяць
-2. **Звіт балів** — розрахунок балів за успішно завершені розробки
+### Рішення
 
----
+1. **Створити OG-зображення** для FoodTech (рекомендований розмір: 1200x630 px) на основі логотипу FoodTech з оливково-зеленим брендовим кольором
+2. **Розмістити** його в папці `public/og-image.png`
+3. **Оновити `index.html`** -- замінити URL зображення в мета-тегах
 
-### 1. Джерела даних
-
-Для формування звітів використовуються таблиці:
-
-| Таблиця | Дані | Призначення |
-|---------|------|-------------|
-| `request_events` | `event_type`, `payload`, `actor_email`, `created_at` | Відстеження переходів статусів |
-| `requests` | `responsible_email`, `complexity_level` | Визначення відповідального та складності |
-| `profiles` | `email`, `name`, `role` | Перетворення email → ім'я |
-
-**Логіка підрахунку подій:**
-
-| Метрика | Умова фільтрації |
-|---------|------------------|
-| Взято в роботу | `STATUS_CHANGED` з `from: PENDING` → `to: IN_PROGRESS` |
-| Відправлено на тестування | `STATUS_CHANGED` з `to: SENT_FOR_TEST` |
-| Повернуто на доопрацювання | `STATUS_CHANGED` з `from: SENT_FOR_TEST` → `to: IN_PROGRESS` |
-| Затверджено | `STATUS_CHANGED` з `to: APPROVED_FOR_PRODUCTION` |
-| Відхилено | `STATUS_CHANGED` з `to: REJECTED_BY_CLIENT` або `CANCELLED` |
-
-**Примітка:** `responsible_email` береться з таблиці `requests`, а не з `actor_email`, оскільки деякі переходи (наприклад, APPROVED) виконує менеджер, а не розробник.
-
----
-
-### 2. Розрахунок балів
-
-Бали нараховуються за заявки, які **в межах обраного місяця** перейшли в статус `APPROVED_FOR_PRODUCTION`.
-
-| Рівень складності | Бали |
-|-------------------|------|
-| EASY (Рівень 1) | 1 |
-| MEDIUM (Рівень 2) | 3 |
-| COMPLEX (Рівень 3) | 8 |
-| EXPERT (Рівень 4) | 20 |
-
-**Формула:** Сума балів = Σ(бали за рівень складності кожної затвердженої заявки)
-
----
-
-### 3. Архітектура UI
-
-#### 3.1 Новий компонент: `RDMonthlyReports.tsx`
-
-Окремий компонент зі своїм UI та логікою, який буде включено в сторінку `RDAnalytics.tsx`.
-
-**Елементи інтерфейсу:**
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│ Звіти розробників                                       │
-│ Детальна статистика активності за обраний місяць        │
-├─────────────────────────────────────────────────────────┤
-│  Місяць: [◀ Січень 2026 ▶]                              │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  ┌─── Активність за місяць ───────────────────────────┐ │
-│  │                                                     │ │
-│  │  Розробник  | Взято | Тест | Дооп. | Затв. | Відх. │ │
-│  │  ─────────────────────────────────────────────────  │ │
-│  │  О. Горбенко│  12   │  8   │   2   │   5   │   1   │ │
-│  │  Т. Деркач  │   8   │  5   │   1   │   3   │   0   │ │
-│  │  РАЗОМ      │  20   │  13  │   3   │   8   │   1   │ │
-│  └─────────────────────────────────────────────────────┘ │
-│                                                         │
-│  ┌─── Бали за затверджені розробки ───────────────────┐ │
-│  │                                                     │ │
-│  │  Розробник  | Р.1 | Р.2 | Р.3 | Р.4 | Всього балів │ │
-│  │  ─────────────────────────────────────────────────  │ │
-│  │  О. Горбенко│  2  │  2  │  1  │  0  │     14       │ │
-│  │  Т. Деркач  │  1  │  1  │  1  │  0  │     12       │ │
-│  │  РАЗОМ      │  3  │  3  │  2  │  0  │     26       │ │
-│  └─────────────────────────────────────────────────────┘ │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
-```
-
-#### 3.2 Вибір місяця
-
-- Компонент вибору місяця з кнопками "◀" та "▶"
-- Формат: "Місяць Рік" (наприклад, "Січень 2026")
-- За замовчуванням: попередній місяць (закритий)
-- Обмеження: не можна обрати майбутні місяці
-
-#### 3.3 Таблиці
-
-**Таблиця активності (5 колонок):**
-- Взято в роботу
-- Відправлено на тестування
-- Повернуто на доопрацювання
-- Затверджено
-- Відхилено
-
-**Таблиця балів (6 колонок):**
-- Рівень 1 (кількість заявок)
-- Рівень 2 (кількість заявок)
-- Рівень 3 (кількість заявок)
-- Рівень 4 (кількість заявок)
-- Всього балів (розрахунок)
-
----
-
-### 4. Файли для створення/редагування
+### Зміни
 
 | Файл | Дія | Опис |
 |------|-----|------|
-| `src/components/rd/RDMonthlyReports.tsx` | Створити | Новий компонент звітності |
-| `src/pages/RDAnalytics.tsx` | Редагувати | Додати компонент RDMonthlyReports |
-| `src/lib/i18n.ts` | Редагувати | Додати українські переклади для звітів |
+| `public/og-image.png` | Створити | OG-зображення 1200x630 з логотипом FoodTech |
+| `index.html` | Редагувати | Замінити URL в og:image та twitter:image |
 
----
+### Деталі змін в `index.html`
 
-### 5. Технічні деталі
-
-#### 5.1 API-запити (React Query)
-
-```typescript
-// Запит подій за обраний місяць
-const { data: events } = useQuery({
-  queryKey: ['rd-monthly-events', year, month],
-  queryFn: async () => {
-    const startDate = startOfMonth(new Date(year, month));
-    const endDate = endOfMonth(new Date(year, month));
-    
-    const { data, error } = await supabase
-      .from('request_events')
-      .select(`
-        id,
-        event_type,
-        payload,
-        created_at,
-        request_id,
-        requests!inner (
-          responsible_email,
-          complexity_level
-        )
-      `)
-      .eq('event_type', 'STATUS_CHANGED')
-      .gte('created_at', startDate.toISOString())
-      .lte('created_at', endDate.toISOString());
-      
-    return data;
-  }
-});
+Замінити:
+```html
+<meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+<meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
 ```
 
-#### 5.2 Обробка даних
-
-```typescript
-interface DeveloperActivityStats {
-  email: string;
-  name: string;
-  takenInWork: number;      // PENDING → IN_PROGRESS
-  sentForTest: number;      // * → SENT_FOR_TEST
-  returnedForRework: number; // SENT_FOR_TEST → IN_PROGRESS
-  approved: number;         // * → APPROVED_FOR_PRODUCTION
-  rejected: number;         // * → REJECTED_BY_CLIENT | CANCELLED
-}
-
-interface DeveloperPointsStats {
-  email: string;
-  name: string;
-  level1Count: number;  // EASY
-  level2Count: number;  // MEDIUM
-  level3Count: number;  // COMPLEX
-  level4Count: number;  // EXPERT
-  totalPoints: number;  // 1*L1 + 3*L2 + 8*L3 + 20*L4
-}
-
-const POINTS_MAP = {
-  EASY: 1,
-  MEDIUM: 3,
-  COMPLEX: 8,
-  EXPERT: 20
-};
+На:
+```html
+<meta property="og:image" content="https://rd.foodtech.org.ua/og-image.png" />
+<meta name="twitter:image" content="https://rd.foodtech.org.ua/og-image.png" />
 ```
 
-#### 5.3 Фільтрація розробників
+### Примітка
 
-Відображаються тільки користувачі з роллю `rd_dev` або `rd_manager`, які мають хоча б одну активність за місяць.
-
----
-
-### 6. Переклади (i18n.ts)
-
-```typescript
-rdReports: {
-  title: "Звіти розробників",
-  description: "Детальна статистика активності за обраний місяць",
-  selectMonth: "Оберіть місяць",
-  activityReport: "Активність за місяць",
-  pointsReport: "Бали за затверджені розробки",
-  columns: {
-    developer: "Розробник",
-    takenInWork: "Взято в роботу",
-    sentForTest: "На тест",
-    returnedForRework: "Доопр.",
-    approved: "Затв.",
-    rejected: "Відх.",
-    level1: "Р.1",
-    level2: "Р.2",
-    level3: "Р.3",
-    level4: "Р.4",
-    totalPoints: "Бали"
-  },
-  total: "РАЗОМ",
-  noData: "Немає даних за обраний період"
-}
-```
-
----
-
-### 7. Порядок виконання
-
-1. Оновити `src/lib/i18n.ts` — додати переклади
-2. Створити `src/components/rd/RDMonthlyReports.tsx` — компонент звітів
-3. Оновити `src/pages/RDAnalytics.tsx` — інтегрувати компонент
-
----
-
-### 8. Приклад використання даних
-
-Для місяця Січень 2026, якщо розробник O. Горбенко:
-- Взяв 5 заявок в роботу (PENDING → IN_PROGRESS)
-- Відправив 3 на тестування
-- 1 повернули на доопрацювання
-- 2 заявки затверджено (1 EASY + 1 MEDIUM)
-
-**Результат:**
-- Активність: 5 | 3 | 1 | 2 | 0
-- Бали: 1×1 + 1×3 = **4 бали**
+OG-зображення буде згенеровано через AI (Nano banana) з логотипом FoodTech на оливково-зеленому фоні. Після публікації може знадобитись деякий час, щоб месенджери оновили кеш превью.
 
