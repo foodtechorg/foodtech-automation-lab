@@ -43,7 +43,7 @@ const modules: Module[] = [{
   id: 'admin',
   label: 'Адміністрування',
   icon: UserCog,
-  roles: ['admin'],
+  roles: ['admin', 'business_analyst'],
   getPath: () => '/admin'
 }];
 function isModuleActive(moduleId: string, pathname: string): boolean {
