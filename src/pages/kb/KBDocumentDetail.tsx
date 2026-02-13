@@ -34,7 +34,8 @@ export default function KBDocumentDetail() {
   const [isIndexing, setIsIndexing] = useState(false);
 
   const userRole = profile?.role;
-  const hasAccess = userRole === 'coo' || userRole === 'admin';
+  const hasAccess = userRole === 'coo' || userRole === 'admin' || userRole === 'business_analyst';
+  const canEdit = userRole === 'coo' || userRole === 'admin';
 
   const { data: document, isLoading, error, refetch } = useQuery({
     queryKey: ['kb-document', id],
@@ -150,10 +151,12 @@ export default function KBDocumentDetail() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate(`/kb/${id}/edit`)}>
-            <Edit className="w-4 h-4 mr-2" />
-            Редагувати
-          </Button>
+          {canEdit && (
+            <Button variant="outline" onClick={() => navigate(`/kb/${id}/edit`)}>
+              <Edit className="w-4 h-4 mr-2" />
+              Редагувати
+            </Button>
+          )}
           {document.storage_path && (
             <Button variant="outline" onClick={handleDownload} disabled={isDownloading}>
               {isDownloading ? (
@@ -208,18 +211,20 @@ export default function KBDocumentDetail() {
                 </span>
               )}
             </div>
-            <Button
-              onClick={handleTriggerIngest}
-              disabled={!canIndex || isIndexing}
-              title={getIndexButtonTitle()}
-            >
-              {isIndexing ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <RefreshCw className="w-4 h-4 mr-2" />
-              )}
-              Проіндексувати
-            </Button>
+            {canEdit && (
+              <Button
+                onClick={handleTriggerIngest}
+                disabled={!canIndex || isIndexing}
+                title={getIndexButtonTitle()}
+              >
+                {isIndexing ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                )}
+                Проіндексувати
+              </Button>
+            )}
           </div>
 
           {indexStatus === 'error' && document.index_error && (

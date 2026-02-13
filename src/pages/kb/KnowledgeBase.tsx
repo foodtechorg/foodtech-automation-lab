@@ -29,7 +29,8 @@ export default function KnowledgeBase() {
   const [statusFilter, setStatusFilter] = useState<KBStatus | 'all'>('all');
   const [indexStatusFilter, setIndexStatusFilter] = useState<KBIndexStatus | 'all'>('all');
   const userRole = profile?.role;
-  const hasAccess = userRole === 'coo' || userRole === 'admin';
+  const hasAccess = userRole === 'coo' || userRole === 'admin' || userRole === 'business_analyst';
+  const canEdit = userRole === 'coo' || userRole === 'admin';
   const queryClient = useQueryClient();
 
   const {
@@ -142,10 +143,12 @@ export default function KnowledgeBase() {
           <h1 className="text-2xl font-bold">Бібліотека знань</h1>
           <p className="text-muted-foreground">Затверджені регламентуючі документи</p>
         </div>
-        <Button onClick={() => navigate('/kb/new')}>
-          <Plus className="w-4 h-4 mr-2" />
-          Додати документ
-        </Button>
+        {canEdit && (
+          <Button onClick={() => navigate('/kb/new')}>
+            <Plus className="w-4 h-4 mr-2" />
+            Додати документ
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-4">
@@ -228,22 +231,26 @@ export default function KnowledgeBase() {
                         <Button variant="ghost" size="icon" onClick={() => navigate(`/kb/${doc.id}`)} title="Переглянути">
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => navigate(`/kb/${doc.id}/edit`)} title="Редагувати">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleArchive(doc.id, doc.status as KBStatus)} title={doc.status === 'active' ? 'Архівувати' : 'Відновити'}>
-                          <Archive className="w-4 h-4" />
-                        </Button>
-                        {(() => {
-                  const isPending = doc.index_status === 'pending';
-                  const isNotActive = doc.status !== 'active';
-                  const hasNoText = !doc.raw_text;
-                  const isDisabled = isPending || isNotActive || hasNoText;
-                  const title = isPending ? 'Індексація в процесі...' : isNotActive ? 'Документ має бути активним' : hasNoText ? 'Додайте текст для індексації' : 'Проіндексувати';
-                  return <Button variant="ghost" size="icon" onClick={() => handleTriggerIngest(doc.id)} disabled={isDisabled} title={title}>
-                              <RefreshCw className={`w-4 h-4 ${isPending ? 'animate-spin' : ''}`} />
-                            </Button>;
-                })()}
+                        {canEdit && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => navigate(`/kb/${doc.id}/edit`)} title="Редагувати">
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleArchive(doc.id, doc.status as KBStatus)} title={doc.status === 'active' ? 'Архівувати' : 'Відновити'}>
+                              <Archive className="w-4 h-4" />
+                            </Button>
+                            {(() => {
+                      const isPending = doc.index_status === 'pending';
+                      const isNotActive = doc.status !== 'active';
+                      const hasNoText = !doc.raw_text;
+                      const isDisabled = isPending || isNotActive || hasNoText;
+                      const title = isPending ? 'Індексація в процесі...' : isNotActive ? 'Документ має бути активним' : hasNoText ? 'Додайте текст для індексації' : 'Проіндексувати';
+                      return <Button variant="ghost" size="icon" onClick={() => handleTriggerIngest(doc.id)} disabled={isDisabled} title={title}>
+                                  <RefreshCw className={`w-4 h-4 ${isPending ? 'animate-spin' : ''}`} />
+                                </Button>;
+                    })()}
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>)}

@@ -2,9 +2,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 
-const RD_BOARD_ROLES = ['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director'];
+const RD_BOARD_ROLES = ['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'business_analyst'];
 const MY_REQUESTS_ROLES = ['sales_manager', 'admin'];
-const ANALYTICS_ROLES = ['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'sales_manager'];
+const ANALYTICS_ROLES = ['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'sales_manager', 'business_analyst'];
 
 type TabConfig = {
   value: string;

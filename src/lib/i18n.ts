@@ -55,7 +55,8 @@ export const translations = {
     foreign_trade_manager: "Менеджер ЗЕД",
     finance_deputy: "Заст. директора з фінансів",
     financial_analyst: "Фінансовий аналітик",
-    economist: "Економіст"
+    economist: "Економіст",
+    business_analyst: "Бізнес-аналітик"
   },
   eventType: {
     CREATED: "Створено",
