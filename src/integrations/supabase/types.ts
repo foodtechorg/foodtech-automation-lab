@@ -1592,6 +1592,7 @@ export type Database = {
         | "finance_deputy"
         | "financial_analyst"
         | "economist"
+        | "business_analyst"
       approval_decision: "PENDING" | "APPROVED" | "REJECTED"
       client_result: "PRODUCTION" | "REWORK" | "DECLINE"
       complexity_level: "EASY" | "MEDIUM" | "COMPLEX" | "EXPERT"
@@ -1824,6 +1825,7 @@ export const Constants = {
         "finance_deputy",
         "financial_analyst",
         "economist",
+        "business_analyst",
       ],
       approval_decision: ["PENDING", "APPROVED", "REJECTED"],
       client_result: ["PRODUCTION", "REWORK", "DECLINE"],
