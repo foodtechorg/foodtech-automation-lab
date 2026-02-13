@@ -37,7 +37,8 @@ interface UserProfile {
 
 export default function AdminPanel() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const isReadOnly = profile?.role === 'business_analyst';
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
@@ -146,10 +147,12 @@ export default function AdminPanel() {
             <Users className="h-4 w-4" />
             Користувачі
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2">
-            <Bell className="h-4 w-4" />
-            Нотифікації
-          </TabsTrigger>
+          {!isReadOnly && (
+            <TabsTrigger value="notifications" className="gap-2">
+              <Bell className="h-4 w-4" />
+              Нотифікації
+            </TabsTrigger>
+          )}
           <TabsTrigger value="analytics" className="gap-2">
             <BarChart3 className="h-4 w-4" />
             Аналітика
@@ -157,6 +160,7 @@ export default function AdminPanel() {
         </TabsList>
 
         <TabsContent value="users" className="space-y-6">
+          {!isReadOnly && (
           <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><UserPlus className="h-5 w-5" />Адміністрування користувачів</CardTitle>
@@ -206,6 +210,7 @@ export default function AdminPanel() {
           </form>
         </CardContent>
       </Card>
+          )}
 
       <Card>
         <CardHeader>
@@ -223,9 +228,9 @@ export default function AdminPanel() {
                   <TableHead>Ім'я</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Телефон</TableHead>
-                  <TableHead>Роль</TableHead>
-                  <TableHead>Створено</TableHead>
-                  <TableHead>Дії</TableHead>
+                   <TableHead>Роль</TableHead>
+                   <TableHead>Створено</TableHead>
+                   {!isReadOnly && <TableHead>Дії</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -235,40 +240,46 @@ export default function AdminPanel() {
                     <TableCell className="text-muted-foreground">{u.email}</TableCell>
                     <TableCell className="text-muted-foreground">{u.phone || '—'}</TableCell>
                     <TableCell>
-                      <Select 
-                        value={u.role} 
-                        onValueChange={(newRole) => handleRoleChange(u.id, newRole as UserRole)}
-                        disabled={u.id === user?.id || updatingRole === u.id}
-                      >
-                        <SelectTrigger className="w-[200px]">
-                          {updatingRole === u.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <SelectValue />
-                          )}
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableRoles.map((roleKey) => (
-                            <SelectItem key={roleKey} value={roleKey}>{t.role(roleKey)}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {isReadOnly ? (
+                        <span>{t.role(u.role)}</span>
+                      ) : (
+                        <Select 
+                          value={u.role} 
+                          onValueChange={(newRole) => handleRoleChange(u.id, newRole as UserRole)}
+                          disabled={u.id === user?.id || updatingRole === u.id}
+                        >
+                          <SelectTrigger className="w-[200px]">
+                            {updatingRole === u.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <SelectValue />
+                            )}
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableRoles.map((roleKey) => (
+                              <SelectItem key={roleKey} value={roleKey}>{t.role(roleKey)}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
                       {format(new Date(u.created_at), 'dd.MM.yyyy', { locale: uk })}
                     </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleResetPassword(u.id)} title="Скинути пароль">
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                        {u.id !== user?.id && (
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, userId: u.id, userName: u.name })} title="Видалити">
-                            <Trash2 className="h-4 w-4 text-destructive" />
+                    {!isReadOnly && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleResetPassword(u.id)} title="Скинути пароль">
+                            <RefreshCw className="h-4 w-4" />
                           </Button>
-                        )}
-                      </div>
-                    </TableCell>
+                          {u.id !== user?.id && (
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, userId: u.id, userName: u.name })} title="Видалити">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

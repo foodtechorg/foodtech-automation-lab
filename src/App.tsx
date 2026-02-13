@@ -58,7 +58,7 @@ const App = () => (
             <Route
               path="/admin"
               element={
-                <ProtectedRoute allowedRoles={['admin']}>
+                <ProtectedRoute allowedRoles={['admin', 'business_analyst']}>
                   <Layout>
                     <AdminPanel />
                   </Layout>
