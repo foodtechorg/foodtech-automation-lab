@@ -17,13 +17,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import UserActivityAnalytics from '@/components/admin/UserActivityAnalytics';
 import NotificationsPanel from '@/components/admin/NotificationsPanel';
 
-type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst' | 'economist';
+type UserRole = 'admin' | 'sales_manager' | 'rd_dev' | 'rd_manager' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst' | 'economist' | 'business_analyst';
 
 const availableRoles: UserRole[] = [
   'sales_manager', 'rd_dev', 'rd_manager', 'procurement_manager', 'coo', 'ceo',
   'treasurer', 'chief_accountant', 'accountant', 'quality_manager', 'admin_director',
   'chief_engineer', 'production_deputy', 'warehouse_manager', 'lawyer', 'office_manager',
-  'foreign_trade_manager', 'finance_deputy', 'financial_analyst', 'economist', 'admin'
+  'foreign_trade_manager', 'finance_deputy', 'financial_analyst', 'economist', 'business_analyst', 'admin'
 ];
 
 interface UserProfile {

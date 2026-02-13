@@ -4,7 +4,7 @@ import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/hooks/useAuth';
 import foodtechLogo from '@/assets/foodtech-logo.png';
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from '@/components/ui/sidebar';
-type UserRole = 'sales_manager' | 'rd_dev' | 'rd_manager' | 'admin' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst' | 'economist';
+type UserRole = 'sales_manager' | 'rd_dev' | 'rd_manager' | 'admin' | 'procurement_manager' | 'coo' | 'ceo' | 'treasurer' | 'accountant' | 'quality_manager' | 'admin_director' | 'chief_engineer' | 'production_deputy' | 'warehouse_manager' | 'chief_accountant' | 'lawyer' | 'office_manager' | 'foreign_trade_manager' | 'finance_deputy' | 'financial_analyst' | 'economist' | 'business_analyst';
 interface Module {
   id: string;
   label: string;
@@ -16,13 +16,13 @@ const modules: Module[] = [{
   id: 'rd',
   label: 'Заявки R&D',
   icon: FileText,
-  roles: ['sales_manager', 'rd_dev', 'rd_manager', 'admin', 'quality_manager', 'admin_director', 'ceo', 'coo', 'financial_analyst'],
+  roles: ['sales_manager', 'rd_dev', 'rd_manager', 'admin', 'quality_manager', 'admin_director', 'ceo', 'coo', 'financial_analyst', 'business_analyst'],
   getPath: role => (role === 'sales_manager' || role === 'quality_manager') ? '/requests/my' : '/rd/board'
 }, {
   id: 'development',
   label: 'Розробка',
   icon: FlaskConical,
-  roles: ['admin', 'rd_dev', 'coo', 'ceo', 'quality_manager', 'admin_director'],
+  roles: ['admin', 'rd_dev', 'coo', 'ceo', 'quality_manager', 'admin_director', 'business_analyst'],
   getPath: () => '/development'
 }, {
   id: 'purchase',
@@ -37,7 +37,7 @@ const modules: Module[] = [{
   id: 'kb',
   label: 'Бібліотека знань',
   icon: BookOpen,
-  roles: ['coo', 'admin'],
+  roles: ['coo', 'admin', 'business_analyst'],
   getPath: () => '/kb'
 }, {
   id: 'admin',

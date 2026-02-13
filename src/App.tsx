@@ -98,7 +98,7 @@ const App = () => (
             <Route
               path="/rd/board"
               element={
-                <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'financial_analyst']}>
+                <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'financial_analyst', 'business_analyst']}>
                   <Layout>
                     <RDBoard />
                   </Layout>
@@ -108,7 +108,7 @@ const App = () => (
             <Route
               path="/rd/analytics"
               element={
-                <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'sales_manager', 'financial_analyst']}>
+                <ProtectedRoute allowedRoles={['rd_dev', 'rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'sales_manager', 'financial_analyst', 'business_analyst']}>
                   <Layout>
                     <RDAnalytics />
                   </Layout>
@@ -118,7 +118,7 @@ const App = () => (
             <Route
               path="/analytics"
               element={
-                <ProtectedRoute allowedRoles={['rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director']}>
+                <ProtectedRoute allowedRoles={['rd_manager', 'admin', 'ceo', 'coo', 'quality_manager', 'admin_director', 'business_analyst']}>
                   <Layout>
                     <Analytics />
                   </Layout>
@@ -179,7 +179,7 @@ const App = () => (
             <Route
               path="/purchase/queue"
               element={
-                <ProtectedRoute allowedRoles={['procurement_manager', 'coo', 'ceo', 'treasurer', 'chief_accountant', 'accountant', 'admin']}>
+                <ProtectedRoute allowedRoles={['procurement_manager', 'coo', 'ceo', 'treasurer', 'chief_accountant', 'accountant', 'admin', 'business_analyst']}>
                   <Layout>
                     <ApprovedRequestsQueue />
                   </Layout>
@@ -190,7 +190,7 @@ const App = () => (
             <Route
               path="/development"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'rd_dev', 'coo', 'ceo', 'quality_manager', 'admin_director']} fallback={<Layout><NoAccess /></Layout>}>
+                <ProtectedRoute allowedRoles={['admin', 'rd_dev', 'coo', 'ceo', 'quality_manager', 'admin_director', 'business_analyst']} fallback={<Layout><NoAccess /></Layout>}>
                   <Layout>
                     <DevelopmentBoard />
                   </Layout>
@@ -200,7 +200,7 @@ const App = () => (
             <Route
               path="/development/requests/:id"
               element={
-                <ProtectedRoute allowedRoles={['admin', 'rd_dev', 'coo', 'ceo', 'quality_manager', 'admin_director']} fallback={<Layout><NoAccess /></Layout>}>
+                <ProtectedRoute allowedRoles={['admin', 'rd_dev', 'coo', 'ceo', 'quality_manager', 'admin_director', 'business_analyst']} fallback={<Layout><NoAccess /></Layout>}>
                   <Layout>
                     <DevelopmentRequestDetail />
                   </Layout>
@@ -211,7 +211,7 @@ const App = () => (
             <Route
               path="/kb"
               element={
-                <ProtectedRoute allowedRoles={['coo', 'admin']}>
+                <ProtectedRoute allowedRoles={['coo', 'admin', 'business_analyst']}>
                   <Layout>
                     <KnowledgeBase />
                   </Layout>
@@ -221,7 +221,7 @@ const App = () => (
             <Route
               path="/kb/new"
               element={
-                <ProtectedRoute allowedRoles={['coo', 'admin']}>
+                <ProtectedRoute allowedRoles={['coo', 'admin', 'business_analyst']}>
                   <Layout>
                     <KBDocumentForm />
                   </Layout>
@@ -231,7 +231,7 @@ const App = () => (
             <Route
               path="/kb/:id"
               element={
-                <ProtectedRoute allowedRoles={['coo', 'admin']}>
+                <ProtectedRoute allowedRoles={['coo', 'admin', 'business_analyst']}>
                   <Layout>
                     <KBDocumentDetail />
                   </Layout>
@@ -241,7 +241,7 @@ const App = () => (
             <Route
               path="/kb/:id/edit"
               element={
-                <ProtectedRoute allowedRoles={['coo', 'admin']}>
+                <ProtectedRoute allowedRoles={['coo', 'admin', 'business_analyst']}>
                   <Layout>
                     <KBDocumentForm />
                   </Layout>
