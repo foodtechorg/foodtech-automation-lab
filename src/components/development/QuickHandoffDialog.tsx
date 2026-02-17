@@ -14,6 +14,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Send, Info } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { quickHandoffToTesting } from '@/services/samplesApi';
+import { enqueueNotificationEvent } from '@/services/notifications';
+import { supabase } from '@/integrations/supabase/client';
 
 interface QuickHandoffDialogProps {
   open: boolean;
@@ -50,7 +52,7 @@ export function QuickHandoffDialog({
 
     setIsSubmitting(true);
     try {
-      await quickHandoffToTesting(requestId, productName.trim(), Number(weightG));
+      const result = await quickHandoffToTesting(requestId, productName.trim(), Number(weightG));
       
       toast({
         title: 'Успішно',
@@ -62,6 +64,40 @@ export function QuickHandoffDialog({
       setWeightG('');
       onOpenChange(false);
       onSuccess();
+
+      // Send notification to request author
+      try {
+        const { data: request } = await supabase
+          .from('requests')
+          .select('id, code, customer_company, author_email')
+          .eq('id', requestId)
+          .single();
+
+        if (request) {
+          const { data: authorProfile } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', request.author_email)
+            .single();
+
+          if (authorProfile) {
+            const requestUrl = `${window.location.origin}/requests/${request.id}`;
+            
+            await enqueueNotificationEvent(
+              'SAMPLE_READY_FOR_TESTING',
+              {
+                request_code: request.code,
+                customer_company: request.customer_company,
+                request_url: requestUrl,
+              },
+              `sample_ready_${result.sample_id}`,
+              [authorProfile.id]
+            );
+          }
+        }
+      } catch (notifyError) {
+        console.error('Failed to send notification:', notifyError);
+      }
     } catch (error: any) {
       toast({
         title: 'Помилка',
