@@ -514,6 +514,9 @@ export type Database = {
           status: Database["public"]["Enums"]["notification_outbox_status"]
           telegram_user_id: number
           updated_at: string
+          webhook_attempts: number
+          webhook_last_attempt_at: string | null
+          webhook_last_error: string | null
         }
         Insert: {
           attempts?: number
@@ -533,6 +536,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["notification_outbox_status"]
           telegram_user_id: number
           updated_at?: string
+          webhook_attempts?: number
+          webhook_last_attempt_at?: string | null
+          webhook_last_error?: string | null
         }
         Update: {
           attempts?: number
@@ -552,6 +558,9 @@ export type Database = {
           status?: Database["public"]["Enums"]["notification_outbox_status"]
           telegram_user_id?: number
           updated_at?: string
+          webhook_attempts?: number
+          webhook_last_attempt_at?: string | null
+          webhook_last_error?: string | null
         }
         Relationships: [
           {
