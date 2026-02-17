@@ -1,83 +1,90 @@
 
 
-## План: Додавання ролі "Бізнес-аналітик" (business_analyst)
+## Event-driven відправка нотифікацій через webhook
 
-### Огляд
+### Архітектура
 
-Нова роль `business_analyst` надає **read-only доступ до всіх модулів** (R&D, Розробка, Закупівлі, Бібліотека знань), але **без права редагування**. У модулі "Закупівля ТМЦ" працює як звичайний замовник (може створювати свої заявки на закупівлю).
+Коли `enqueue_notification_event` вставляє запис у `notification_outbox` зі статусом `pending`, PostgreSQL-тригер автоматично викликає Edge Function через `pg_net`, яка надсилає POST у n8n webhook.
 
----
-
-### 1. Зміни в базі даних (SQL міграція)
-
-**1.1 Додати значення до enum `app_role`:**
-```sql
-ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'business_analyst';
+```text
+enqueue_notification_event()
+  └─ INSERT INTO notification_outbox (status='pending')
+       └─ AFTER INSERT trigger
+            └─ net.http_post() → Edge Function "outbox-notify"
+                 └─ POST → n8n webhook (з ретраями)
+                      └─ UPDATE notification_outbox (webhook_attempts, etc.)
 ```
 
-**1.2 Додати SELECT RLS-політики** для таблиць, до яких зараз немає доступу:
+---
 
-| Таблиця | Дія |
-|---------|-----|
-| `requests` | Додати `business_analyst` до SELECT-політики |
-| `request_events` | Додати `business_analyst` до SELECT-політики |
-| `rd_request_attachments` | Додати `business_analyst` до SELECT-політики |
-| `rd_request_testing_samples` | Додати `business_analyst` до SELECT-політики |
-| `development_recipes` | Додати `business_analyst` до SELECT-політики |
-| `development_recipe_ingredients` | Додати `business_analyst` до SELECT-політики |
-| `development_samples` | Додати `business_analyst` до SELECT-політики |
-| `development_sample_ingredients` | Додати `business_analyst` до SELECT-політики |
-| `development_sample_lab_results` | Додати `business_analyst` до SELECT-політики |
-| `development_sample_pilot` | Додати `business_analyst` до SELECT-політики |
-| `purchase_requests` | Додати `business_analyst` до SELECT (non-DRAFT) |
-| `purchase_request_items` | Додати `business_analyst` до SELECT (non-DRAFT) |
-| `purchase_request_attachments` | Додати `business_analyst` до SELECT (non-DRAFT) |
-| `purchase_invoices` | Додати `business_analyst` до SELECT (non-DRAFT) |
-| `purchase_invoice_items` | Додати `business_analyst` до SELECT (non-DRAFT) |
-| `purchase_invoice_attachments` | Додати `business_analyst` до SELECT (non-DRAFT) |
-| `purchase_logs` | Додати `business_analyst` до SELECT |
-| `kb_documents` | Додати `business_analyst` до SELECT |
-| `kb_chunks` | Додати `business_analyst` до SELECT |
-| `kb_vector_documents` | Додати `business_analyst` до SELECT |
+### 1. SQL міграція
 
-Закупівельні INSERT/UPDATE/DELETE політики залишаються без змін -- `business_analyst` вже може створювати свої заявки як звичайний користувач (через `created_by = auth.uid()`).
+**a) Увімкнути розширення `pg_net`:**
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+```
+
+**b) Додати колонки трекінгу до `notification_outbox`:**
+- `webhook_attempts` (integer, default 0)
+- `webhook_last_error` (text, nullable)
+- `webhook_last_attempt_at` (timestamptz, nullable)
+
+**c) Створити тригерну функцію**, яка при INSERT з `status='pending'` AND `channel='telegram'` викликає Edge Function через `net.http_post`:
+- URL: `{SUPABASE_URL}/functions/v1/outbox-notify`
+- Headers: `Content-Type: application/json`, `Authorization: Bearer {service_role_key}`
+- Body: `{"outboxId": "<id>", "createdAt": "<created_at>"}`
+- Timeout: 5000ms
+
+**d) Створити тригер** `trg_outbox_notify` AFTER INSERT на `notification_outbox`.
+
+### 2. Edge Function `outbox-notify`
+
+Нова функція `supabase/functions/outbox-notify/index.ts`:
+
+- Приймає `{outboxId, createdAt}` з тіла запиту
+- Читає ENV: `N8N_OUTBOX_WEBHOOK_URL`, `N8N_OUTBOX_WEBHOOK_TOKEN`, `N8N_OUTBOX_WEBHOOK_TIMEOUT_MS` (default 5000)
+- Виконує POST до n8n:
+  - Headers: `Content-Type: application/json`, `x-fta-token: ${token}`
+  - Body: `{"event": "outbox.created", "outboxId": "<id>", "createdAt": "<ISO>"}`
+- Retry до 5 разів з exponential backoff (1s, 2s, 4s, 8s, 16s)
+- Після кожної спроби оновлює `webhook_attempts`, `webhook_last_error`, `webhook_last_attempt_at` через service role client
+- Не блокує UX (тригер fire-and-forget через pg_net)
+
+### 3. Конфігурація
+
+**`supabase/config.toml`** -- додати:
+```toml
+[functions.outbox-notify]
+verify_jwt = false
+```
+
+### 4. Секрети
+
+Додати через інструмент:
+- `N8N_OUTBOX_WEBHOOK_URL` = `https://foodtech.app.n8n.cloud/webhook/fta/outbox-notify`
+- `N8N_OUTBOX_WEBHOOK_TOKEN` -- запросити у користувача
+
+`N8N_OUTBOX_WEBHOOK_TIMEOUT_MS` -- hardcoded default 5000 в коді edge function (можна override через ENV).
+
+### 5. Безпека
+
+- Токен зберігається лише в Supabase Secrets, не потрапляє в клієнтський код
+- Edge Function викликається з `service_role_key` через тригер (verify_jwt = false, але авторизація через service role)
+- Помилки логуються в БД (webhook_last_error), не в клієнтські відповіді
 
 ---
 
-### 2. Зміни в Edge Functions
+### Файли для створення/зміни
 
-**`supabase/functions/update-user-role/index.ts`** -- додати `'business_analyst'` до масиву `validRoles`.
+| Файл | Дія |
+|---|---|
+| SQL міграція | Створити: pg_net, колонки, тригер |
+| `supabase/functions/outbox-notify/index.ts` | Створити |
+| `supabase/config.toml` | Додати секцію outbox-notify |
 
----
+### Що НЕ змінюється
 
-### 3. Зміни у фронтенді
-
-| Файл | Зміна |
-|------|-------|
-| `src/lib/i18n.ts` | Додати переклад: `business_analyst: "Бізнес-аналітик"` |
-| `src/hooks/useAuth.tsx` | Додати `'business_analyst'` до типу `UserRole` |
-| `src/components/AppSidebar.tsx` | Додати `'business_analyst'` до UserRole та до масивів ролей всіх модулів (R&D, Розробка, Закупівля, Бібліотека знань). Маршрут за замовчуванням: `/rd/board` для R&D, `/purchase/requests` для закупівель |
-| `src/pages/AdminPanel.tsx` | Додати `'business_analyst'` до UserRole та `availableRoles` |
-| `src/App.tsx` | Додати `'business_analyst'` до `allowedRoles` всіх маршрутів: `/rd/board`, `/rd/analytics`, `/analytics`, `/development`, `/development/requests/:id`, `/kb`, `/kb/:id`, `/purchase/queue` (read-only перегляд черги) |
-
----
-
-### 4. Read-only логіка в UI
-
-Роль `business_analyst` буде працювати аналогічно до `ceo`/`coo`/`admin_director` -- ці ролі вже мають view-only доступ у Development та R&D модулях. Потрібно перевірити та додати `business_analyst` до перевірок read-only у компонентах:
-
-- **R&D модуль**: вже обмежений -- лише `sales_manager` і `rd_dev` можуть редагувати
-- **Development модуль**: перевірки `isViewOnly` в компонентах (DevelopmentBoard, DevelopmentRequestDetail) -- додати `business_analyst`
-- **Procurement модуль**: як звичайний користувач бачить свої заявки і може створювати нові. Також бачить non-DRAFT заявки/рахунки інших (read-only)
-- **KB модуль**: тільки перегляд, без кнопок створення/редагування -- додати перевірку ролі
-
----
-
-### 5. Порядок виконання
-
-1. SQL міграція: додати enum + RLS-політики
-2. Оновити Edge Function `update-user-role`
-3. Оновити `i18n.ts`, `useAuth.tsx`, `AppSidebar.tsx`, `AdminPanel.tsx`
-4. Оновити `App.tsx` -- маршрути
-5. Додати read-only перевірки в компоненти Development та KB модулів
+- Фронтенд-код (`notifications.ts`, `HandoffDialog`, `QuickHandoffDialog`) -- без змін
+- Існуючі записи в outbox -- не торкаються
+- RPC `enqueue_notification_event` -- без змін
 
