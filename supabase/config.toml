@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.kb-generate-index-text]
 verify_jwt = false
+
+[functions.outbox-notify]
+verify_jwt = false
