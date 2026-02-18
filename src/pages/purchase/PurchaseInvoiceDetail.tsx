@@ -356,7 +356,13 @@ export default function PurchaseInvoiceDetail() {
     if (!id || !user?.id) return;
     setIsApproving(true);
     try {
-      const ceoAlreadyApproved = invoice?.ceo_decision === "APPROVED";
+      // Fetch fresh data from DB to avoid race condition with CEO approval
+      const { data: freshInvoice } = await supabase
+        .from("purchase_invoices")
+        .select("ceo_decision, request_id")
+        .eq("id", id)
+        .single();
+      const ceoAlreadyApproved = freshInvoice?.ceo_decision === "APPROVED";
       const newStatus: PurchaseInvoiceStatus = ceoAlreadyApproved ? "TO_PAY" : "PENDING_CEO";
       await updatePurchaseInvoice(id, {
         coo_decision: "APPROVED",
@@ -367,8 +373,9 @@ export default function PurchaseInvoiceDetail() {
       await logPurchaseEvent("INVOICE", id, "COO_APPROVED");
 
       // Sync request status if fully approved
-      if (newStatus === "TO_PAY" && invoice?.request_id) {
-        await syncRequestStatusFromInvoice(invoice.request_id, "TO_PAY");
+      const requestId = freshInvoice?.request_id ?? invoice?.request_id;
+      if (newStatus === "TO_PAY" && requestId) {
+        await syncRequestStatusFromInvoice(requestId, "TO_PAY");
       }
       setInvoice(prev => prev ? {
         ...prev,
@@ -389,7 +396,13 @@ export default function PurchaseInvoiceDetail() {
     if (!id || !user?.id) return;
     setIsApproving(true);
     try {
-      const cooAlreadyApproved = invoice?.coo_decision === "APPROVED";
+      // Fetch fresh data from DB to avoid race condition with COO approval
+      const { data: freshInvoice } = await supabase
+        .from("purchase_invoices")
+        .select("coo_decision, request_id")
+        .eq("id", id)
+        .single();
+      const cooAlreadyApproved = freshInvoice?.coo_decision === "APPROVED";
       const newStatus: PurchaseInvoiceStatus = cooAlreadyApproved ? "TO_PAY" : "PENDING_COO";
       await updatePurchaseInvoice(id, {
         ceo_decision: "APPROVED",
@@ -400,8 +413,9 @@ export default function PurchaseInvoiceDetail() {
       await logPurchaseEvent("INVOICE", id, "CEO_APPROVED");
 
       // Sync request status if fully approved
-      if (newStatus === "TO_PAY" && invoice?.request_id) {
-        await syncRequestStatusFromInvoice(invoice.request_id, "TO_PAY");
+      const requestId = freshInvoice?.request_id ?? invoice?.request_id;
+      if (newStatus === "TO_PAY" && requestId) {
+        await syncRequestStatusFromInvoice(requestId, "TO_PAY");
       }
       setInvoice(prev => prev ? {
         ...prev,
