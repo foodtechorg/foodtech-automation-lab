@@ -1,90 +1,85 @@
 
+## Баг: рахунок INV-0059 "застряг" в PENDING_COO після подвійного погодження
 
-## Event-driven відправка нотифікацій через webhook
+### Причина (Root Cause)
 
-### Архітектура
+У `PurchaseInvoiceDetail.tsx` функції `handleCOOApprove` і `handleCEOApprove` перевіряють рішення іншої сторони через **локальний React state** (`invoice?.coo_decision` / `invoice?.ceo_decision`), а не через свіжі дані з БД:
 
-Коли `enqueue_notification_event` вставляє запис у `notification_outbox` зі статусом `pending`, PostgreSQL-тригер автоматично викликає Edge Function через `pg_net`, яка надсилає POST у n8n webhook.
-
-```text
-enqueue_notification_event()
-  └─ INSERT INTO notification_outbox (status='pending')
-       └─ AFTER INSERT trigger
-            └─ net.http_post() → Edge Function "outbox-notify"
-                 └─ POST → n8n webhook (з ретраями)
-                      └─ UPDATE notification_outbox (webhook_attempts, etc.)
+```ts
+// handleCEOApprove — баг тут
+const cooAlreadyApproved = invoice?.coo_decision === "APPROVED"; // stale state!
+const newStatus = cooAlreadyApproved ? "TO_PAY" : "PENDING_COO";
 ```
+
+Якщо COO і CEO погоджують незалежно (не оновлюючи сторінку між собою), один із них отримає застарілий стан і виставить неправильний статус.
 
 ---
 
-### 1. SQL міграція
+### Два рішення
 
-**a) Увімкнути розширення `pg_net`:**
+**1. Fix стейт-логіки (frontend)** — перед визначенням `newStatus` робити свіжий `SELECT` з БД, щоб отримати актуальний стан рішень.
+
+**2. Перенести логіку на сервер (DB trigger)** — PostgreSQL-тригер `AFTER UPDATE ON purchase_invoices` автоматично виставляє `TO_PAY`, якщо `coo_decision='APPROVED' AND ceo_decision='APPROVED'`. Це усуває race condition на рівні БД і не залежить від фронтенду.
+
+Рекомендую **обидва**: DB-тригер як надійний захист + frontend-фікс для коректного UX-відображення.
+
+---
+
+### Зміни
+
+#### 1. SQL міграція (два кроки)
+
+**a) Виправити поточний запис INV-0059:**
 ```sql
-CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+UPDATE purchase_invoices
+SET status = 'TO_PAY'
+WHERE number = 'INV-0059'
+  AND coo_decision = 'APPROVED'
+  AND ceo_decision = 'APPROVED'
+  AND status = 'PENDING_COO';
 ```
 
-**b) Додати колонки трекінгу до `notification_outbox`:**
-- `webhook_attempts` (integer, default 0)
-- `webhook_last_error` (text, nullable)
-- `webhook_last_attempt_at` (timestamptz, nullable)
+**b) Створити тригер для захисту від майбутніх race conditions:**
+```sql
+CREATE OR REPLACE FUNCTION fn_auto_approve_invoice()
+RETURNS TRIGGER LANGUAGE plpgsql AS $$
+BEGIN
+  IF NEW.coo_decision = 'APPROVED'
+     AND NEW.ceo_decision = 'APPROVED'
+     AND NEW.status NOT IN ('TO_PAY', 'PAID', 'DELIVERED', 'REJECTED')
+  THEN
+    NEW.status := 'TO_PAY';
+  END IF;
+  RETURN NEW;
+END;
+$$;
 
-**c) Створити тригерну функцію**, яка при INSERT з `status='pending'` AND `channel='telegram'` викликає Edge Function через `net.http_post`:
-- URL: `{SUPABASE_URL}/functions/v1/outbox-notify`
-- Headers: `Content-Type: application/json`, `Authorization: Bearer {service_role_key}`
-- Body: `{"outboxId": "<id>", "createdAt": "<created_at>"}`
-- Timeout: 5000ms
-
-**d) Створити тригер** `trg_outbox_notify` AFTER INSERT на `notification_outbox`.
-
-### 2. Edge Function `outbox-notify`
-
-Нова функція `supabase/functions/outbox-notify/index.ts`:
-
-- Приймає `{outboxId, createdAt}` з тіла запиту
-- Читає ENV: `N8N_OUTBOX_WEBHOOK_URL`, `N8N_OUTBOX_WEBHOOK_TOKEN`, `N8N_OUTBOX_WEBHOOK_TIMEOUT_MS` (default 5000)
-- Виконує POST до n8n:
-  - Headers: `Content-Type: application/json`, `x-fta-token: ${token}`
-  - Body: `{"event": "outbox.created", "outboxId": "<id>", "createdAt": "<ISO>"}`
-- Retry до 5 разів з exponential backoff (1s, 2s, 4s, 8s, 16s)
-- Після кожної спроби оновлює `webhook_attempts`, `webhook_last_error`, `webhook_last_attempt_at` через service role client
-- Не блокує UX (тригер fire-and-forget через pg_net)
-
-### 3. Конфігурація
-
-**`supabase/config.toml`** -- додати:
-```toml
-[functions.outbox-notify]
-verify_jwt = false
+CREATE TRIGGER trg_auto_approve_invoice
+BEFORE UPDATE ON purchase_invoices
+FOR EACH ROW EXECUTE FUNCTION fn_auto_approve_invoice();
 ```
 
-### 4. Секрети
+#### 2. Frontend fix — `PurchaseInvoiceDetail.tsx`
 
-Додати через інструмент:
-- `N8N_OUTBOX_WEBHOOK_URL` = `https://foodtech.app.n8n.cloud/webhook/fta/outbox-notify`
-- `N8N_OUTBOX_WEBHOOK_TOKEN` -- запросити у користувача
+У `handleCOOApprove` і `handleCEOApprove` замінити читання рішення іншої сторони з локального state на свіжий запит до БД:
 
-`N8N_OUTBOX_WEBHOOK_TIMEOUT_MS` -- hardcoded default 5000 в коді edge function (можна override через ENV).
+```ts
+// handleCOOApprove — БУЛО (stale state):
+const ceoAlreadyApproved = invoice?.ceo_decision === "APPROVED";
 
-### 5. Безпека
+// СТАНЕ (fresh from DB):
+const { data: freshInvoice } = await supabase
+  .from("purchase_invoices").select("ceo_decision").eq("id", id).single();
+const ceoAlreadyApproved = freshInvoice?.ceo_decision === "APPROVED";
+```
 
-- Токен зберігається лише в Supabase Secrets, не потрапляє в клієнтський код
-- Edge Function викликається з `service_role_key` через тригер (verify_jwt = false, але авторизація через service role)
-- Помилки логуються в БД (webhook_last_error), не в клієнтські відповіді
+Аналогічно для `handleCEOApprove` — перечитувати `coo_decision` перед визначенням `newStatus`.
 
 ---
 
-### Файли для створення/зміни
+### Файли для зміни
 
 | Файл | Дія |
 |---|---|
-| SQL міграція | Створити: pg_net, колонки, тригер |
-| `supabase/functions/outbox-notify/index.ts` | Створити |
-| `supabase/config.toml` | Додати секцію outbox-notify |
-
-### Що НЕ змінюється
-
-- Фронтенд-код (`notifications.ts`, `HandoffDialog`, `QuickHandoffDialog`) -- без змін
-- Існуючі записи в outbox -- не торкаються
-- RPC `enqueue_notification_event` -- без змін
-
+| SQL міграція | Виправити INV-0059 + створити тригер `trg_auto_approve_invoice` |
+| `src/pages/purchase/PurchaseInvoiceDetail.tsx` | Замінити stale state на fresh DB read у handleCOOApprove і handleCEOApprove |
