@@ -1,85 +1,70 @@
 
-## Баг: рахунок INV-0059 "застряг" в PENDING_COO після подвійного погодження
 
-### Причина (Root Cause)
+## Додати роль `admin_director` до модуля Закупівля ТМЦ (read-only)
 
-У `PurchaseInvoiceDetail.tsx` функції `handleCOOApprove` і `handleCEOApprove` перевіряють рішення іншої сторони через **локальний React state** (`invoice?.coo_decision` / `invoice?.ceo_decision`), а не через свіжі дані з БД:
+Адміністративний директор зможе бачити всі заявки та рахунки інших користувачів (крім чернеток), а також чергу погодження. Без права редагування чи погодження.
 
-```ts
-// handleCEOApprove — баг тут
-const cooAlreadyApproved = invoice?.coo_decision === "APPROVED"; // stale state!
-const newStatus = cooAlreadyApproved ? "TO_PAY" : "PENDING_COO";
+---
+
+### 1. SQL міграція — додати `admin_director` до RLS SELECT-політик
+
+Оновити 7 таблиць, додавши `has_role(auth.uid(), 'admin_director'::app_role)` до SELECT-політик:
+
+| Таблиця | Політика |
+|---|---|
+| `purchase_requests` | "Users can view purchase requests" |
+| `purchase_invoices` | "Users can view purchase invoices" |
+| `purchase_request_items` | "Users can view purchase request items" |
+| `purchase_invoice_items` | "Users can view purchase invoice items" |
+| `purchase_request_attachments` | "Users can view request attachments" |
+| `purchase_invoice_attachments` | "Users can view invoice attachments" |
+| `purchase_logs` | "Users can view purchase logs" |
+
+Логіка: до кожної з цих політик додається `OR has_role(auth.uid(), 'admin_director'::app_role)` поруч з іншими "наглядовими" ролями (coo, ceo, business_analyst тощо). Чернетки (`status <> 'DRAFT'`) залишаються прихованими.
+
+### 2. Frontend — `PurchaseNavTabs.tsx`
+
+Додати `admin_director` до списку `canSeeQueue`, щоб вкладка "Черга" була видимою:
+
+```
+const canSeeQueue = profile?.role === 'procurement_manager'
+    || profile?.role === 'admin_director'   // <-- додати
+    || ...
 ```
 
-Якщо COO і CEO погоджують незалежно (не оновлюючи сторінку між собою), один із них отримає застарілий стан і виставить неправильний статус.
-
 ---
 
-### Два рішення
+### Технічні деталі
 
-**1. Fix стейт-логіки (frontend)** — перед визначенням `newStatus` робити свіжий `SELECT` з БД, щоб отримати актуальний стан рішень.
+Кожна SELECT-політика буде перестворена (`DROP POLICY` + `CREATE POLICY`) з тим самим виразом, але з додаванням `admin_director`. Приклад для `purchase_requests`:
 
-**2. Перенести логіку на сервер (DB trigger)** — PostgreSQL-тригер `AFTER UPDATE ON purchase_invoices` автоматично виставляє `TO_PAY`, якщо `coo_decision='APPROVED' AND ceo_decision='APPROVED'`. Це усуває race condition на рівні БД і не залежить від фронтенду.
-
-Рекомендую **обидва**: DB-тригер як надійний захист + frontend-фікс для коректного UX-відображення.
-
----
-
-### Зміни
-
-#### 1. SQL міграція (два кроки)
-
-**a) Виправити поточний запис INV-0059:**
 ```sql
-UPDATE purchase_invoices
-SET status = 'TO_PAY'
-WHERE number = 'INV-0059'
-  AND coo_decision = 'APPROVED'
-  AND ceo_decision = 'APPROVED'
-  AND status = 'PENDING_COO';
+DROP POLICY "Users can view purchase requests" ON purchase_requests;
+CREATE POLICY "Users can view purchase requests" ON purchase_requests
+FOR SELECT USING (
+  (created_by = auth.uid())
+  OR (
+    (status <> 'DRAFT'::purchase_request_status)
+    AND (
+      has_role(auth.uid(), 'procurement_manager'::app_role)
+      OR has_role(auth.uid(), 'coo'::app_role)
+      OR has_role(auth.uid(), 'ceo'::app_role)
+      OR has_role(auth.uid(), 'treasurer'::app_role)
+      OR has_role(auth.uid(), 'chief_accountant'::app_role)
+      OR has_role(auth.uid(), 'accountant'::app_role)
+      OR has_role(auth.uid(), 'admin'::app_role)
+      OR has_role(auth.uid(), 'business_analyst'::app_role)
+      OR has_role(auth.uid(), 'admin_director'::app_role)  -- NEW
+    )
+  )
+);
 ```
 
-**b) Створити тригер для захисту від майбутніх race conditions:**
-```sql
-CREATE OR REPLACE FUNCTION fn_auto_approve_invoice()
-RETURNS TRIGGER LANGUAGE plpgsql AS $$
-BEGIN
-  IF NEW.coo_decision = 'APPROVED'
-     AND NEW.ceo_decision = 'APPROVED'
-     AND NEW.status NOT IN ('TO_PAY', 'PAID', 'DELIVERED', 'REJECTED')
-  THEN
-    NEW.status := 'TO_PAY';
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER trg_auto_approve_invoice
-BEFORE UPDATE ON purchase_invoices
-FOR EACH ROW EXECUTE FUNCTION fn_auto_approve_invoice();
-```
-
-#### 2. Frontend fix — `PurchaseInvoiceDetail.tsx`
-
-У `handleCOOApprove` і `handleCEOApprove` замінити читання рішення іншої сторони з локального state на свіжий запит до БД:
-
-```ts
-// handleCOOApprove — БУЛО (stale state):
-const ceoAlreadyApproved = invoice?.ceo_decision === "APPROVED";
-
-// СТАНЕ (fresh from DB):
-const { data: freshInvoice } = await supabase
-  .from("purchase_invoices").select("ceo_decision").eq("id", id).single();
-const ceoAlreadyApproved = freshInvoice?.ceo_decision === "APPROVED";
-```
-
-Аналогічно для `handleCEOApprove` — перечитувати `coo_decision` перед визначенням `newStatus`.
-
----
+Аналогічний підхід для решти 6 таблиць.
 
 ### Файли для зміни
 
 | Файл | Дія |
 |---|---|
-| SQL міграція | Виправити INV-0059 + створити тригер `trg_auto_approve_invoice` |
-| `src/pages/purchase/PurchaseInvoiceDetail.tsx` | Замінити stale state на fresh DB read у handleCOOApprove і handleCEOApprove |
+| SQL міграція | Оновити 7 SELECT-політик |
+| `src/components/purchase/PurchaseNavTabs.tsx` | Додати `admin_director` до `canSeeQueue` |
