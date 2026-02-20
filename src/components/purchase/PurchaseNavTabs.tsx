@@ -15,7 +15,8 @@ export function PurchaseNavTabs() {
     || profile?.role === 'chief_accountant'
     || profile?.role === 'accountant'
     || profile?.role === 'admin'
-    || profile?.role === 'business_analyst';
+    || profile?.role === 'business_analyst'
+    || profile?.role === 'admin_director';
 
 
   const getCurrentTab = () => {
