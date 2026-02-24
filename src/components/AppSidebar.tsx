@@ -17,7 +17,7 @@ const modules: Module[] = [{
   label: 'Заявки R&D',
   icon: FileText,
   roles: ['sales_manager', 'rd_dev', 'rd_manager', 'admin', 'quality_manager', 'admin_director', 'ceo', 'coo', 'financial_analyst', 'business_analyst'],
-  getPath: role => (role === 'sales_manager' || role === 'quality_manager') ? '/requests/my' : '/rd/board'
+  getPath: (role) => role === 'sales_manager' || role === 'quality_manager' ? '/requests/my' : '/rd/board'
 }, {
   id: 'development',
   label: 'Розробка',
@@ -29,7 +29,7 @@ const modules: Module[] = [{
   label: 'Закупівля ТМЦ',
   icon: ShoppingCart,
   roles: 'all',
-  getPath: role => {
+  getPath: (role) => {
     const queueRoles: UserRole[] = ['procurement_manager', 'coo', 'ceo', 'treasurer', 'chief_accountant', 'admin', 'admin_director'];
     return queueRoles.includes(role) ? '/purchase/queue' : '/purchase/requests';
   }
@@ -67,11 +67,11 @@ export function AppSidebar() {
   const location = useLocation();
   const { state } = useSidebar();
   const isCollapsed = state === 'collapsed';
-  
+
   if (!profile) return null;
-  
+
   const userRole = profile.role as UserRole;
-  const visibleModules = modules.filter(module => {
+  const visibleModules = modules.filter((module) => {
     if (module.roles === 'all') return true;
     return module.roles.includes(userRole);
   });
@@ -79,7 +79,7 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-3 px-2 py-2">
           <img src={foodtechLogo} alt="FoodTech Logo" className="max-h-8 w-auto flex-shrink-0 object-contain" />
-          {!isCollapsed && <span className="font-semibold text-sidebar-foreground">FoodTech Automation</span>}
+          {!isCollapsed && <span className="font-semibold text-sidebar-foreground">FOODTECH Automation</span>}
         </div>
       </SidebarHeader>
 
@@ -88,7 +88,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Модулі</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {visibleModules.map(module => {
+              {visibleModules.map((module) => {
               const isActive = isModuleActive(module.id, location.pathname);
               const path = module.getPath(userRole);
               return <SidebarMenuItem key={module.id}>
