@@ -1079,6 +1079,280 @@ export type Database = {
           },
         ]
       }
+      raw_material_invoice_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id: string
+          invoice_id: string
+          is_supplier_invoice: boolean
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size: number
+          file_type: string
+          id?: string
+          invoice_id: string
+          is_supplier_invoice?: boolean
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          file_type?: string
+          id?: string
+          invoice_id?: string
+          is_supplier_invoice?: boolean
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raw_material_invoice_attachments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "raw_material_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_material_invoice_attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      raw_material_invoice_items: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_id: string
+          line_amount: number | null
+          price: number
+          qty: number
+          raw_material_1c_id: string
+          raw_material_name: string
+          sort_order: number
+          uom: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_id: string
+          line_amount?: number | null
+          price: number
+          qty: number
+          raw_material_1c_id: string
+          raw_material_name: string
+          sort_order?: number
+          uom?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_id?: string
+          line_amount?: number | null
+          price?: number
+          qty?: number
+          raw_material_1c_id?: string
+          raw_material_name?: string
+          sort_order?: number
+          uom?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raw_material_invoice_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "raw_material_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      raw_material_invoices: {
+        Row: {
+          admin_director_comment: string | null
+          admin_director_decided_at: string | null
+          admin_director_decided_by: string | null
+          admin_director_decision:
+            | Database["public"]["Enums"]["approval_decision"]
+            | null
+          approval_round: number
+          ceo_comment: string | null
+          ceo_decided_at: string | null
+          ceo_decided_by: string | null
+          ceo_decision: Database["public"]["Enums"]["approval_decision"] | null
+          comment: string | null
+          coo_comment: string | null
+          coo_decided_at: string | null
+          coo_decided_by: string | null
+          coo_decision: Database["public"]["Enums"]["approval_decision"] | null
+          created_at: string
+          created_by: string
+          currency: string
+          expected_delivery_date: string | null
+          id: string
+          integration_error_message: string | null
+          integration_idempotency_key: string | null
+          integration_status: string | null
+          invoice_date: string
+          number: string
+          one_c_po_date: string | null
+          one_c_po_id: string | null
+          one_c_po_number: string | null
+          payer_entity: Database["public"]["Enums"]["payer_entity"]
+          planned_payment_date: string | null
+          status: Database["public"]["Enums"]["raw_material_invoice_status"]
+          supplier_1c_id: string
+          supplier_name: string
+          supplier_tax_id: string | null
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          admin_director_comment?: string | null
+          admin_director_decided_at?: string | null
+          admin_director_decided_by?: string | null
+          admin_director_decision?:
+            | Database["public"]["Enums"]["approval_decision"]
+            | null
+          approval_round?: number
+          ceo_comment?: string | null
+          ceo_decided_at?: string | null
+          ceo_decided_by?: string | null
+          ceo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          comment?: string | null
+          coo_comment?: string | null
+          coo_decided_at?: string | null
+          coo_decided_by?: string | null
+          coo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          created_at?: string
+          created_by: string
+          currency?: string
+          expected_delivery_date?: string | null
+          id?: string
+          integration_error_message?: string | null
+          integration_idempotency_key?: string | null
+          integration_status?: string | null
+          invoice_date?: string
+          number?: string
+          one_c_po_date?: string | null
+          one_c_po_id?: string | null
+          one_c_po_number?: string | null
+          payer_entity: Database["public"]["Enums"]["payer_entity"]
+          planned_payment_date?: string | null
+          status?: Database["public"]["Enums"]["raw_material_invoice_status"]
+          supplier_1c_id: string
+          supplier_name: string
+          supplier_tax_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Update: {
+          admin_director_comment?: string | null
+          admin_director_decided_at?: string | null
+          admin_director_decided_by?: string | null
+          admin_director_decision?:
+            | Database["public"]["Enums"]["approval_decision"]
+            | null
+          approval_round?: number
+          ceo_comment?: string | null
+          ceo_decided_at?: string | null
+          ceo_decided_by?: string | null
+          ceo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          comment?: string | null
+          coo_comment?: string | null
+          coo_decided_at?: string | null
+          coo_decided_by?: string | null
+          coo_decision?: Database["public"]["Enums"]["approval_decision"] | null
+          created_at?: string
+          created_by?: string
+          currency?: string
+          expected_delivery_date?: string | null
+          id?: string
+          integration_error_message?: string | null
+          integration_idempotency_key?: string | null
+          integration_status?: string | null
+          invoice_date?: string
+          number?: string
+          one_c_po_date?: string | null
+          one_c_po_id?: string | null
+          one_c_po_number?: string | null
+          payer_entity?: Database["public"]["Enums"]["payer_entity"]
+          planned_payment_date?: string | null
+          status?: Database["public"]["Enums"]["raw_material_invoice_status"]
+          supplier_1c_id?: string
+          supplier_name?: string
+          supplier_tax_id?: string | null
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "raw_material_invoices_admin_director_decided_by_fkey"
+            columns: ["admin_director_decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_material_invoices_ceo_decided_by_fkey"
+            columns: ["ceo_decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_material_invoices_coo_decided_by_fkey"
+            columns: ["coo_decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "raw_material_invoices_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      raw_materials_1c_cache: {
+        Row: {
+          default_uom: string
+          is_active: boolean
+          name: string
+          raw_material_1c_id: string
+          synced_at: string
+        }
+        Insert: {
+          default_uom?: string
+          is_active?: boolean
+          name: string
+          raw_material_1c_id: string
+          synced_at?: string
+        }
+        Update: {
+          default_uom?: string
+          is_active?: boolean
+          name?: string
+          raw_material_1c_id?: string
+          synced_at?: string
+        }
+        Relationships: []
+      }
       rd_request_attachments: {
         Row: {
           created_at: string | null
@@ -1321,6 +1595,30 @@ export type Database = {
           successful_sample_display?: string | null
           successful_sample_id?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      suppliers_1c_cache: {
+        Row: {
+          is_active: boolean
+          name: string
+          supplier_1c_id: string
+          synced_at: string
+          tax_id: string | null
+        }
+        Insert: {
+          is_active?: boolean
+          name: string
+          supplier_1c_id: string
+          synced_at?: string
+          tax_id?: string | null
+        }
+        Update: {
+          is_active?: boolean
+          name?: string
+          supplier_1c_id?: string
+          synced_at?: string
+          tax_id?: string | null
         }
         Relationships: []
       }
@@ -1643,6 +1941,7 @@ export type Database = {
         | "sent"
         | "failed"
         | "canceled"
+      payer_entity: "FOODTECH" | "FOP"
       payment_terms: "PREPAYMENT" | "POSTPAYMENT"
       priority: "LOW" | "MEDIUM" | "HIGH"
       purchase_invoice_status:
@@ -1669,6 +1968,15 @@ export type Database = {
         | "COMPLETED"
         | "REJECTED"
       purchase_type: "TMC" | "SERVICE" | "RAW_MATERIAL"
+      raw_material_invoice_status:
+        | "DRAFT"
+        | "SUBMITTED"
+        | "APPROVED"
+        | "REJECTED"
+        | "SENDING_TO_1C"
+        | "PO_CREATED_1C"
+        | "INTEGRATION_ERROR"
+        | "CANCELLED"
       status:
         | "PENDING"
         | "IN_PROGRESS"
@@ -1882,6 +2190,7 @@ export const Constants = {
         "failed",
         "canceled",
       ],
+      payer_entity: ["FOODTECH", "FOP"],
       payment_terms: ["PREPAYMENT", "POSTPAYMENT"],
       priority: ["LOW", "MEDIUM", "HIGH"],
       purchase_invoice_status: [
@@ -1911,6 +2220,16 @@ export const Constants = {
         "REJECTED",
       ],
       purchase_type: ["TMC", "SERVICE", "RAW_MATERIAL"],
+      raw_material_invoice_status: [
+        "DRAFT",
+        "SUBMITTED",
+        "APPROVED",
+        "REJECTED",
+        "SENDING_TO_1C",
+        "PO_CREATED_1C",
+        "INTEGRATION_ERROR",
+        "CANCELLED",
+      ],
       status: [
         "PENDING",
         "IN_PROGRESS",
