@@ -1659,7 +1659,7 @@ export type Database = {
         | "ORDERED"
         | "DELIVERED"
         | "REJECTED"
-      purchase_log_entity_type: "REQUEST" | "INVOICE"
+      purchase_log_entity_type: "REQUEST" | "INVOICE" | "RAW_INVOICE"
       purchase_request_status:
         | "DRAFT"
         | "PENDING_APPROVAL"
@@ -1668,7 +1668,7 @@ export type Database = {
         | "DELIVERING"
         | "COMPLETED"
         | "REJECTED"
-      purchase_type: "TMC" | "SERVICE"
+      purchase_type: "TMC" | "SERVICE" | "RAW_MATERIAL"
       status:
         | "PENDING"
         | "IN_PROGRESS"
@@ -1900,7 +1900,7 @@ export const Constants = {
         "DELIVERED",
         "REJECTED",
       ],
-      purchase_log_entity_type: ["REQUEST", "INVOICE"],
+      purchase_log_entity_type: ["REQUEST", "INVOICE", "RAW_INVOICE"],
       purchase_request_status: [
         "DRAFT",
         "PENDING_APPROVAL",
@@ -1910,7 +1910,7 @@ export const Constants = {
         "COMPLETED",
         "REJECTED",
       ],
-      purchase_type: ["TMC", "SERVICE"],
+      purchase_type: ["TMC", "SERVICE", "RAW_MATERIAL"],
       status: [
         "PENDING",
         "IN_PROGRESS",
