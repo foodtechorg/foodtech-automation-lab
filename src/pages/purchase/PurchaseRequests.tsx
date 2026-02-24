@@ -42,6 +42,7 @@ const statusVariants: Record<PurchaseRequestStatus, 'default' | 'secondary' | 'd
 const typeLabels: Record<PurchaseType, string> = {
   TMC: 'ТМЦ',
   SERVICE: 'Послуга',
+  RAW_MATERIAL: 'Сировина',
 };
 
 export default function PurchaseRequests() {
