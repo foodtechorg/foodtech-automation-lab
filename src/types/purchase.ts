@@ -1,7 +1,7 @@
 // TypeScript types for Purchase module
 // Based on supabase/experiments/procurement_staging.sql schema
 
-export type PurchaseType = 'TMC' | 'SERVICE';
+export type PurchaseType = 'TMC' | 'SERVICE' | 'RAW_MATERIAL';
 
 export type PurchaseRequestStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'IN_PROGRESS' | 'INVOICE_PENDING' | 'DELIVERING' | 'COMPLETED' | 'REJECTED';
 
@@ -13,7 +13,7 @@ export type PaymentTerms = 'PREPAYMENT' | 'POSTPAYMENT';
 
 export type ApprovalDecision = 'PENDING' | 'APPROVED' | 'REJECTED';
 
-export type PurchaseLogEntityType = 'REQUEST' | 'INVOICE';
+export type PurchaseLogEntityType = 'REQUEST' | 'INVOICE' | 'RAW_INVOICE';
 
 export interface PurchaseRequest {
   id: string;

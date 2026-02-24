@@ -69,6 +69,7 @@ const invoiceStatusLabels: Record<PurchaseInvoiceStatus, string> = {
 const typeLabels: Record<PurchaseType, string> = {
   TMC: 'ТМЦ',
   SERVICE: 'Послуга',
+  RAW_MATERIAL: 'Сировина',
 };
 
 export default function PurchaseRequestDetail() {

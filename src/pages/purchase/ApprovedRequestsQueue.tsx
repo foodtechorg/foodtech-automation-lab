@@ -40,6 +40,7 @@ import { cn } from '@/lib/utils';
 const typeLabels: Record<PurchaseType, string> = {
   TMC: 'ТМЦ',
   SERVICE: 'Послуга',
+  RAW_MATERIAL: 'Сировина',
 };
 
 const paymentTermsLabels: Record<string, string> = {
