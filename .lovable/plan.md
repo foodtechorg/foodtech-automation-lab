@@ -1,70 +1,17 @@
 
 
-## Додати роль `admin_director` до модуля Закупівля ТМЦ (read-only)
+## Problem
 
-Адміністративний директор зможе бачити всі заявки та рахунки інших користувачів (крім чернеток), а також чергу погодження. Без права редагування чи погодження.
+The `validate` function in `RawMaterialInvoiceForm.tsx` enforces supplier selection and at least one valid item for both draft saves and submission. The user expects drafts to be savable with incomplete data.
 
----
+## Solution
 
-### 1. SQL міграція — додати `admin_director` до RLS SELECT-політик
+Split validation: when `submitForApproval` is `false` (draft save), skip all mandatory field checks. Only enforce full validation when submitting for approval.
 
-Оновити 7 таблиць, додавши `has_role(auth.uid(), 'admin_director'::app_role)` до SELECT-політик:
+### Changes
 
-| Таблиця | Політика |
-|---|---|
-| `purchase_requests` | "Users can view purchase requests" |
-| `purchase_invoices` | "Users can view purchase invoices" |
-| `purchase_request_items` | "Users can view purchase request items" |
-| `purchase_invoice_items` | "Users can view purchase invoice items" |
-| `purchase_request_attachments` | "Users can view request attachments" |
-| `purchase_invoice_attachments` | "Users can view invoice attachments" |
-| `purchase_logs` | "Users can view purchase logs" |
+**`src/components/purchase/RawMaterialInvoiceForm.tsx`** — modify `validate` function (and `handleSave`):
+- When `submitForApproval === false`: no validation at all, allow saving with empty supplier/items.
+- When `submitForApproval === true`: keep existing checks (supplier, items, supplier invoice PDF).
+- In `handleSave`: make supplier fields optional for drafts (use empty strings if no supplier selected). Filter valid items but allow zero items for drafts.
 
-Логіка: до кожної з цих політик додається `OR has_role(auth.uid(), 'admin_director'::app_role)` поруч з іншими "наглядовими" ролями (coo, ceo, business_analyst тощо). Чернетки (`status <> 'DRAFT'`) залишаються прихованими.
-
-### 2. Frontend — `PurchaseNavTabs.tsx`
-
-Додати `admin_director` до списку `canSeeQueue`, щоб вкладка "Черга" була видимою:
-
-```
-const canSeeQueue = profile?.role === 'procurement_manager'
-    || profile?.role === 'admin_director'   // <-- додати
-    || ...
-```
-
----
-
-### Технічні деталі
-
-Кожна SELECT-політика буде перестворена (`DROP POLICY` + `CREATE POLICY`) з тим самим виразом, але з додаванням `admin_director`. Приклад для `purchase_requests`:
-
-```sql
-DROP POLICY "Users can view purchase requests" ON purchase_requests;
-CREATE POLICY "Users can view purchase requests" ON purchase_requests
-FOR SELECT USING (
-  (created_by = auth.uid())
-  OR (
-    (status <> 'DRAFT'::purchase_request_status)
-    AND (
-      has_role(auth.uid(), 'procurement_manager'::app_role)
-      OR has_role(auth.uid(), 'coo'::app_role)
-      OR has_role(auth.uid(), 'ceo'::app_role)
-      OR has_role(auth.uid(), 'treasurer'::app_role)
-      OR has_role(auth.uid(), 'chief_accountant'::app_role)
-      OR has_role(auth.uid(), 'accountant'::app_role)
-      OR has_role(auth.uid(), 'admin'::app_role)
-      OR has_role(auth.uid(), 'business_analyst'::app_role)
-      OR has_role(auth.uid(), 'admin_director'::app_role)  -- NEW
-    )
-  )
-);
-```
-
-Аналогічний підхід для решти 6 таблиць.
-
-### Файли для зміни
-
-| Файл | Дія |
-|---|---|
-| SQL міграція | Оновити 7 SELECT-політик |
-| `src/components/purchase/PurchaseNavTabs.tsx` | Додати `admin_director` до `canSeeQueue` |
