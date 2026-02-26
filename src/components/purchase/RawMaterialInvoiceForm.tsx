@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -26,12 +27,15 @@ import {
 import type { Supplier1cCache, RawMaterial1cCache, PayerEntity } from '@/types/rawMaterial';
 import { toast } from 'sonner';
 
+const VAT_RATE = 0.2;
+
 interface LocalItem {
   raw_material_1c_id: string;
   raw_material_name: string;
   uom: string;
   qty: string;
   price: string;
+  priceWithVat: string;
 }
 
 interface PendingFile {
@@ -46,6 +50,7 @@ const emptyItem = (): LocalItem => ({
   uom: 'кг',
   qty: '',
   price: '',
+  priceWithVat: '',
 });
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
@@ -59,12 +64,17 @@ const ALLOWED_TYPES = [
   'image/png',
 ];
 
+const formatNumber = (n: number): string => {
+  return n % 1 === 0 ? n.toString() : n.toFixed(2);
+};
+
 export default function RawMaterialInvoiceForm() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
   const [supplier, setSupplier] = useState<Supplier1cCache | null>(null);
   const [payerEntity, setPayerEntity] = useState<PayerEntity>('FOODTECH');
+  const [withVat, setWithVat] = useState(false);
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
   const [plannedPaymentDate, setPlannedPaymentDate] = useState('');
   const [comment, setComment] = useState('');
@@ -82,6 +92,32 @@ export default function RawMaterialInvoiceForm() {
   const updateItem = (index: number, field: keyof LocalItem, value: string) => {
     const updated = [...items];
     updated[index] = { ...updated[index], [field]: value };
+    setItems(updated);
+  };
+
+  const updatePriceNoVat = (index: number, value: string) => {
+    const updated = [...items];
+    const priceNum = parseFloat(value);
+    updated[index] = {
+      ...updated[index],
+      price: value,
+      priceWithVat: !isNaN(priceNum) && priceNum >= 0
+        ? formatNumber(priceNum * (1 + VAT_RATE))
+        : '',
+    };
+    setItems(updated);
+  };
+
+  const updatePriceWithVat = (index: number, value: string) => {
+    const updated = [...items];
+    const priceVatNum = parseFloat(value);
+    updated[index] = {
+      ...updated[index],
+      priceWithVat: value,
+      price: !isNaN(priceVatNum) && priceVatNum >= 0
+        ? formatNumber(priceVatNum / (1 + VAT_RATE))
+        : '',
+    };
     setItems(updated);
   };
 
@@ -110,7 +146,9 @@ export default function RawMaterialInvoiceForm() {
     return qty * price;
   };
 
-  const totalAmount = items.reduce((sum, item) => sum + getLineAmount(item), 0);
+  const totalAmountNoVat = items.reduce((sum, item) => sum + getLineAmount(item), 0);
+  const totalVat = totalAmountNoVat * VAT_RATE;
+  const totalAmountWithVat = totalAmountNoVat + totalVat;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, isSupplierInvoice: boolean) => {
     if (!e.target.files) return;
@@ -169,7 +207,6 @@ export default function RawMaterialInvoiceForm() {
     try {
       setSubmitting(true);
 
-      // 1. Create invoice
       const invoice = await createRawMaterialInvoice({
         supplier_1c_id: supplier?.supplier_1c_id || '',
         supplier_name: supplier?.name || '',
@@ -181,7 +218,6 @@ export default function RawMaterialInvoiceForm() {
         created_by: user.id,
       });
 
-      // 2. Create items
       const validItems = items.filter(i => i.raw_material_1c_id && parseFloat(i.qty) > 0);
       if (validItems.length > 0) {
         await createRawMaterialInvoiceItems(
@@ -196,10 +232,8 @@ export default function RawMaterialInvoiceForm() {
         );
       }
 
-      // 3. Recalculate total
       await recalculateRawMaterialInvoiceTotal(invoice.id);
 
-      // 4. Upload files
       for (const pending of pendingFiles) {
         try {
           await uploadRawMaterialAttachment(
@@ -214,10 +248,8 @@ export default function RawMaterialInvoiceForm() {
         }
       }
 
-      // 5. Log creation
       await logRawMaterialEvent(invoice.id, 'CREATED', 'Рахунок створено');
 
-      // 6. Submit if needed
       if (submitForApproval) {
         await updateRawMaterialInvoiceStatus(invoice.id, 'SUBMITTED');
         await logRawMaterialEvent(invoice.id, 'SUBMITTED', 'Відправлено на погодження');
@@ -264,6 +296,16 @@ export default function RawMaterialInvoiceForm() {
               </Select>
             </div>
           </div>
+          <div className="flex items-center gap-3 mt-4 pt-4 border-t">
+            <Switch
+              id="vat-toggle"
+              checked={withVat}
+              onCheckedChange={setWithVat}
+            />
+            <Label htmlFor="vat-toggle" className="cursor-pointer">
+              З ПДВ (20%)
+            </Label>
+          </div>
         </CardContent>
       </Card>
 
@@ -307,11 +349,18 @@ export default function RawMaterialInvoiceForm() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[35%]">Сировина *</TableHead>
+                <TableHead className={withVat ? 'w-[30%]' : 'w-[35%]'}>Сировина *</TableHead>
                 <TableHead className="w-[10%]">Од. виміру</TableHead>
-                <TableHead className="w-[15%]">Кількість *</TableHead>
-                <TableHead className="w-[15%]">Ціна, ₴</TableHead>
-                <TableHead className="w-[15%]">Сума, ₴</TableHead>
+                <TableHead className="w-[12%]">Кількість *</TableHead>
+                {withVat ? (
+                  <>
+                    <TableHead className="w-[13%]">Ціна без ПДВ, ₴</TableHead>
+                    <TableHead className="w-[13%]">Ціна з ПДВ, ₴</TableHead>
+                  </>
+                ) : (
+                  <TableHead className="w-[15%]">Ціна, ₴</TableHead>
+                )}
+                <TableHead className="w-[12%]">Сума, ₴</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -341,16 +390,41 @@ export default function RawMaterialInvoiceForm() {
                       onChange={(e) => updateItem(index, 'qty', e.target.value)}
                     />
                   </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={item.price}
-                      onChange={(e) => updateItem(index, 'price', e.target.value)}
-                    />
-                  </TableCell>
+                  {withVat ? (
+                    <>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={item.price}
+                          onChange={(e) => updatePriceNoVat(index, e.target.value)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0.00"
+                          value={item.priceWithVat}
+                          onChange={(e) => updatePriceWithVat(index, e.target.value)}
+                        />
+                      </TableCell>
+                    </>
+                  ) : (
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={item.price}
+                        onChange={(e) => updateItem(index, 'price', e.target.value)}
+                      />
+                    </TableCell>
+                  )}
                   <TableCell>
                     <span className="text-sm font-medium">
                       {getLineAmount(item).toFixed(2)}
@@ -373,9 +447,28 @@ export default function RawMaterialInvoiceForm() {
           </Table>
 
           <div className="flex justify-end pt-2 border-t">
-            <div className="text-right">
-              <span className="text-sm text-muted-foreground mr-3">Загальна сума:</span>
-              <span className="text-lg font-bold">{totalAmount.toFixed(2)} ₴</span>
+            <div className="text-right space-y-1">
+              {withVat ? (
+                <>
+                  <div>
+                    <span className="text-sm text-muted-foreground mr-3">Загалом без ПДВ:</span>
+                    <span className="text-sm font-medium">{totalAmountNoVat.toFixed(2)} ₴</span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground mr-3">ПДВ (20%):</span>
+                    <span className="text-sm font-medium">{totalVat.toFixed(2)} ₴</span>
+                  </div>
+                  <div>
+                    <span className="text-sm text-muted-foreground mr-3">Загалом з ПДВ:</span>
+                    <span className="text-lg font-bold">{totalAmountWithVat.toFixed(2)} ₴</span>
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <span className="text-sm text-muted-foreground mr-3">Загальна сума:</span>
+                  <span className="text-lg font-bold">{totalAmountNoVat.toFixed(2)} ₴</span>
+                </div>
+              )}
             </div>
           </div>
 
