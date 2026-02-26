@@ -1,24 +1,37 @@
 
 
-## Problem
+## План: Додати підтримку ПДВ у формі рахунку на сировину
 
-The "Закупівля сировини" (RAW_MATERIAL) option in the purchase type selector is visible to all roles. Per the memory note, during development it's restricted to `admin` only. The user now wants to grant access to two additional roles: `financial_analyst` and `foreign_trade_manager`.
+### Зміни
 
-## Solution
+**`src/components/purchase/RawMaterialInvoiceForm.tsx`**:
 
-Add role-based visibility for the RAW_MATERIAL select option in `NewPurchaseRequest.tsx`. Only `admin`, `financial_analyst`, and `foreign_trade_manager` should see and select the "Закупівля сировини" option.
+1. **Новий стан** `withVat` (boolean, за замовчуванням `false`) — перемикач "з ПДВ / без ПДВ" у секції "Постачальник та платник" (або окремим рядком поруч з платником).
 
-### Changes
+2. **Розширити `LocalItem`** — додати поле `priceWithVat: string`. Поле `price` стає ціною без ПДВ.
 
-**`src/pages/purchase/NewPurchaseRequest.tsx`**:
-- Import `useAuth` (already imported) and get `profile` from it
-- Define a constant array of roles allowed to create raw material invoices: `['admin', 'financial_analyst', 'foreign_trade_manager']`
-- Conditionally render the `<SelectItem value="RAW_MATERIAL">` only when `profile?.role` is in that array
-- If user somehow has `purchaseType === 'RAW_MATERIAL'` but doesn't have the role, reset to `'TMC'`
+3. **Логіка автоматичного розрахунку**:
+   - Коли користувач вводить `price` (без ПДВ) → `priceWithVat = price * 1.2`
+   - Коли користувач вводить `priceWithVat` (з ПДВ) → `price = priceWithVat / 1.2`
+   - Відстежувати яке поле редагується останнім через параметр у `updateItem`.
 
-This is a UI-level guard. The database RLS policies on `raw_material_invoices` should also be checked to ensure these roles can insert — but that's a separate concern if the RLS was set up for `admin` only during migration.
+4. **Таблиця позицій** — умовний рендеринг колонок:
+   - Якщо `withVat === false`: одна колонка "Ціна, ₴" (як зараз)
+   - Якщо `withVat === true`: дві колонки "Ціна без ПДВ, ₴" та "Ціна з ПДВ, ₴", обидві з input-полями
 
-### Technical details
+5. **Блок підсумків** — умовний рендеринг:
+   - Якщо `withVat === false`: один рядок "Загальна сума: X ₴"
+   - Якщо `withVat === true`: три рядки:
+     - "Загалом без ПДВ: X ₴"
+     - "ПДВ (20%): Y ₴"
+     - "Загалом з ПДВ: Z ₴"
 
-The `useAuth` hook is already imported and `user` is destructured. We just need to also destructure `profile` and add a role check around the RAW_MATERIAL select item (line 190).
+6. **Збереження** — `price` у `createRawMaterialInvoiceItems` залишається ціною без ПДВ (базова ціна). ПДВ-інформація поки що зберігається лише на рівні UI-розрахунку.
+
+### Технічні деталі
+
+- Константа `VAT_RATE = 0.2`
+- `getLineAmount` використовує `price` (без ПДВ) × `qty` як базову суму
+- `getLineAmountWithVat` = `getLineAmount` × 1.2
+- Перемикач реалізувати через `Switch` або `Select` з двома опціями
 
