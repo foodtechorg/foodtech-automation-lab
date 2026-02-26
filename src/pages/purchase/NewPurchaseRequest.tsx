@@ -44,7 +44,9 @@ const emptyItem = (): LocalItem => ({ name: '', unit: '', quantity: '' });
 
 export default function NewPurchaseRequest() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const RAW_MATERIAL_ROLES = ['admin', 'financial_analyst', 'foreign_trade_manager'];
+  const canCreateRawMaterial = !!profile?.role && RAW_MATERIAL_ROLES.includes(profile.role);
   
   const [purchaseType, setPurchaseType] = useState<PurchaseType>('TMC');
   const [desiredDate, setDesiredDate] = useState('');
@@ -187,7 +189,9 @@ export default function NewPurchaseRequest() {
               <SelectContent>
                 <SelectItem value="TMC">ТМЦ (товарно-матеріальні цінності)</SelectItem>
                 <SelectItem value="SERVICE">Послуга</SelectItem>
-                <SelectItem value="RAW_MATERIAL">Закупівля сировини</SelectItem>
+                {canCreateRawMaterial && (
+                  <SelectItem value="RAW_MATERIAL">Закупівля сировини</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
