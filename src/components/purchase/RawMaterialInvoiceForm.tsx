@@ -134,6 +134,8 @@ export default function RawMaterialInvoiceForm() {
   };
 
   const validate = (submitForApproval: boolean): boolean => {
+    if (!submitForApproval) return true;
+
     if (!supplier) {
       toast.error('Оберіть постачальника');
       return false;
@@ -149,12 +151,10 @@ export default function RawMaterialInvoiceForm() {
         return false;
       }
     }
-    if (submitForApproval) {
-      const hasSupplierInvoice = pendingFiles.some(f => f.isSupplierInvoice);
-      if (!hasSupplierInvoice) {
-        toast.error('Для відправки на погодження необхідно прикріпити рахунок постачальника (PDF)');
-        return false;
-      }
+    const hasSupplierInvoice = pendingFiles.some(f => f.isSupplierInvoice);
+    if (!hasSupplierInvoice) {
+      toast.error('Для відправки на погодження необхідно прикріпити рахунок постачальника (PDF)');
+      return false;
     }
     return true;
   };
@@ -171,9 +171,9 @@ export default function RawMaterialInvoiceForm() {
 
       // 1. Create invoice
       const invoice = await createRawMaterialInvoice({
-        supplier_1c_id: supplier!.supplier_1c_id,
-        supplier_name: supplier!.name,
-        supplier_tax_id: supplier!.tax_id || undefined,
+        supplier_1c_id: supplier?.supplier_1c_id || '',
+        supplier_name: supplier?.name || '',
+        supplier_tax_id: supplier?.tax_id || undefined,
         payer_entity: payerEntity,
         expected_delivery_date: expectedDeliveryDate || undefined,
         planned_payment_date: plannedPaymentDate || undefined,
