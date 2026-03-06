@@ -67,7 +67,7 @@ export function SupplierAutocomplete({ value, onChange, disabled }: SupplierAuto
   };
 
   const handleFocus = () => {
-    if (!value) doSearch(query);
+    if (!value && query.trim().length >= 2) doSearch(query);
   };
 
   return (
@@ -104,10 +104,13 @@ export function SupplierAutocomplete({ value, onChange, disabled }: SupplierAuto
           ))}
         </div>
       )}
-      {open && !loading && results.length === 0 && query.trim() && (
+      {open && !loading && results.length === 0 && query.trim().length >= 2 && (
         <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg p-3 text-sm text-muted-foreground">
           Постачальників не знайдено
         </div>
+      )}
+      {!open && !value && query.trim().length > 0 && query.trim().length < 2 && (
+        <p className="text-xs text-muted-foreground mt-1">Введіть мінімум 2 символи для пошуку</p>
       )}
     </div>
   );

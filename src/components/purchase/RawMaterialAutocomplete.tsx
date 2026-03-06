@@ -113,7 +113,7 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
           ))}
         </div>
       )}
-      {!loading && results.length === 0 && query.trim() && (
+      {!loading && results.length === 0 && query.trim().length >= 2 && (
         <div style={dropdownStyle} className="rounded-md border bg-popover shadow-lg p-3 text-sm text-muted-foreground">
           Сировину не знайдено
         </div>
