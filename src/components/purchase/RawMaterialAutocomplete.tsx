@@ -93,7 +93,7 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
   };
 
   const handleFocus = () => {
-    doSearch(query);
+    if (query.trim().length >= 2) doSearch(query);
   };
 
   const dropdownContent = open && (
