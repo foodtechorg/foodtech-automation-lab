@@ -1,37 +1,35 @@
 
 
-## План: Додати підтримку ПДВ у формі рахунку на сировину
+## Діагностика: Автокомпліт сировини не працює
 
-### Зміни
+### Знайдена проблема
 
-**`src/components/purchase/RawMaterialInvoiceForm.tsx`**:
+Edge Function `proxy-1c` використовує метод `supabase.auth.getClaims(token)`, який **не існує** в `@supabase/supabase-js`. Кожен запит до функції повертає **401 Unauthorized**, тому що `getClaims` завжди повертає помилку.
 
-1. **Новий стан** `withVat` (boolean, за замовчуванням `false`) — перемикач "з ПДВ / без ПДВ" у секції "Постачальник та платник" (або окремим рядком поруч з платником).
+Це підтверджено тестовим викликом функції — відповідь: `{"error":"Unauthorized"}` зі статусом 401.
 
-2. **Розширити `LocalItem`** — додати поле `priceWithVat: string`. Поле `price` стає ціною без ПДВ.
+В логах функції видно тільки `booted` → `shutdown` без жодних логів бізнес-логіки — функція падає на етапі авторизації і не доходить до виклику 1С API.
 
-3. **Логіка автоматичного розрахунку**:
-   - Коли користувач вводить `price` (без ПДВ) → `priceWithVat = price * 1.2`
-   - Коли користувач вводить `priceWithVat` (з ПДВ) → `price = priceWithVat / 1.2`
-   - Відстежувати яке поле редагується останнім через параметр у `updateItem`.
+### Виправлення
 
-4. **Таблиця позицій** — умовний рендеринг колонок:
-   - Якщо `withVat === false`: одна колонка "Ціна, ₴" (як зараз)
-   - Якщо `withVat === true`: дві колонки "Ціна без ПДВ, ₴" та "Ціна з ПДВ, ₴", обидві з input-полями
+**Файл:** `supabase/functions/proxy-1c/index.ts`, рядки 25-29
 
-5. **Блок підсумків** — умовний рендеринг:
-   - Якщо `withVat === false`: один рядок "Загальна сума: X ₴"
-   - Якщо `withVat === true`: три рядки:
-     - "Загалом без ПДВ: X ₴"
-     - "ПДВ (20%): Y ₴"
-     - "Загалом з ПДВ: Z ₴"
+Замінити `getClaims(token)` на `supabase.auth.getUser(token)` — це стандартний метод перевірки JWT токена:
 
-6. **Збереження** — `price` у `createRawMaterialInvoiceItems` залишається ціною без ПДВ (базова ціна). ПДВ-інформація поки що зберігається лише на рівні UI-розрахунку.
+```typescript
+// Було:
+const token = authHeader.replace('Bearer ', '');
+const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+if (claimsError || !claimsData?.claims) {
+  return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+}
 
-### Технічні деталі
+// Стане:
+const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+if (userError || !user) {
+  return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+}
+```
 
-- Константа `VAT_RATE = 0.2`
-- `getLineAmount` використовує `price` (без ПДВ) × `qty` як базову суму
-- `getLineAmountWithVat` = `getLineAmount` × 1.2
-- Перемикач реалізувати через `Switch` або `Select` з двома опціями
+Одна зміна, один файл. Після деплою автокомпліт почне працювати (за умови що 1С сервер доступний ззовні).
 
