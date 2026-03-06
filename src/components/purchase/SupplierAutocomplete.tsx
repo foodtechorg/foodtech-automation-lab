@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Input } from '@/components/ui/input';
-import { searchSuppliers } from '@/services/rawMaterial1cCacheApi';
+import { search1cContractors } from '@/services/rawMaterial1cApi';
 import type { Supplier1cCache } from '@/types/rawMaterial';
 import { Loader2 } from 'lucide-react';
 

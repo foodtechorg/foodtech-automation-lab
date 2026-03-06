@@ -26,3 +26,6 @@ verify_jwt = false
 
 [functions.outbox-notify]
 verify_jwt = false
+
+[functions.proxy-1c]
+verify_jwt = false

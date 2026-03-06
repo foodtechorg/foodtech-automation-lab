@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import { searchRawMaterials } from '@/services/rawMaterial1cCacheApi';
+import { search1cRawMaterials } from '@/services/rawMaterial1cApi';
 import type { RawMaterial1cCache } from '@/types/rawMaterial';
 import { Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
