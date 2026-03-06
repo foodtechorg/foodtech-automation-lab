@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Input } from '@/components/ui/input';
-import { searchRawMaterials } from '@/services/rawMaterial1cCacheApi';
+import { search1cRawMaterials } from '@/services/rawMaterial1cApi';
 import type { RawMaterial1cCache } from '@/types/rawMaterial';
 import { Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -60,10 +60,15 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
 
   const doSearch = (q: string) => {
     clearTimeout(debounceRef.current);
+    if (q.trim().length < 2) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const data = await searchRawMaterials(q, 15);
+        const data = await search1cRawMaterials(q, 15);
         setResults(data);
         setOpen(true);
       } catch {
@@ -88,7 +93,7 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
   };
 
   const handleFocus = () => {
-    doSearch(query);
+    if (query.trim().length >= 2) doSearch(query);
   };
 
   const dropdownContent = open && (
@@ -108,7 +113,7 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
           ))}
         </div>
       )}
-      {!loading && results.length === 0 && query.trim() && (
+      {!loading && results.length === 0 && query.trim().length >= 2 && (
         <div style={dropdownStyle} className="rounded-md border bg-popover shadow-lg p-3 text-sm text-muted-foreground">
           Сировину не знайдено
         </div>
