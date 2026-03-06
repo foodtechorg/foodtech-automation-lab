@@ -34,10 +34,15 @@ export function SupplierAutocomplete({ value, onChange, disabled }: SupplierAuto
 
   const doSearch = (q: string) => {
     clearTimeout(debounceRef.current);
+    if (q.trim().length < 2) {
+      setResults([]);
+      setOpen(false);
+      return;
+    }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
       try {
-        const data = await searchSuppliers(q, 15);
+        const data = await search1cContractors(q, 15);
         setResults(data);
         setOpen(true);
       } catch {
