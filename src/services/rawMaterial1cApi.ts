@@ -6,13 +6,6 @@ import type { RawMaterial1cCache, Supplier1cCache } from '@/types/rawMaterial';
 export async function search1cRawMaterials(query: string, limit = 20): Promise<RawMaterial1cCache[]> {
   if (query.trim().length < 2) return [];
 
-  const { data, error } = await supabase.functions.invoke('proxy-1c', {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-    body: undefined,
-  });
-
-  // supabase.functions.invoke doesn't support query params well, use fetch directly
   const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
   const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   const session = (await supabase.auth.getSession()).data.session;
