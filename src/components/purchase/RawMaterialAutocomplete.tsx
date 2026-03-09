@@ -16,6 +16,7 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
   const [results, setResults] = useState<RawMaterial1cCache[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -67,12 +68,15 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
     }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
+      setErrorMsg(null);
       try {
         const data = await search1cRawMaterials(q, 15);
         setResults(data);
         setOpen(true);
-      } catch {
+      } catch (err: any) {
         setResults([]);
+        setErrorMsg(err?.message || 'Помилка пошуку');
+        setOpen(true);
       } finally {
         setLoading(false);
       }
@@ -115,7 +119,11 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
       )}
       {!loading && results.length === 0 && query.trim().length >= 2 && (
         <div style={dropdownStyle} className="rounded-md border bg-popover shadow-lg p-3 text-sm text-muted-foreground">
-          Сировину не знайдено
+          {errorMsg ? (
+            <span className="text-destructive">{errorMsg}</span>
+          ) : (
+            'Сировину не знайдено'
+          )}
         </div>
       )}
     </>
