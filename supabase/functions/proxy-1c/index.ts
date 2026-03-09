@@ -19,19 +19,28 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
   }
 
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } }
-  );
+  // Check if this is a service_role call (bypass getUser)
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const token = authHeader.replace('Bearer ', '');
+  const isServiceRole = serviceRoleKey && token === serviceRoleKey;
 
-  console.log('[proxy-1c] Verifying user...');
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) {
-    console.log('[proxy-1c] Auth failed:', userError?.message);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+  if (!isServiceRole) {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    console.log('[proxy-1c] Verifying user...');
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.log('[proxy-1c] Auth failed:', userError?.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: corsHeaders });
+    }
+    console.log('[proxy-1c] User verified:', user.email);
+  } else {
+    console.log('[proxy-1c] Service role bypass - test mode');
   }
-  console.log('[proxy-1c] User verified:', user.email);
 
   const BASE_URL = Deno.env.get('ONE_C_BASE_URL')!;
   const API_KEY = Deno.env.get('ONE_C_API_KEY')!;
