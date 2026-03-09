@@ -42,20 +42,39 @@ Deno.serve(async (req) => {
     console.log('[proxy-1c] Service role bypass - test mode');
   }
 
-  const BASE_URL = Deno.env.get('ONE_C_BASE_URL')!;
+  const RAW_BASE_URL = Deno.env.get('ONE_C_BASE_URL')!;
   const API_KEY = Deno.env.get('ONE_C_API_KEY')!;
+  // Normalize: remove trailing slash to prevent double-slash in URLs
+  const BASE_URL = RAW_BASE_URL.replace(/\/+$/, '');
 
-  console.log('[proxy-1c] BASE_URL:', BASE_URL ? `${BASE_URL.substring(0, 30)}...` : 'NOT SET');
-  console.log('[proxy-1c] API_KEY:', API_KEY ? 'SET' : 'NOT SET');
+  console.log('[proxy-1c] BASE_URL:', BASE_URL ? `${BASE_URL.substring(0, 50)}...` : 'NOT SET');
+  console.log('[proxy-1c] API_KEY length:', API_KEY ? API_KEY.length : 0);
+  // Log first 8 chars of API_KEY for debugging (safe - not full key)
+  console.log('[proxy-1c] API_KEY prefix:', API_KEY ? API_KEY.substring(0, 8) + '...' : 'EMPTY');
 
   const url = new URL(req.url);
   const action = url.searchParams.get('action');
   console.log('[proxy-1c] Action:', action);
 
+  // Try multiple auth methods - 1C often uses Basic auth
+  // API_KEY format detection:
+  // - If contains ":" → treat as username:password for Basic auth
+  // - Otherwise → try as Bearer token
+  const isBasicAuth = API_KEY.includes(':');
   const headers1c: Record<string, string> = {
-    'Authorization': `Bearer ${API_KEY}`,
     'Content-Type': 'application/json',
   };
+
+  if (isBasicAuth) {
+    // Basic auth: API_KEY = "username:password"
+    const base64Credentials = btoa(API_KEY);
+    headers1c['Authorization'] = `Basic ${base64Credentials}`;
+    console.log('[proxy-1c] Auth mode: Basic');
+  } else {
+    // Bearer token
+    headers1c['Authorization'] = `Bearer ${API_KEY}`;
+    console.log('[proxy-1c] Auth mode: Bearer');
+  }
 
   try {
     let response: Response;
@@ -115,11 +134,12 @@ Deno.serve(async (req) => {
           });
         }
         const body = await req.json();
-        console.log('[proxy-1c] POST to 1C:', `${BASE_URL}/contractors`);
+        targetUrl = `${BASE_URL}/contractors`;
+        console.log('[proxy-1c] POST to 1C:', targetUrl);
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10000);
         try {
-          response = await fetch(`${BASE_URL}/contractors`, {
+          response = await fetch(targetUrl, {
             method: 'POST',
             headers: headers1c,
             body: JSON.stringify(body),
@@ -143,11 +163,12 @@ Deno.serve(async (req) => {
           });
         }
         const body = await req.json();
-        console.log('[proxy-1c] POST to 1C:', `${BASE_URL}/supplier-orders`);
+        targetUrl = `${BASE_URL}/supplier-orders`;
+        console.log('[proxy-1c] POST to 1C:', targetUrl);
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10000);
         try {
-          response = await fetch(`${BASE_URL}/supplier-orders`, {
+          response = await fetch(targetUrl, {
             method: 'POST',
             headers: headers1c,
             body: JSON.stringify(body),
@@ -190,8 +211,20 @@ Deno.serve(async (req) => {
     clearTimeout(timeout);
 
     console.log('[proxy-1c] 1C response status:', response.status);
+    
+    // Log auth-related response headers for debugging 401
+    const wwwAuth = response.headers.get('WWW-Authenticate');
+    if (wwwAuth) {
+      console.log('[proxy-1c] WWW-Authenticate:', wwwAuth);
+    }
+    
     const data = await response.text();
     console.log('[proxy-1c] 1C response length:', data.length);
+    
+    // If 1C returns error, log response body for debugging
+    if (!response.ok) {
+      console.log('[proxy-1c] 1C error body:', data.substring(0, 500));
+    }
     
     return new Response(data, {
       status: response.status,
