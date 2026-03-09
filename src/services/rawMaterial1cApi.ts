@@ -21,8 +21,11 @@ export async function search1cRawMaterials(query: string, limit = 20): Promise<R
 
   if (!res.ok) {
     const errText = await res.text();
-    console.error('search1cRawMaterials error:', errText);
-    throw new Error(`1C API error: ${res.status}`);
+    console.error('search1cRawMaterials error:', res.status, errText);
+    if (res.status === 401) {
+      throw new Error('Помилка авторизації 1С (401). Перевірте налаштування API ключа.');
+    }
+    throw new Error(`Помилка 1С API: ${res.status}`);
   }
 
   const json = await res.json();
@@ -87,8 +90,11 @@ export async function search1cContractors(query: string, limit = 20): Promise<Su
 
   if (!res.ok) {
     const errText = await res.text();
-    console.error('search1cContractors error:', errText);
-    throw new Error(`1C API error: ${res.status}`);
+    console.error('search1cContractors error:', res.status, errText);
+    if (res.status === 401) {
+      throw new Error('Помилка авторизації 1С (401). Перевірте налаштування API ключа.');
+    }
+    throw new Error(`Помилка 1С API: ${res.status}`);
   }
 
   const json = await res.json();

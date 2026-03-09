@@ -15,6 +15,7 @@ export function SupplierAutocomplete({ value, onChange, disabled }: SupplierAuto
   const [results, setResults] = useState<Supplier1cCache[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -41,12 +42,15 @@ export function SupplierAutocomplete({ value, onChange, disabled }: SupplierAuto
     }
     debounceRef.current = setTimeout(async () => {
       setLoading(true);
+      setErrorMsg(null);
       try {
         const data = await search1cContractors(q, 15);
         setResults(data);
         setOpen(true);
-      } catch {
+      } catch (err: any) {
         setResults([]);
+        setErrorMsg(err?.message || 'Помилка пошуку');
+        setOpen(true);
       } finally {
         setLoading(false);
       }
@@ -106,7 +110,11 @@ export function SupplierAutocomplete({ value, onChange, disabled }: SupplierAuto
       )}
       {open && !loading && results.length === 0 && query.trim().length >= 2 && (
         <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg p-3 text-sm text-muted-foreground">
-          Постачальників не знайдено
+          {errorMsg ? (
+            <span className="text-destructive">{errorMsg}</span>
+          ) : (
+            'Постачальників не знайдено'
+          )}
         </div>
       )}
       {!open && !value && query.trim().length > 0 && query.trim().length < 2 && (
