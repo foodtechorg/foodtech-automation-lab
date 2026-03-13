@@ -1,45 +1,37 @@
 
 
-## Plan: Support empty 1C API key for test database
+## План: Додати підтримку ПДВ у формі рахунку на сировину
 
-### Problem
-The test 1C database requires no authentication. The Lovable secrets UI won't accept an empty value. We need to support a sentinel value (e.g., `NONE`) that tells `proxy-1c` to skip the `Authorization` header entirely.
+### Зміни
 
-### Changes
+**`src/components/purchase/RawMaterialInvoiceForm.tsx`**:
 
-**1. Update `supabase/functions/proxy-1c/index.ts`** — add a "no auth" mode:
+1. **Новий стан** `withVat` (boolean, за замовчуванням `false`) — перемикач "з ПДВ / без ПДВ" у секції "Постачальник та платник" (або окремим рядком поруч з платником).
 
-```text
-Current logic (lines 59-78):
-  API_KEY contains ":" → Basic Auth
-  Otherwise → Bearer Auth
+2. **Розширити `LocalItem`** — додати поле `priceWithVat: string`. Поле `price` стає ціною без ПДВ.
 
-New logic:
-  API_KEY is empty, "NONE", or "none" → No Authorization header
-  API_KEY contains ":" → Basic Auth
-  Otherwise → Bearer Auth
-```
+3. **Логіка автоматичного розрахунку**:
+   - Коли користувач вводить `price` (без ПДВ) → `priceWithVat = price * 1.2`
+   - Коли користувач вводить `priceWithVat` (з ПДВ) → `price = priceWithVat / 1.2`
+   - Відстежувати яке поле редагується останнім через параметр у `updateItem`.
 
-Specifically, wrap lines 63-78 with a check:
+4. **Таблиця позицій** — умовний рендеринг колонок:
+   - Якщо `withVat === false`: одна колонка "Ціна, ₴" (як зараз)
+   - Якщо `withVat === true`: дві колонки "Ціна без ПДВ, ₴" та "Ціна з ПДВ, ₴", обидві з input-полями
 
-```typescript
-const isNoAuth = !API_KEY || API_KEY === 'NONE' || API_KEY === 'none';
-const isBasicAuth = !isNoAuth && API_KEY.includes(':');
-const headers1c: Record<string, string> = {
-  'Content-Type': 'application/json',
-};
+5. **Блок підсумків** — умовний рендеринг:
+   - Якщо `withVat === false`: один рядок "Загальна сума: X ₴"
+   - Якщо `withVat === true`: три рядки:
+     - "Загалом без ПДВ: X ₴"
+     - "ПДВ (20%): Y ₴"
+     - "Загалом з ПДВ: Z ₴"
 
-if (isNoAuth) {
-  console.log('[proxy-1c] Auth mode: NONE (no auth header)');
-} else if (isBasicAuth) {
-  // existing Basic auth logic
-} else {
-  // existing Bearer logic
-}
-```
+6. **Збереження** — `price` у `createRawMaterialInvoiceItems` залишається ціною без ПДВ (базова ціна). ПДВ-інформація поки що зберігається лише на рівні UI-розрахунку.
 
-**2. Set secret `ONE_C_API_KEY` to `NONE`** — this passes the UI validation and triggers the no-auth path.
+### Технічні деталі
 
-### After deploying
-Test with `action=search-raw-materials&q=Час` to verify the test 1C database responds without authentication.
+- Константа `VAT_RATE = 0.2`
+- `getLineAmount` використовує `price` (без ПДВ) × `qty` як базову суму
+- `getLineAmountWithVat` = `getLineAmount` × 1.2
+- Перемикач реалізувати через `Switch` або `Select` з двома опціями
 
