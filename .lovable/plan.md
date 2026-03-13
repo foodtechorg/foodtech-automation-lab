@@ -1,37 +1,19 @@
 
 
-## План: Додати підтримку ПДВ у формі рахунку на сировину
+## Plan: Update 1C API credentials for test database
 
-### Зміни
+### Context
+The test 1C database is a copy without authentication keys. The URL (`ONE_C_BASE_URL`) remains the same. We need to update only the `ONE_C_API_KEY` secret.
 
-**`src/components/purchase/RawMaterialInvoiceForm.tsx`**:
+### What needs to happen
 
-1. **Новий стан** `withVat` (boolean, за замовчуванням `false`) — перемикач "з ПДВ / без ПДВ" у секції "Постачальник та платник" (або окремим рядком поруч з платником).
+**Update the `ONE_C_API_KEY` secret** to `api_user:` (username with empty password).
 
-2. **Розширити `LocalItem`** — додати поле `priceWithVat: string`. Поле `price` стає ціною без ПДВ.
+The existing `proxy-1c` Edge Function already handles this correctly:
+- It detects the colon in the key → switches to Basic Auth mode
+- `btoa("api_user:")` will produce the correct Base64-encoded header
+- No code changes are needed
 
-3. **Логіка автоматичного розрахунку**:
-   - Коли користувач вводить `price` (без ПДВ) → `priceWithVat = price * 1.2`
-   - Коли користувач вводить `priceWithVat` (з ПДВ) → `price = priceWithVat / 1.2`
-   - Відстежувати яке поле редагується останнім через параметр у `updateItem`.
-
-4. **Таблиця позицій** — умовний рендеринг колонок:
-   - Якщо `withVat === false`: одна колонка "Ціна, ₴" (як зараз)
-   - Якщо `withVat === true`: дві колонки "Ціна без ПДВ, ₴" та "Ціна з ПДВ, ₴", обидві з input-полями
-
-5. **Блок підсумків** — умовний рендеринг:
-   - Якщо `withVat === false`: один рядок "Загальна сума: X ₴"
-   - Якщо `withVat === true`: три рядки:
-     - "Загалом без ПДВ: X ₴"
-     - "ПДВ (20%): Y ₴"
-     - "Загалом з ПДВ: Z ₴"
-
-6. **Збереження** — `price` у `createRawMaterialInvoiceItems` залишається ціною без ПДВ (базова ціна). ПДВ-інформація поки що зберігається лише на рівні UI-розрахунку.
-
-### Технічні деталі
-
-- Константа `VAT_RATE = 0.2`
-- `getLineAmount` використовує `price` (без ПДВ) × `qty` як базову суму
-- `getLineAmountWithVat` = `getLineAmount` × 1.2
-- Перемикач реалізувати через `Switch` або `Select` з двома опціями
+### After updating
+We can test the integration by calling `proxy-1c` with `action=search-raw-materials&q=Час` to verify the test 1C database responds successfully.
 
