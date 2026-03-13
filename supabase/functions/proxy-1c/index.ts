@@ -56,22 +56,23 @@ Deno.serve(async (req) => {
   const action = url.searchParams.get('action');
   console.log('[proxy-1c] Action:', action);
 
-  // Try multiple auth methods - 1C often uses Basic auth
-  // API_KEY format detection:
-  // - If contains ":" → treat as username:password for Basic auth
-  // - Otherwise → try as Bearer token
-  const isBasicAuth = API_KEY.includes(':');
+  // Auth mode detection:
+  // - "NONE" / "none" / empty → no Authorization header (test databases)
+  // - Contains ":" → Basic auth (username:password)
+  // - Otherwise → Bearer token
+  const isNoAuth = !API_KEY || API_KEY === 'NONE' || API_KEY === 'none';
+  const isBasicAuth = !isNoAuth && API_KEY.includes(':');
   const headers1c: Record<string, string> = {
     'Content-Type': 'application/json',
   };
 
-  if (isBasicAuth) {
-    // Basic auth: API_KEY = "username:password"
+  if (isNoAuth) {
+    console.log('[proxy-1c] Auth mode: NONE (no auth header)');
+  } else if (isBasicAuth) {
     const base64Credentials = btoa(API_KEY);
     headers1c['Authorization'] = `Basic ${base64Credentials}`;
     console.log('[proxy-1c] Auth mode: Basic');
   } else {
-    // Bearer token
     headers1c['Authorization'] = `Bearer ${API_KEY}`;
     console.log('[proxy-1c] Auth mode: Bearer');
   }
