@@ -43,11 +43,8 @@ export function HandoffDialog({
       queryClient.invalidateQueries({ queryKey: ['recipe-samples'] });
       queryClient.invalidateQueries({ queryKey: ['development-request'] });
       toast.success(`Зразок "${result.display_name}" передано на тестування`);
-      onOpenChange(false);
-      setWorkingTitle('');
-      onSuccess?.(result.display_name);
 
-      // Send notification to request author
+      // Send notification BEFORE closing dialog / calling onSuccess
       try {
         const { data: request } = await supabase
           .from('requests')
@@ -72,15 +69,19 @@ export function HandoffDialog({
                 customer_company: request.customer_company,
                 request_url: requestUrl,
               },
-              `sample_ready_${sampleId}`, // Unique event ID for idempotency
+              `sample_ready_${sampleId}`,
               [authorProfile.id]
             );
           }
         }
       } catch (notifyError) {
         console.error('Failed to send notification:', notifyError);
-        // Don't block the main flow if notification fails
       }
+
+      // Close dialog and notify parent AFTER notification is enqueued
+      onOpenChange(false);
+      setWorkingTitle('');
+      onSuccess?.(result.display_name);
     },
     onError: (error: Error) => {
       toast.error(`Помилка: ${error.message}`);

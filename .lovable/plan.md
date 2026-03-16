@@ -1,32 +1,37 @@
 
 
-## План: Виправити відправку нотифікації при передачі на тестування
-
-### Проблема
-
-У `QuickHandoffDialog` (і частково у `HandoffDialog`) код нотифікації виконується **після** `onSuccess()`, який закриває діалог і перезавантажує дані. Якщо `onSuccess` викликає навігацію або unmount компонента, промис `enqueueNotificationEvent` обривається і нотифікація ніколи не створюється.
-
-### Рішення
-
-Перенести виклик нотифікації **до** закриття діалогу та `onSuccess()`. Обернути у `try/catch`, щоб помилка нотифікації не блокувала основний потік.
+## План: Додати підтримку ПДВ у формі рахунку на сировину
 
 ### Зміни
 
-**1. `src/components/development/QuickHandoffDialog.tsx`** — переставити порядок:
+**`src/components/purchase/RawMaterialInvoiceForm.tsx`**:
 
-```text
-Поточний порядок (рядки 55-100):
-  1. quickHandoffToTesting()
-  2. toast
-  3. resetForm + closeDialog + onSuccess()  ← unmount
-  4. enqueueNotificationEvent()  ← обривається
+1. **Новий стан** `withVat` (boolean, за замовчуванням `false`) — перемикач "з ПДВ / без ПДВ" у секції "Постачальник та платник" (або окремим рядком поруч з платником).
 
-Новий порядок:
-  1. quickHandoffToTesting()
-  2. toast
-  3. enqueueNotificationEvent()  ← виконується до unmount
-  4. resetForm + closeDialog + onSuccess()
-```
+2. **Розширити `LocalItem`** — додати поле `priceWithVat: string`. Поле `price` стає ціною без ПДВ.
 
-**2. `src/components/development/HandoffDialog.tsx`** — аналогічно переставити: нотифікацію перед `onOpenChange(false)` та `onSuccess()`.
+3. **Логіка автоматичного розрахунку**:
+   - Коли користувач вводить `price` (без ПДВ) → `priceWithVat = price * 1.2`
+   - Коли користувач вводить `priceWithVat` (з ПДВ) → `price = priceWithVat / 1.2`
+   - Відстежувати яке поле редагується останнім через параметр у `updateItem`.
+
+4. **Таблиця позицій** — умовний рендеринг колонок:
+   - Якщо `withVat === false`: одна колонка "Ціна, ₴" (як зараз)
+   - Якщо `withVat === true`: дві колонки "Ціна без ПДВ, ₴" та "Ціна з ПДВ, ₴", обидві з input-полями
+
+5. **Блок підсумків** — умовний рендеринг:
+   - Якщо `withVat === false`: один рядок "Загальна сума: X ₴"
+   - Якщо `withVat === true`: три рядки:
+     - "Загалом без ПДВ: X ₴"
+     - "ПДВ (20%): Y ₴"
+     - "Загалом з ПДВ: Z ₴"
+
+6. **Збереження** — `price` у `createRawMaterialInvoiceItems` залишається ціною без ПДВ (базова ціна). ПДВ-інформація поки що зберігається лише на рівні UI-розрахунку.
+
+### Технічні деталі
+
+- Константа `VAT_RATE = 0.2`
+- `getLineAmount` використовує `price` (без ПДВ) × `qty` як базову суму
+- `getLineAmountWithVat` = `getLineAmount` × 1.2
+- Перемикач реалізувати через `Switch` або `Select` з двома опціями
 

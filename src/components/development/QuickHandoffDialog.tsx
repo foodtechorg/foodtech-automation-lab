@@ -58,14 +58,8 @@ export function QuickHandoffDialog({
         title: 'Успішно',
         description: 'Зразок передано на тестування',
       });
-      
-      // Reset form
-      setProductName('');
-      setWeightG('');
-      onOpenChange(false);
-      onSuccess();
 
-      // Send notification to request author
+      // Send notification to request author BEFORE closing dialog / calling onSuccess
       try {
         const { data: request } = await supabase
           .from('requests')
@@ -98,6 +92,12 @@ export function QuickHandoffDialog({
       } catch (notifyError) {
         console.error('Failed to send notification:', notifyError);
       }
+
+      // Reset form and close dialog AFTER notification is enqueued
+      setProductName('');
+      setWeightG('');
+      onOpenChange(false);
+      onSuccess();
     } catch (error: any) {
       toast({
         title: 'Помилка',
