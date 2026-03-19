@@ -90,7 +90,7 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
-        targetUrl = `${BASE_URL}/Search?q=${encodeURIComponent(q)}&limit=${limit}`;
+        targetUrl = `${BASE_URL}/Search/${encodeURIComponent(q)}`;
         break;
       }
 
