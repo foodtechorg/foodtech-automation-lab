@@ -29,12 +29,12 @@ export async function search1cRawMaterials(query: string, limit = 20): Promise<R
   }
 
   const json = await res.json();
-  const items: any[] = json.items || [];
+  const items: any[] = Array.isArray(json) ? json : json.items ? json.items : [json];
 
   return items.map((item) => ({
-    raw_material_1c_id: item.id,
-    name: item.name,
-    default_uom: item.defaultUom || 'кг',
+    raw_material_1c_id: item.id || item.code || item.Ref_Key || '',
+    name: item.name || item.Description || '',
+    default_uom: item.defaultUom || item.unit || 'кг',
     is_active: true,
     synced_at: new Date().toISOString(),
   }));
