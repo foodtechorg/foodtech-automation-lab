@@ -39,7 +39,7 @@ export function LabResultsForm({ sampleId, sampleStatus, onLabCompleted, canEdit
 
   // Fetch existing lab results
   // Load lab results for all stages where they should be visible (Lab through HandedOff)
-  const shouldLoadLabResults = ['Lab', 'LabDone', 'Pilot', 'PilotDone', 'ReadyForHandoff', 'HandedOff'].includes(sampleStatus);
+  const shouldLoadLabResults = ['Lab', 'LabDone', 'Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(sampleStatus);
   
   const { data: labResults, isLoading } = useQuery({
     queryKey: ['lab-results', sampleId],
