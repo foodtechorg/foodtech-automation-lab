@@ -1,37 +1,43 @@
 
 
-## План: Додати підтримку ПДВ у формі рахунку на сировину
+## План: Виправити відображення лабораторних та пілотних результатів
+
+### Проблема
+
+Компоненти `LabResultsForm` та `PilotResultsForm` мають список статусів, при яких дані завантажуються з бази. Цей список **не збігається** зі списком статусів, при яких секція відображається.
+
+**SampleDetail** показує секцію лабораторії при статусах:
+`Lab, LabDone, Pilot, PilotDone, Testing, Approved, Rejected, ReadyForHandoff, HandedOff`
+
+**LabResultsForm** завантажує дані лише при:
+`Lab, LabDone, Pilot, PilotDone, ReadyForHandoff, HandedOff`
+
+**Відсутні**: `Testing`, `Approved`, `Rejected` — тому при цих статусах форма показується, але дані не запитуються і всі поля порожні ("—").
+
+Аналогічно для **PilotResultsForm** — query увімкнений тільки при `Pilot` та `PilotDone` (рядок 54, 61), а секція показується і при `Testing`, `Approved`, `Rejected`, `ReadyForHandoff`, `HandedOff`.
 
 ### Зміни
 
-**`src/components/purchase/RawMaterialInvoiceForm.tsx`**:
+**1. `src/components/development/LabResultsForm.tsx`** — рядок 54:
 
-1. **Новий стан** `withVat` (boolean, за замовчуванням `false`) — перемикач "з ПДВ / без ПДВ" у секції "Постачальник та платник" (або окремим рядком поруч з платником).
+Додати `Testing`, `Approved`, `Rejected` до `shouldLoadLabResults`:
+```typescript
+const shouldLoadLabResults = ['Lab', 'LabDone', 'Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(sampleStatus);
+```
 
-2. **Розширити `LocalItem`** — додати поле `priceWithVat: string`. Поле `price` стає ціною без ПДВ.
+**2. `src/components/development/PilotResultsForm.tsx`** — рядки 54, 61:
 
-3. **Логіка автоматичного розрахунку**:
-   - Коли користувач вводить `price` (без ПДВ) → `priceWithVat = price * 1.2`
-   - Коли користувач вводить `priceWithVat` (з ПДВ) → `price = priceWithVat / 1.2`
-   - Відстежувати яке поле редагується останнім через параметр у `updateItem`.
+Змінити `showForm` та `enabled`, щоб включити всі пост-пілотні статуси:
+```typescript
+const showForm = ['Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(sampleStatus);
+```
 
-4. **Таблиця позицій** — умовний рендеринг колонок:
-   - Якщо `withVat === false`: одна колонка "Ціна, ₴" (як зараз)
-   - Якщо `withVat === true`: дві колонки "Ціна без ПДВ, ₴" та "Ціна з ПДВ, ₴", обидві з input-полями
+Також `isReadOnly` повинен бути `true` для всіх статусів крім `Pilot`:
+```typescript
+const isReadOnly = sampleStatus !== 'Pilot' || !canEdit;
+```
 
-5. **Блок підсумків** — умовний рендеринг:
-   - Якщо `withVat === false`: один рядок "Загальна сума: X ₴"
-   - Якщо `withVat === true`: три рядки:
-     - "Загалом без ПДВ: X ₴"
-     - "ПДВ (20%): Y ₴"
-     - "Загалом з ПДВ: Z ₴"
+### Результат
 
-6. **Збереження** — `price` у `createRawMaterialInvoiceItems` залишається ціною без ПДВ (базова ціна). ПДВ-інформація поки що зберігається лише на рівні UI-розрахунку.
-
-### Технічні деталі
-
-- Константа `VAT_RATE = 0.2`
-- `getLineAmount` використовує `price` (без ПДВ) × `qty` як базову суму
-- `getLineAmountWithVat` = `getLineAmount` × 1.2
-- Перемикач реалізувати через `Switch` або `Select` з двома опціями
+Після змін усі користувачі з доступом до модуля Розробка бачитимуть заповнені дані лабораторних аналізів та дегустаційних листів на всіх етапах після їх заповнення.
 
