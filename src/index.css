@@ -129,6 +129,18 @@
   h1, h2, h3, h4, h5, h6 {
     font-family: 'Space Grotesk', sans-serif;
   }
+
+  /* Disabled inputs: readable text, subtle bg to signal read-only */
+  input:disabled,
+  textarea:disabled,
+  select:disabled,
+  [role="combobox"][aria-disabled="true"],
+  button:disabled[role="combobox"] {
+    opacity: 1 !important;
+    color: hsl(var(--foreground)) !important;
+    -webkit-text-fill-color: hsl(var(--foreground)) !important;
+    background-color: hsl(var(--muted)) !important;
+  }
 }
 
 @layer utilities {
