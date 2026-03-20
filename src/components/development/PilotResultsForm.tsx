@@ -51,8 +51,8 @@ export function PilotResultsForm({ sampleId, sampleStatus, onPilotCompleted, can
   const isLabDone = sampleStatus === 'LabDone';
   const isPilot = sampleStatus === 'Pilot';
   const isPilotDone = sampleStatus === 'PilotDone';
-  const showForm = isPilot || isPilotDone;
-  const isReadOnly = isPilotDone || !canEdit;
+  const showForm = ['Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(sampleStatus);
+  const isReadOnly = sampleStatus !== 'Pilot' || !canEdit;
 
   // Fetch existing pilot results
   const { data: pilotResults, isLoading } = useQuery({
