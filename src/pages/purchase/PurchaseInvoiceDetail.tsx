@@ -305,6 +305,10 @@ export default function PurchaseInvoiceDetail() {
       toast.error("Необхідно завантажити рахунок постачальника");
       return;
     }
+    if (!payerEntity) {
+      toast.error("Оберіть платника");
+      return;
+    }
     setIsSubmitting(true);
     try {
       // Save changes first
@@ -313,6 +317,7 @@ export default function PurchaseInvoiceDetail() {
         supplier_contact: supplierContact || null,
         description: description || null,
         payment_terms: paymentTerms,
+        payer_entity: payerEntity,
         expected_date: expectedDate?.toISOString() || null,
         planned_payment_date: plannedPaymentDate?.toISOString() || null,
         status: "PENDING_COO"
