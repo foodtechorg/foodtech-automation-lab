@@ -729,6 +729,20 @@ export default function PurchaseInvoiceDetail() {
                 <Input id="supplierContact" value={supplierContact} onChange={e => setSupplierContact(e.target.value)} placeholder="Ім'я, телефон" />
               </div>
               <div className="space-y-2">
+                <Label>Платник *</Label>
+                <Select value={payerEntity} onValueChange={v => setPayerEntity(v as PayerEntity)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Оберіть платника" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FOODTECH">Фудтек</SelectItem>
+                    <SelectItem value="MAKROS">Макрос</SelectItem>
+                    <SelectItem value="FOODTECH_PLUS">Фудтек+</SelectItem>
+                    <SelectItem value="FOP">ФОП</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label>Заявка</Label>
                 {requestNumber ? <Button variant="link" className="p-0 h-auto font-medium" onClick={() => navigate(`/purchase/requests/${invoice.request_id}`)}>
                     {requestNumber}
