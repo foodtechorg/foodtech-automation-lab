@@ -43,6 +43,13 @@ const paymentTermsLabels: Record<PaymentTerms, string> = {
   POSTPAYMENT: 'Постоплата',
 };
 
+const payerEntityLabels: Record<string, string> = {
+  FOODTECH: 'Фудтек',
+  FOP: 'ФОП',
+  MAKROS: 'Макрос',
+  FOODTECH_PLUS: 'Фудтек+',
+};
+
 export default function PurchaseInvoices() {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
@@ -104,6 +111,7 @@ export default function PurchaseInvoices() {
                 <TableRow>
                   <TableHead>Номер</TableHead>
                   <TableHead>Постачальник</TableHead>
+                  <TableHead>Платник</TableHead>
                   <TableHead>Умови</TableHead>
                   <TableHead className="text-right">Сума</TableHead>
                   <TableHead>Статус</TableHead>
@@ -119,6 +127,7 @@ export default function PurchaseInvoices() {
                   >
                     <TableCell className="font-medium">{invoice.number}</TableCell>
                     <TableCell>{invoice.supplier_name}</TableCell>
+                    <TableCell>{invoice.payer_entity ? payerEntityLabels[invoice.payer_entity] || invoice.payer_entity : '—'}</TableCell>
                     <TableCell>{paymentTermsLabels[invoice.payment_terms]}</TableCell>
                     <TableCell className="text-right font-medium">
                       {formatAmount(invoice.amount, invoice.currency)}

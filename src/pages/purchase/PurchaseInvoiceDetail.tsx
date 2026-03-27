@@ -803,6 +803,10 @@ export default function PurchaseInvoiceDetail() {
                 {invoice.supplier_contact && <p className="text-sm text-muted-foreground">{invoice.supplier_contact}</p>}
               </div>
               <div>
+                <p className="text-sm text-muted-foreground">Платник</p>
+                <p className="font-medium">{invoice.payer_entity ? payerEntityLabels[invoice.payer_entity] || invoice.payer_entity : "—"}</p>
+              </div>
+              <div>
                 <p className="text-sm text-muted-foreground">Заявка</p>
                 {requestNumber ? <Button variant="link" className="p-0 h-auto font-medium" onClick={() => navigate(`/purchase/requests/${invoice.request_id}`)}>
                     {requestNumber}
