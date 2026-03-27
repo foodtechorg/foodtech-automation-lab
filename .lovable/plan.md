@@ -1,39 +1,67 @@
 
 
-## План: Надати `finance_deputy` ті самі права, що й `chief_accountant`
+## План: Додати поле "Платник" до рахунків на закупівлю ТМЦ
 
 ### Поточний стан
 
-Роль `finance_deputy` (Заст. директора з фінансів) існує в системі типів, але **не має жодних функціональних прав** — ані у фронтенді, ані в RLS-політиках бази даних. Роль `chief_accountant` (Головний бухгалтер) натомість має доступ до черги закупівель, рахунків до оплати та відповідних дій.
+- Таблиця `purchase_invoices` **не має** колонки `payer_entity`
+- Enum `payer_entity` в БД має лише 2 значення: `FOODTECH`, `FOP`
+- Потрібно 4 платники: **Фудтек, Макрос, Фудтек+, ФОП**
+- Поле використовується тільки в модулі сировини (`raw_material_invoices`)
 
-### Місця, де потрібно додати `finance_deputy` поруч з `chief_accountant`
+### Зміни
 
-#### Фронтенд (6 файлів):
+#### 1. Міграція БД
 
-1. **`src/App.tsx`** — маршрут `/purchase/queue`: додати `'finance_deputy'` до `allowedRoles`
-2. **`src/components/purchase/PurchaseNavTabs.tsx`** — `canSeeQueue`: додати `|| profile?.role === 'finance_deputy'`
-3. **`src/pages/purchase/PurchaseInvoiceDetail.tsx`** — `isTreasurer`: додати `|| profile?.role === "finance_deputy"`
-4. **`src/pages/purchase/ApprovedRequestsQueue.tsx`** — `isTreasurer` (рядок 89): додати `|| profile?.role === 'finance_deputy'`; `getPageTitle` (рядок 801): додати `|| profile?.role === 'finance_deputy'`
-5. **`src/components/AppSidebar.tsx`** — `queueRoles`: додати `'finance_deputy'`
+- Додати нові значення до enum: `ALTER TYPE payer_entity ADD VALUE 'MAKROS'; ALTER TYPE payer_entity ADD VALUE 'FOODTECH_PLUS';`
+- Додати колонку `payer_entity` до `purchase_invoices` (nullable для існуючих записів, але обов'язкова на фронтенді при відправці)
+- Оновити RLS-політики, якщо потрібно (колонка не впливає на доступ — не потрібно)
 
-#### RLS-політики (міграція SQL):
+#### 2. Типи (`src/types/purchase.ts`)
 
-Додати `has_role(auth.uid(), 'finance_deputy'::app_role)` у всі політики, де вже є `chief_accountant`:
+- Додати `PayerEntity` тип: `'FOODTECH' | 'FOP' | 'MAKROS' | 'FOODTECH_PLUS'`
+- Додати `payer_entity: PayerEntity | null` до `PurchaseInvoice`
+- Додати `payer_entity?: PayerEntity` до `CreatePurchaseInvoicePayload`
 
-- **purchase_invoices**: SELECT та UPDATE
-- **purchase_invoice_items**: SELECT, INSERT, UPDATE
-- **purchase_invoice_attachments**: SELECT
-- **purchase_requests**: SELECT, UPDATE
-- **purchase_request_items**: SELECT
-- **purchase_request_attachments**: SELECT
-- **purchase_logs**: SELECT (для entity_type REQUEST та INVOICE)
-- **raw_material_invoices**: SELECT та UPDATE (якщо `chief_accountant` там присутній)
+#### 3. Також оновити `src/types/rawMaterial.ts`
 
-### Технічна деталь
+- Розширити `PayerEntity` тип новими значеннями
 
-Кожна RLS-політика буде пересотворена (`DROP POLICY` + `CREATE POLICY`) з додаванням `OR has_role(auth.uid(), 'finance_deputy'::app_role)` поруч з кожним `has_role(auth.uid(), 'chief_accountant'::app_role)`.
+#### 4. Форма рахунку (`src/pages/purchase/PurchaseInvoiceDetail.tsx`)
 
-### Результат
+- Додати стейт `payerEntity` та Select з 4 варіантами
+- Розмістити між "Контактна особа" та "Заявка" в сітці
+- Включити в `handleSave` та `handleSubmitForApproval` (валідація — обов'язкове поле)
+- Показувати в read-only режимі
 
-Заступник директора з фінансів отримає повний доступ до черги закупівель, рахунків до оплати, та зможе виконувати ті самі дії, що й головний бухгалтер.
+#### 5. Список рахунків (`src/pages/purchase/PurchaseInvoices.tsx`)
+
+- Додати колонку "Платник" в таблицю
+
+#### 6. Черга — рахунки на погодження та до оплати (`src/pages/purchase/ApprovedRequestsQueue.tsx`)
+
+- Додати колонку "Платник" в таблиці COO/CEO рахунків та TO_PAY
+
+#### 7. Мапа лейблів
+
+Створити спільну мапу для відображення:
+```typescript
+const payerEntityLabels: Record<string, string> = {
+  FOODTECH: 'Фудтек',
+  FOP: 'ФОП',
+  MAKROS: 'Макрос',
+  FOODTECH_PLUS: 'Фудтек+',
+};
+```
+
+### Файли, що змінюються
+
+| Файл | Зміна |
+|---|---|
+| Міграція SQL | Розширення enum + нова колонка |
+| `src/types/purchase.ts` | Тип PayerEntity, поле в PurchaseInvoice |
+| `src/types/rawMaterial.ts` | Розширення PayerEntity |
+| `src/pages/purchase/PurchaseInvoiceDetail.tsx` | Select платника в формі + read-only + save/submit |
+| `src/pages/purchase/PurchaseInvoices.tsx` | Колонка "Платник" |
+| `src/pages/purchase/ApprovedRequestsQueue.tsx` | Колонка "Платник" в 3 таблицях рахунків |
 
