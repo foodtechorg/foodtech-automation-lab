@@ -142,6 +142,7 @@ export default function PurchaseInvoiceDetail() {
         setSupplierContact(invoiceData.supplier_contact || "");
         setDescription(invoiceData.description || "");
         setPaymentTerms(invoiceData.payment_terms);
+        setPayerEntity(invoiceData.payer_entity || "");
         setExpectedDate(invoiceData.expected_date ? new Date(invoiceData.expected_date) : undefined);
         setPlannedPaymentDate(invoiceData.planned_payment_date ? new Date(invoiceData.planned_payment_date) : undefined);
 
@@ -228,6 +229,7 @@ export default function PurchaseInvoiceDetail() {
         supplier_contact: supplierContact || null,
         description: description || null,
         payment_terms: paymentTerms,
+        payer_entity: payerEntity || null,
         expected_date: expectedDate?.toISOString() || null,
         planned_payment_date: plannedPaymentDate?.toISOString() || null
       });
@@ -237,6 +239,7 @@ export default function PurchaseInvoiceDetail() {
         supplier_contact: supplierContact || null,
         description: description || null,
         payment_terms: paymentTerms,
+        payer_entity: (payerEntity as PayerEntity) || null,
         expected_date: expectedDate?.toISOString() || null,
         planned_payment_date: plannedPaymentDate?.toISOString() || null
       } : null);
