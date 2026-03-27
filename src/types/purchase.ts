@@ -11,6 +11,8 @@ export type PurchaseItemStatus = 'PENDING' | 'IN_PROGRESS' | 'ORDERED' | 'DELIVE
 
 export type PaymentTerms = 'PREPAYMENT' | 'POSTPAYMENT';
 
+export type PayerEntity = 'FOODTECH' | 'FOP' | 'MAKROS' | 'FOODTECH_PLUS';
+
 export type ApprovalDecision = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export type PurchaseLogEntityType = 'REQUEST' | 'INVOICE' | 'RAW_INVOICE';
@@ -71,6 +73,7 @@ export interface PurchaseInvoice {
   ceo_comment: string | null;
   ceo_decided_by: string | null;
   ceo_decided_at: string | null;
+  payer_entity: PayerEntity | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -126,6 +129,7 @@ export interface CreatePurchaseInvoicePayload {
   supplier_contact?: string;
   description?: string;
   payment_terms?: PaymentTerms;  // Optional for draft creation
+  payer_entity?: PayerEntity;
   invoice_date?: string;
   expected_date?: string;
   planned_payment_date?: string;

@@ -774,6 +774,7 @@ export type Database = {
           invoice_date: string | null
           number: string
           paid_date: string | null
+          payer_entity: Database["public"]["Enums"]["payer_entity"] | null
           payment_doc_no: string | null
           payment_terms: Database["public"]["Enums"]["payment_terms"]
           planned_payment_date: string | null
@@ -804,6 +805,7 @@ export type Database = {
           invoice_date?: string | null
           number?: string
           paid_date?: string | null
+          payer_entity?: Database["public"]["Enums"]["payer_entity"] | null
           payment_doc_no?: string | null
           payment_terms?: Database["public"]["Enums"]["payment_terms"]
           planned_payment_date?: string | null
@@ -834,6 +836,7 @@ export type Database = {
           invoice_date?: string | null
           number?: string
           paid_date?: string | null
+          payer_entity?: Database["public"]["Enums"]["payer_entity"] | null
           payment_doc_no?: string | null
           payment_terms?: Database["public"]["Enums"]["payment_terms"]
           planned_payment_date?: string | null
@@ -1941,7 +1944,7 @@ export type Database = {
         | "sent"
         | "failed"
         | "canceled"
-      payer_entity: "FOODTECH" | "FOP"
+      payer_entity: "FOODTECH" | "FOP" | "MAKROS" | "FOODTECH_PLUS"
       payment_terms: "PREPAYMENT" | "POSTPAYMENT"
       priority: "LOW" | "MEDIUM" | "HIGH"
       purchase_invoice_status:
@@ -2190,7 +2193,7 @@ export const Constants = {
         "failed",
         "canceled",
       ],
-      payer_entity: ["FOODTECH", "FOP"],
+      payer_entity: ["FOODTECH", "FOP", "MAKROS", "FOODTECH_PLUS"],
       payment_terms: ["PREPAYMENT", "POSTPAYMENT"],
       priority: ["LOW", "MEDIUM", "HIGH"],
       purchase_invoice_status: [

@@ -20,7 +20,7 @@ import { AttachmentsList } from "@/components/purchase/AttachmentsList";
 import { FileUploadZone } from "@/components/purchase/FileUploadZone";
 import { SupplierInvoiceUpload } from "@/components/purchase/SupplierInvoiceUpload";
 import { supabase } from "@/integrations/supabase/client";
-import type { PurchaseInvoice, PurchaseInvoiceItem, PurchaseInvoiceStatus, PaymentTerms, PurchaseLog, PurchaseRequestItem } from "@/types/purchase";
+import type { PurchaseInvoice, PurchaseInvoiceItem, PurchaseInvoiceStatus, PaymentTerms, PayerEntity, PurchaseLog, PurchaseRequestItem } from "@/types/purchase";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
 import { toast } from "sonner";
@@ -48,6 +48,12 @@ const statusVariants: Record<PurchaseInvoiceStatus, "default" | "secondary" | "d
 const paymentTermsLabels: Record<PaymentTerms, string> = {
   PREPAYMENT: "Передоплата",
   POSTPAYMENT: "Постоплата"
+};
+const payerEntityLabels: Record<string, string> = {
+  FOODTECH: 'Фудтек',
+  FOP: 'ФОП',
+  MAKROS: 'Макрос',
+  FOODTECH_PLUS: 'Фудтек+',
 };
 interface InvoiceItemWithRemaining extends PurchaseInvoiceItem {
   ordered: number;
@@ -96,6 +102,7 @@ export default function PurchaseInvoiceDetail() {
   const [supplierContact, setSupplierContact] = useState("");
   const [description, setDescription] = useState("");
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerms>("PREPAYMENT");
+  const [payerEntity, setPayerEntity] = useState<PayerEntity | "">("");
   const [expectedDate, setExpectedDate] = useState<Date | undefined>();
   const [plannedPaymentDate, setPlannedPaymentDate] = useState<Date | undefined>();
 
@@ -135,6 +142,7 @@ export default function PurchaseInvoiceDetail() {
         setSupplierContact(invoiceData.supplier_contact || "");
         setDescription(invoiceData.description || "");
         setPaymentTerms(invoiceData.payment_terms);
+        setPayerEntity(invoiceData.payer_entity || "");
         setExpectedDate(invoiceData.expected_date ? new Date(invoiceData.expected_date) : undefined);
         setPlannedPaymentDate(invoiceData.planned_payment_date ? new Date(invoiceData.planned_payment_date) : undefined);
 
@@ -221,6 +229,7 @@ export default function PurchaseInvoiceDetail() {
         supplier_contact: supplierContact || null,
         description: description || null,
         payment_terms: paymentTerms,
+        payer_entity: payerEntity || null,
         expected_date: expectedDate?.toISOString() || null,
         planned_payment_date: plannedPaymentDate?.toISOString() || null
       });
@@ -230,6 +239,7 @@ export default function PurchaseInvoiceDetail() {
         supplier_contact: supplierContact || null,
         description: description || null,
         payment_terms: paymentTerms,
+        payer_entity: (payerEntity as PayerEntity) || null,
         expected_date: expectedDate?.toISOString() || null,
         planned_payment_date: plannedPaymentDate?.toISOString() || null
       } : null);
@@ -240,7 +250,7 @@ export default function PurchaseInvoiceDetail() {
     } finally {
       setIsSaving(false);
     }
-  }, [id, canEdit, supplierName, supplierContact, description, paymentTerms, expectedDate, plannedPaymentDate]);
+  }, [id, canEdit, supplierName, supplierContact, description, paymentTerms, payerEntity, expectedDate, plannedPaymentDate]);
   const handleItemUpdate = async (itemId: string, field: "quantity" | "price", value: number) => {
     if (!canEdit) return;
     const item = items.find(i => i.id === itemId);
@@ -295,6 +305,10 @@ export default function PurchaseInvoiceDetail() {
       toast.error("Необхідно завантажити рахунок постачальника");
       return;
     }
+    if (!payerEntity) {
+      toast.error("Оберіть платника");
+      return;
+    }
     setIsSubmitting(true);
     try {
       // Save changes first
@@ -303,6 +317,7 @@ export default function PurchaseInvoiceDetail() {
         supplier_contact: supplierContact || null,
         description: description || null,
         payment_terms: paymentTerms,
+        payer_entity: payerEntity,
         expected_date: expectedDate?.toISOString() || null,
         planned_payment_date: plannedPaymentDate?.toISOString() || null,
         status: "PENDING_COO"
@@ -714,6 +729,20 @@ export default function PurchaseInvoiceDetail() {
                 <Input id="supplierContact" value={supplierContact} onChange={e => setSupplierContact(e.target.value)} placeholder="Ім'я, телефон" />
               </div>
               <div className="space-y-2">
+                <Label>Платник *</Label>
+                <Select value={payerEntity} onValueChange={v => setPayerEntity(v as PayerEntity)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Оберіть платника" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="FOODTECH">Фудтек</SelectItem>
+                    <SelectItem value="MAKROS">Макрос</SelectItem>
+                    <SelectItem value="FOODTECH_PLUS">Фудтек+</SelectItem>
+                    <SelectItem value="FOP">ФОП</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
                 <Label>Заявка</Label>
                 {requestNumber ? <Button variant="link" className="p-0 h-auto font-medium" onClick={() => navigate(`/purchase/requests/${invoice.request_id}`)}>
                     {requestNumber}
@@ -772,6 +801,10 @@ export default function PurchaseInvoiceDetail() {
                 <p className="text-sm text-muted-foreground">Постачальник</p>
                 <p className="font-medium">{invoice.supplier_name || "—"}</p>
                 {invoice.supplier_contact && <p className="text-sm text-muted-foreground">{invoice.supplier_contact}</p>}
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Платник</p>
+                <p className="font-medium">{invoice.payer_entity ? payerEntityLabels[invoice.payer_entity] || invoice.payer_entity : "—"}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Заявка</p>
