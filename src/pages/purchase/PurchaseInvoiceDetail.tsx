@@ -20,7 +20,7 @@ import { AttachmentsList } from "@/components/purchase/AttachmentsList";
 import { FileUploadZone } from "@/components/purchase/FileUploadZone";
 import { SupplierInvoiceUpload } from "@/components/purchase/SupplierInvoiceUpload";
 import { supabase } from "@/integrations/supabase/client";
-import type { PurchaseInvoice, PurchaseInvoiceItem, PurchaseInvoiceStatus, PaymentTerms, PurchaseLog, PurchaseRequestItem } from "@/types/purchase";
+import type { PurchaseInvoice, PurchaseInvoiceItem, PurchaseInvoiceStatus, PaymentTerms, PayerEntity, PurchaseLog, PurchaseRequestItem } from "@/types/purchase";
 import { format } from "date-fns";
 import { uk } from "date-fns/locale";
 import { toast } from "sonner";
@@ -48,6 +48,12 @@ const statusVariants: Record<PurchaseInvoiceStatus, "default" | "secondary" | "d
 const paymentTermsLabels: Record<PaymentTerms, string> = {
   PREPAYMENT: "Передоплата",
   POSTPAYMENT: "Постоплата"
+};
+const payerEntityLabels: Record<string, string> = {
+  FOODTECH: 'Фудтек',
+  FOP: 'ФОП',
+  MAKROS: 'Макрос',
+  FOODTECH_PLUS: 'Фудтек+',
 };
 interface InvoiceItemWithRemaining extends PurchaseInvoiceItem {
   ordered: number;
@@ -96,6 +102,7 @@ export default function PurchaseInvoiceDetail() {
   const [supplierContact, setSupplierContact] = useState("");
   const [description, setDescription] = useState("");
   const [paymentTerms, setPaymentTerms] = useState<PaymentTerms>("PREPAYMENT");
+  const [payerEntity, setPayerEntity] = useState<PayerEntity | "">("");
   const [expectedDate, setExpectedDate] = useState<Date | undefined>();
   const [plannedPaymentDate, setPlannedPaymentDate] = useState<Date | undefined>();
 

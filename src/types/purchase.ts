@@ -129,6 +129,7 @@ export interface CreatePurchaseInvoicePayload {
   supplier_contact?: string;
   description?: string;
   payment_terms?: PaymentTerms;  // Optional for draft creation
+  payer_entity?: PayerEntity;
   invoice_date?: string;
   expected_date?: string;
   planned_payment_date?: string;
