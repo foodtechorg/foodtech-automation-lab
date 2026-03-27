@@ -1049,6 +1049,7 @@ export default function ApprovedRequestsQueue() {
                         <TableHead>Номер</TableHead>
                         <TableHead>Постачальник</TableHead>
                         <TableHead>Сума</TableHead>
+                        <TableHead>Платник</TableHead>
                         <TableHead>Умови оплати</TableHead>
                         <TableHead>Замовник</TableHead>
                         <TableHead className="text-right">Дії</TableHead>
@@ -1066,6 +1067,7 @@ export default function ApprovedRequestsQueue() {
                           </TableCell>
                           <TableCell>{invoice.supplier_name}</TableCell>
                           <TableCell>{formatCurrency(invoice.amount, invoice.currency)}</TableCell>
+                          <TableCell>{invoice.payer_entity ? payerEntityLabels[invoice.payer_entity] || invoice.payer_entity : '—'}</TableCell>
                           <TableCell>{paymentTermsLabels[invoice.payment_terms]}</TableCell>
                           <TableCell>
                             <div>
