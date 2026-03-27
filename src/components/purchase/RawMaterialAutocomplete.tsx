@@ -21,6 +21,7 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setQuery(value);
@@ -51,7 +52,9 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const clickedInContainer = containerRef.current?.contains(e.target as Node);
+      const clickedInDropdown = dropdownRef.current?.contains(e.target as Node);
+      if (!clickedInContainer && !clickedInDropdown) {
         setOpen(false);
       }
     };
@@ -144,7 +147,7 @@ export function RawMaterialAutocomplete({ value, onChange, disabled }: RawMateri
           <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
         )}
       </div>
-      {dropdownContent && createPortal(dropdownContent, document.body)}
+      {dropdownContent && createPortal(<div ref={dropdownRef}>{dropdownContent}</div>, document.body)}
     </div>
   );
 }
