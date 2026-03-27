@@ -227,6 +227,15 @@ Deno.serve(async (req) => {
       console.log('[proxy-1c] 1C error body:', data.substring(0, 500));
     }
     
+    // HTTP 204/304 must not have a body
+    const nullBodyStatuses = [204, 304];
+    if (nullBodyStatuses.includes(response.status)) {
+      return new Response(null, {
+        status: response.status,
+        headers: corsHeaders,
+      });
+    }
+
     return new Response(data, {
       status: response.status,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
