@@ -11,7 +11,7 @@ export type RawMaterialInvoiceStatus =
   | 'INTEGRATION_ERROR'
   | 'CANCELLED';
 
-export type PayerEntity = 'FOODTECH' | 'FOP';
+export type PayerEntity = 'FOODTECH' | 'FOP' | 'MAKROS' | 'FOODTECH_PLUS';
 
 export type ApprovalDecision = 'PENDING' | 'APPROVED' | 'REJECTED';
 
