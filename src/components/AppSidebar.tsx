@@ -30,7 +30,7 @@ const modules: Module[] = [{
   icon: ShoppingCart,
   roles: 'all',
   getPath: (role) => {
-    const queueRoles: UserRole[] = ['procurement_manager', 'coo', 'ceo', 'treasurer', 'chief_accountant', 'admin', 'admin_director'];
+    const queueRoles: UserRole[] = ['procurement_manager', 'coo', 'ceo', 'treasurer', 'chief_accountant', 'finance_deputy', 'admin', 'admin_director'];
     return queueRoles.includes(role) ? '/purchase/queue' : '/purchase/requests';
   }
 }, {
