@@ -250,7 +250,7 @@ export default function PurchaseInvoiceDetail() {
     } finally {
       setIsSaving(false);
     }
-  }, [id, canEdit, supplierName, supplierContact, description, paymentTerms, expectedDate, plannedPaymentDate]);
+  }, [id, canEdit, supplierName, supplierContact, description, paymentTerms, payerEntity, expectedDate, plannedPaymentDate]);
   const handleItemUpdate = async (itemId: string, field: "quantity" | "price", value: number) => {
     if (!canEdit) return;
     const item = items.find(i => i.id === itemId);
