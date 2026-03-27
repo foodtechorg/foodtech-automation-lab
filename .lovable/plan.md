@@ -1,43 +1,30 @@
 
 
-## План: Виправити відображення лабораторних та пілотних результатів
+## План: Виправити вибір позиції сировини з випадаючого списку
 
 ### Проблема
 
-Компоненти `LabResultsForm` та `PilotResultsForm` мають список статусів, при яких дані завантажуються з бази. Цей список **не збігається** зі списком статусів, при яких секція відображається.
+Dropdown рендериться через React Portal в `document.body`, але обробник кліку зовні (`handleClickOutside`) перевіряє лише `containerRef` (обгортку input). Клік по кнопці у dropdown-списку спрацьовує як "клік зовні" — dropdown закривається **до** того, як спрацює `onClick` на кнопці. Тому вибір не фіксується.
 
-**SampleDetail** показує секцію лабораторії при статусах:
-`Lab, LabDone, Pilot, PilotDone, Testing, Approved, Rejected, ReadyForHandoff, HandedOff`
+### Зміна
 
-**LabResultsForm** завантажує дані лише при:
-`Lab, LabDone, Pilot, PilotDone, ReadyForHandoff, HandedOff`
+**`src/components/purchase/RawMaterialAutocomplete.tsx`** — додати ref для dropdown і враховувати його в `handleClickOutside`:
 
-**Відсутні**: `Testing`, `Approved`, `Rejected` — тому при цих статусах форма показується, але дані не запитуються і всі поля порожні ("—").
+1. Додати `dropdownRef = useRef<HTMLDivElement>(null)`.
+2. Обгорнути весь dropdown-контент у `<div ref={dropdownRef}>`.
+3. В `handleClickOutside` перевіряти обидва ref: якщо клік всередині `containerRef` **або** `dropdownRef` — не закривати.
 
-Аналогічно для **PilotResultsForm** — query увімкнений тільки при `Pilot` та `PilotDone` (рядок 54, 61), а секція показується і при `Testing`, `Approved`, `Rejected`, `ReadyForHandoff`, `HandedOff`.
-
-### Зміни
-
-**1. `src/components/development/LabResultsForm.tsx`** — рядок 54:
-
-Додати `Testing`, `Approved`, `Rejected` до `shouldLoadLabResults`:
 ```typescript
-const shouldLoadLabResults = ['Lab', 'LabDone', 'Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(sampleStatus);
+// Було:
+if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+  setOpen(false);
+}
+
+// Стане:
+const clickedInContainer = containerRef.current?.contains(e.target as Node);
+const clickedInDropdown = dropdownRef.current?.contains(e.target as Node);
+if (!clickedInContainer && !clickedInDropdown) {
+  setOpen(false);
+}
 ```
-
-**2. `src/components/development/PilotResultsForm.tsx`** — рядки 54, 61:
-
-Змінити `showForm` та `enabled`, щоб включити всі пост-пілотні статуси:
-```typescript
-const showForm = ['Pilot', 'PilotDone', 'Testing', 'Approved', 'Rejected', 'ReadyForHandoff', 'HandedOff'].includes(sampleStatus);
-```
-
-Також `isReadOnly` повинен бути `true` для всіх статусів крім `Pilot`:
-```typescript
-const isReadOnly = sampleStatus !== 'Pilot' || !canEdit;
-```
-
-### Результат
-
-Після змін усі користувачі з доступом до модуля Розробка бачитимуть заповнені дані лабораторних аналізів та дегустаційних листів на всіх етапах після їх заповнення.
 
