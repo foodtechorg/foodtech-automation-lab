@@ -29,7 +29,6 @@ export interface PurchaseRequest {
   coo_comment: string | null;
   coo_decided_by: string | null;
   coo_decided_at: string | null;
-  payer_entity: PayerEntity | null;
   created_by: string;
   created_at: string;
   updated_at: string;
