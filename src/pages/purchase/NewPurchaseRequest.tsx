@@ -228,7 +228,7 @@ export default function NewPurchaseRequest() {
             <CardHeader>
               <CardTitle>Загальна інформація</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-6">
               <div className="space-y-2 max-w-sm">
                 <Label htmlFor="desiredDate">Бажана дата поставки</Label>
                 <Input
@@ -238,6 +238,71 @@ export default function NewPurchaseRequest() {
                   onChange={(e) => setDesiredDate(e.target.value)}
                 />
               </div>
+
+              {purchaseType === 'TMC' && (
+                <TooltipProvider delayDuration={150}>
+                  <div className="space-y-3 pt-4 border-t">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="isFixedAsset"
+                        checked={isFixedAsset}
+                        onCheckedChange={(checked) => {
+                          const next = checked === true;
+                          setIsFixedAsset(next);
+                          if (!next) setFixedAssetMvo('');
+                        }}
+                      />
+                      <Label htmlFor="isFixedAsset" className="cursor-pointer">
+                        Це заявка на основний засіб? <span className="text-muted-foreground font-normal">(Так)</span>
+                      </Label>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            aria-label="Підказка про основний засіб"
+                            className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-muted-foreground/40 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          >
+                            <Info className="h-3 w-3" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <p className="text-sm">{FIXED_ASSET_HINT}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+
+                    {isFixedAsset && (
+                      <div className="space-y-2 max-w-xl pl-6">
+                        <div className="flex items-center gap-2">
+                          <Label htmlFor="fixedAssetMvo">
+                            Вкажіть будь ласка МВО для основного засобу <span className="text-destructive">*</span>
+                          </Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label="Підказка про МВО"
+                                className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-muted-foreground/40 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                              >
+                                <Info className="h-3 w-3" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-sm">
+                              <p className="text-sm">{MVO_HINT}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <Input
+                          id="fixedAssetMvo"
+                          value={fixedAssetMvo}
+                          onChange={(e) => setFixedAssetMvo(e.target.value)}
+                          placeholder="ПІБ працівника"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </TooltipProvider>
+              )}
             </CardContent>
           </Card>
 
