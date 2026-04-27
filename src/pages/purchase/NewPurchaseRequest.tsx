@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -19,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { ArrowLeft, Loader2, Plus, Trash2, Paperclip } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Trash2, Paperclip, Info } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { createPurchaseRequest, createPurchaseRequestItems, updatePurchaseRequestStatus } from '@/services/purchaseApi';
@@ -28,6 +35,9 @@ import { AttachmentsList } from '@/components/purchase/AttachmentsList';
 import RawMaterialInvoiceForm from '@/components/purchase/RawMaterialInvoiceForm';
 import type { PurchaseType } from '@/types/purchase';
 import { toast } from 'sonner';
+
+const FIXED_ASSET_HINT = 'Основний засіб — це майно для тривалого використання (більше одного року): обладнання, техніка, меблі, інструменти, пристрої тощо. Якщо предмет буде закріплений за працівником або підрозділом і використовуватиметься багато разів — оберіть «Так».';
+const MVO_HINT = 'Матеріально відповідальна особа — це працівник, за яким закріплюється майно компанії і який відповідає за його збереження, правильне використання та повернення у разі передачі або звільнення. Працівник повинен бути в штаті юридичної особи на яку купується основний засіб.';
 
 interface LocalItem {
   name: string;
