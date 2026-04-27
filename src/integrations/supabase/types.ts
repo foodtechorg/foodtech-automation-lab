@@ -770,8 +770,10 @@ export type Database = {
           delivery_note: string | null
           description: string | null
           expected_date: string | null
+          fixed_asset_mvo: string | null
           id: string
           invoice_date: string | null
+          is_fixed_asset: boolean
           number: string
           paid_date: string | null
           payer_entity: Database["public"]["Enums"]["payer_entity"] | null
@@ -801,8 +803,10 @@ export type Database = {
           delivery_note?: string | null
           description?: string | null
           expected_date?: string | null
+          fixed_asset_mvo?: string | null
           id?: string
           invoice_date?: string | null
+          is_fixed_asset?: boolean
           number?: string
           paid_date?: string | null
           payer_entity?: Database["public"]["Enums"]["payer_entity"] | null
@@ -832,8 +836,10 @@ export type Database = {
           delivery_note?: string | null
           description?: string | null
           expected_date?: string | null
+          fixed_asset_mvo?: string | null
           id?: string
           invoice_date?: string | null
+          is_fixed_asset?: boolean
           number?: string
           paid_date?: string | null
           payer_entity?: Database["public"]["Enums"]["payer_entity"] | null
@@ -1027,7 +1033,9 @@ export type Database = {
           currency: string
           description: string | null
           desired_date: string | null
+          fixed_asset_mvo: string | null
           id: string
+          is_fixed_asset: boolean
           number: string
           purchase_type: Database["public"]["Enums"]["purchase_type"]
           status: Database["public"]["Enums"]["purchase_request_status"]
@@ -1043,7 +1051,9 @@ export type Database = {
           currency?: string
           description?: string | null
           desired_date?: string | null
+          fixed_asset_mvo?: string | null
           id?: string
+          is_fixed_asset?: boolean
           number?: string
           purchase_type?: Database["public"]["Enums"]["purchase_type"]
           status?: Database["public"]["Enums"]["purchase_request_status"]
@@ -1059,7 +1069,9 @@ export type Database = {
           currency?: string
           description?: string | null
           desired_date?: string | null
+          fixed_asset_mvo?: string | null
           id?: string
+          is_fixed_asset?: boolean
           number?: string
           purchase_type?: Database["public"]["Enums"]["purchase_type"]
           status?: Database["public"]["Enums"]["purchase_request_status"]
