@@ -66,6 +66,8 @@ export async function createPurchaseRequest(
       purchase_type: payload.purchase_type,
       description: payload.description || null,
       desired_date: payload.desired_date || null,
+      is_fixed_asset: payload.is_fixed_asset ?? false,
+      fixed_asset_mvo: payload.is_fixed_asset ? (payload.fixed_asset_mvo?.trim() || null) : null,
       created_by: payload.created_by,
       status: 'DRAFT',
     })

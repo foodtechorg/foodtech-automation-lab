@@ -128,6 +128,8 @@ export async function createPurchaseInvoice(
       expected_date: payload.expected_date || null,
       planned_payment_date: payload.planned_payment_date || null,
       currency: payload.currency || 'UAH',
+      is_fixed_asset: payload.is_fixed_asset ?? false,
+      fixed_asset_mvo: payload.is_fixed_asset ? (payload.fixed_asset_mvo?.trim() || null) : null,
       created_by: payload.created_by,
       status: 'DRAFT',
     })
