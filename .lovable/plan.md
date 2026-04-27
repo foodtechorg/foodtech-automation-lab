@@ -1,67 +1,46 @@
+## План: Ознака "Основний засіб" та МВО у заявках на закупівлю ТМЦ
 
+### Що додаємо
+1. На формі **Нової заявки** (тільки для типу TMC) — чекбокс **"Це заявка на основний засіб?"** з варіантом "Так".
+2. Якщо обрано "Так" — з'являється текстове поле **"Вкажіть будь ласка МВО для основного засобу"** (обов'язкове).
+3. Біля обох полів — інформаційні підказки (іконка `i` у кружечку, Tooltip при наведенні) з вказаним текстом.
+4. Ці дані відображаються в блоці **"Загальна інформація"** на сторінці деталей заявки.
+5. При створенні **рахунку** на основі заявки — ознака та МВО автоматично переносяться в рахунок і відображаються в блоці загальної інформації рахунку (read-only, бо успадковуються із заявки).
 
-## План: Додати поле "Платник" до рахунків на закупівлю ТМЦ
+### Зміни в БД (міграція)
 
-### Поточний стан
+`purchase_requests`:
+- `is_fixed_asset boolean NOT NULL DEFAULT false`
+- `fixed_asset_mvo text NULL`
+- CHECK: якщо `is_fixed_asset = true` → `fixed_asset_mvo IS NOT NULL AND length(trim(fixed_asset_mvo)) > 0`
 
-- Таблиця `purchase_invoices` **не має** колонки `payer_entity`
-- Enum `payer_entity` в БД має лише 2 значення: `FOODTECH`, `FOP`
-- Потрібно 4 платники: **Фудтек, Макрос, Фудтек+, ФОП**
-- Поле використовується тільки в модулі сировини (`raw_material_invoices`)
+`purchase_invoices`:
+- `is_fixed_asset boolean NOT NULL DEFAULT false`
+- `fixed_asset_mvo text NULL`
+(заповнюються при створенні рахунку з заявки)
 
-### Зміни
-
-#### 1. Міграція БД
-
-- Додати нові значення до enum: `ALTER TYPE payer_entity ADD VALUE 'MAKROS'; ALTER TYPE payer_entity ADD VALUE 'FOODTECH_PLUS';`
-- Додати колонку `payer_entity` до `purchase_invoices` (nullable для існуючих записів, але обов'язкова на фронтенді при відправці)
-- Оновити RLS-політики, якщо потрібно (колонка не впливає на доступ — не потрібно)
-
-#### 2. Типи (`src/types/purchase.ts`)
-
-- Додати `PayerEntity` тип: `'FOODTECH' | 'FOP' | 'MAKROS' | 'FOODTECH_PLUS'`
-- Додати `payer_entity: PayerEntity | null` до `PurchaseInvoice`
-- Додати `payer_entity?: PayerEntity` до `CreatePurchaseInvoicePayload`
-
-#### 3. Також оновити `src/types/rawMaterial.ts`
-
-- Розширити `PayerEntity` тип новими значеннями
-
-#### 4. Форма рахунку (`src/pages/purchase/PurchaseInvoiceDetail.tsx`)
-
-- Додати стейт `payerEntity` та Select з 4 варіантами
-- Розмістити між "Контактна особа" та "Заявка" в сітці
-- Включити в `handleSave` та `handleSubmitForApproval` (валідація — обов'язкове поле)
-- Показувати в read-only режимі
-
-#### 5. Список рахунків (`src/pages/purchase/PurchaseInvoices.tsx`)
-
-- Додати колонку "Платник" в таблицю
-
-#### 6. Черга — рахунки на погодження та до оплати (`src/pages/purchase/ApprovedRequestsQueue.tsx`)
-
-- Додати колонку "Платник" в таблиці COO/CEO рахунків та TO_PAY
-
-#### 7. Мапа лейблів
-
-Створити спільну мапу для відображення:
-```typescript
-const payerEntityLabels: Record<string, string> = {
-  FOODTECH: 'Фудтек',
-  FOP: 'ФОП',
-  MAKROS: 'Макрос',
-  FOODTECH_PLUS: 'Фудтек+',
-};
-```
-
-### Файли, що змінюються
+### Зміни в коді
 
 | Файл | Зміна |
 |---|---|
-| Міграція SQL | Розширення enum + нова колонка |
-| `src/types/purchase.ts` | Тип PayerEntity, поле в PurchaseInvoice |
-| `src/types/rawMaterial.ts` | Розширення PayerEntity |
-| `src/pages/purchase/PurchaseInvoiceDetail.tsx` | Select платника в формі + read-only + save/submit |
-| `src/pages/purchase/PurchaseInvoices.tsx` | Колонка "Платник" |
-| `src/pages/purchase/ApprovedRequestsQueue.tsx` | Колонка "Платник" в 3 таблицях рахунків |
+| Міграція SQL | Нові колонки + CHECK constraint |
+| `src/integrations/supabase/types.ts` | Регенерація (типи нових колонок) |
+| `src/types/purchase.ts` | Поля `is_fixed_asset`, `fixed_asset_mvo` у `PurchaseRequest`, `PurchaseInvoice` та payload-типах |
+| `src/services/purchaseApi.ts` | Передача нових полів у `createPurchaseRequest` |
+| `src/services/invoiceApi.ts` | При створенні рахунку з заявки — копіювати `is_fixed_asset` та `fixed_asset_mvo` з заявки |
+| `src/pages/purchase/NewPurchaseRequest.tsx` | Чекбокс "Так" + умовне поле МВО + Tooltip-підказки (тільки для TMC); валідація |
+| `src/pages/purchase/PurchaseRequestDetail.tsx` | Відображення в "Загальна інформація": "Основний засіб: Так/Ні", "МВО: ..." |
+| `src/pages/purchase/PurchaseInvoiceDetail.tsx` | Відображення тих самих полів (read-only) у блоці інформації про рахунок |
 
+### UX-деталі
+
+- Чекбокс реалізуємо через `Checkbox` з shadcn (один варіант "Так" — це по суті boolean toggle з підписом).
+- Підказка: іконка `Info` з `lucide-react` у `<TooltipTrigger>`, обгорнута в `TooltipProvider`. Tooltip відкривається на hover/focus.
+- Поле МВО з'являється плавно під чекбоксом тільки коли поставлено "Так".
+- При знятті галочки — значення МВО скидається.
+- Чекбокс і поле МВО показуються тільки для `purchaseType === 'TMC'` (для SERVICE та RAW_MATERIAL — не релевантно).
+
+### Тексти підказок (як надав користувач)
+
+- Біля чекбоксу: "Основний засіб — це майно для тривалого використання (більше одного року): обладнання, техніка, меблі, інструменти, пристрої тощо. Якщо предмет буде закріплений за працівником або підрозділом і використовуватиметься багато разів — оберіть «Так»."
+- Біля МВО: "Матеріально відповідальна особа — це працівник, за яким закріплюється майно компанії і який відповідає за його збереження, правильне використання та повернення у разі передачі або звільнення. Працівник повинен бути в штаті юридичної особи, на яку купується основний засіб."
