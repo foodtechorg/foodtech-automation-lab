@@ -252,7 +252,7 @@ export default function NewPurchaseRequest() {
                           if (!next) setFixedAssetMvo('');
                         }}
                       />
-                      <Label htmlFor="isFixedAsset" className="cursor-pointer">
+                      <Label htmlFor="isFixedAsset" className="font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-base">
                         Це заявка на основний засіб? <span className="text-muted-foreground font-normal">(Так)</span>
                       </Label>
                       <Tooltip>
