@@ -29,6 +29,8 @@ export interface PurchaseRequest {
   coo_comment: string | null;
   coo_decided_by: string | null;
   coo_decided_at: string | null;
+  is_fixed_asset: boolean;
+  fixed_asset_mvo: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -74,6 +76,8 @@ export interface PurchaseInvoice {
   ceo_decided_by: string | null;
   ceo_decided_at: string | null;
   payer_entity: PayerEntity | null;
+  is_fixed_asset: boolean;
+  fixed_asset_mvo: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -113,6 +117,8 @@ export interface CreatePurchaseRequestPayload {
   purchase_type: PurchaseType;
   description?: string;
   desired_date?: string;
+  is_fixed_asset?: boolean;
+  fixed_asset_mvo?: string | null;
   created_by: string;
 }
 
@@ -134,6 +140,8 @@ export interface CreatePurchaseInvoicePayload {
   expected_date?: string;
   planned_payment_date?: string;
   currency?: string;
+  is_fixed_asset?: boolean;
+  fixed_asset_mvo?: string | null;
   created_by: string;
 }
 
