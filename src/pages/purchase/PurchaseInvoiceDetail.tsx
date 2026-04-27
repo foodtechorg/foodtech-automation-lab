@@ -843,6 +843,14 @@ export default function PurchaseInvoiceDetail() {
                 <p className="text-sm text-muted-foreground">Дата створення</p>
                 <p className="font-medium">{formatDate(invoice.created_at)}</p>
               </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Основний засіб</p>
+                <p className="font-medium">{invoice.is_fixed_asset ? "Так" : "Ні"}</p>
+              </div>
+              {invoice.is_fixed_asset && <div className="sm:col-span-2 lg:col-span-3">
+                  <p className="text-sm text-muted-foreground">МВО для основного засобу</p>
+                  <p className="font-medium">{invoice.fixed_asset_mvo || "—"}</p>
+                </div>}
               {invoice.paid_date && <div>
                   <p className="text-sm text-muted-foreground">Дата оплати</p>
                   <p className="font-medium">{formatDateShort(invoice.paid_date)}</p>
