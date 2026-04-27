@@ -121,13 +121,21 @@ export default function NewPurchaseRequest() {
 
     if (!validateItems()) return;
 
+    if (purchaseType === 'TMC' && isFixedAsset && !fixedAssetMvo.trim()) {
+      toast.error('Вкажіть МВО для основного засобу');
+      return;
+    }
+
     try {
       setSubmitting(true);
-      
+
+      const applyFixedAsset = purchaseType === 'TMC' && isFixedAsset;
       const newRequest = await createPurchaseRequest({
         purchase_type: purchaseType,
         description: description.trim() || undefined,
         desired_date: desiredDate || undefined,
+        is_fixed_asset: applyFixedAsset,
+        fixed_asset_mvo: applyFixedAsset ? fixedAssetMvo.trim() : null,
         created_by: user.id,
       });
 
