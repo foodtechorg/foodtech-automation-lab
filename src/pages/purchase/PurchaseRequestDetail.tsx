@@ -401,6 +401,16 @@ export default function PurchaseRequestDetail() {
               <p className="text-sm text-muted-foreground">Останнє оновлення</p>
               <p className="font-medium">{formatDate(request.updated_at)}</p>
             </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Основний засіб</p>
+              <p className="font-medium">{request.is_fixed_asset ? 'Так' : 'Ні'}</p>
+            </div>
+            {request.is_fixed_asset && (
+              <div className="sm:col-span-2 lg:col-span-3">
+                <p className="text-sm text-muted-foreground">МВО для основного засобу</p>
+                <p className="font-medium">{request.fixed_asset_mvo || '—'}</p>
+              </div>
+            )}
           </div>
           
           {request.description && (
