@@ -232,6 +232,8 @@ export default function PurchaseRequestDetail() {
       const invoice = await createPurchaseInvoice({
         request_id: id,
         currency: request.currency,
+        is_fixed_asset: request.is_fixed_asset,
+        fixed_asset_mvo: request.fixed_asset_mvo,
         created_by: user.id,
       });
 
