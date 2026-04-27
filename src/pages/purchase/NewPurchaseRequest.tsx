@@ -65,6 +65,8 @@ export default function NewPurchaseRequest() {
   const [submitting, setSubmitting] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([]);
   const [uploadedAttachments, setUploadedAttachments] = useState<Attachment[]>([]);
+  const [isFixedAsset, setIsFixedAsset] = useState(false);
+  const [fixedAssetMvo, setFixedAssetMvo] = useState('');
 
   const isRawMaterial = purchaseType === 'RAW_MATERIAL';
 
