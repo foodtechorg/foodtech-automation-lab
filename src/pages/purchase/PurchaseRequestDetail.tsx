@@ -232,6 +232,8 @@ export default function PurchaseRequestDetail() {
       const invoice = await createPurchaseInvoice({
         request_id: id,
         currency: request.currency,
+        is_fixed_asset: request.is_fixed_asset,
+        fixed_asset_mvo: request.fixed_asset_mvo,
         created_by: user.id,
       });
 
@@ -399,6 +401,16 @@ export default function PurchaseRequestDetail() {
               <p className="text-sm text-muted-foreground">Останнє оновлення</p>
               <p className="font-medium">{formatDate(request.updated_at)}</p>
             </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Основний засіб</p>
+              <p className="font-medium">{request.is_fixed_asset ? 'Так' : 'Ні'}</p>
+            </div>
+            {request.is_fixed_asset && (
+              <div className="sm:col-span-2 lg:col-span-3">
+                <p className="text-sm text-muted-foreground">МВО для основного засобу</p>
+                <p className="font-medium">{request.fixed_asset_mvo || '—'}</p>
+              </div>
+            )}
           </div>
           
           {request.description && (
