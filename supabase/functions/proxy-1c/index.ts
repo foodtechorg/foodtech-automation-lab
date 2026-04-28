@@ -112,8 +112,8 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
-        // 1C path-based endpoint: /api/v1/SearchContractors/{name}
-        targetUrl = `${BASE_URL}/api/v1/SearchContractors/${encodeURIComponent(q)}`;
+        // 1C path-based endpoint (BASE_URL already ends with /hs/v1, so we don't repeat /api/v1)
+        targetUrl = `${BASE_URL}/SearchContractors/${encodeURIComponent(q)}`;
         break;
       }
 
@@ -124,8 +124,8 @@ Deno.serve(async (req) => {
             status: 400, headers: corsHeaders,
           });
         }
-        // 1C path-based endpoint: /api/v1/SearchContractorsid/{id} (returns card + bank accounts)
-        targetUrl = `${BASE_URL}/api/v1/SearchContractorsid/${encodeURIComponent(id)}`;
+        // Returns contractor card + bank accounts
+        targetUrl = `${BASE_URL}/SearchContractorsid/${encodeURIComponent(id)}`;
         break;
       }
 
