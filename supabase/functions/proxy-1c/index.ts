@@ -107,13 +107,13 @@ Deno.serve(async (req) => {
 
       case 'search-contractors': {
         const q = url.searchParams.get('q') || '';
-        const limit = url.searchParams.get('limit') || '20';
         if (q.length < 2) {
           return new Response(JSON.stringify({ items: [] }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         }
-        targetUrl = `${BASE_URL}/contractors/search?q=${encodeURIComponent(q)}&limit=${limit}`;
+        // 1C path-based endpoint: /api/v1/SearchContractors/{name}
+        targetUrl = `${BASE_URL}/api/v1/SearchContractors/${encodeURIComponent(q)}`;
         break;
       }
 
@@ -124,7 +124,8 @@ Deno.serve(async (req) => {
             status: 400, headers: corsHeaders,
           });
         }
-        targetUrl = `${BASE_URL}/contractors/${id}`;
+        // 1C path-based endpoint: /api/v1/SearchContractorsid/{id} (returns card + bank accounts)
+        targetUrl = `${BASE_URL}/api/v1/SearchContractorsid/${encodeURIComponent(id)}`;
         break;
       }
 
