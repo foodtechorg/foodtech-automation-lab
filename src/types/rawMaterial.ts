@@ -84,12 +84,21 @@ export interface RawMaterialInvoiceAttachment {
 }
 
 // 1C cache types
+export interface SupplierBankAccount {
+  account_number: string;
+  bank_name?: string | null;
+  mfo?: string | null;
+  currency?: string | null;
+  is_default?: boolean;
+}
+
 export interface Supplier1cCache {
   supplier_1c_id: string;
   name: string;
   tax_id: string | null;
   is_active: boolean;
   synced_at: string;
+  bank_accounts?: SupplierBankAccount[];
 }
 
 export interface RawMaterial1cCache {
